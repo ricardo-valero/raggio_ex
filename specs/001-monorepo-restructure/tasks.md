@@ -1,64 +1,64 @@
 # Tasks: Multi-Package Monorepo Restructure
 
-**Input**: Design documents from `/specs/001-monorepo-restructure/`
-**Prerequisites**: plan.md (complete), spec.md (complete), research.md (complete), data-model.md (complete), contracts/ (complete)
+**Input**: Design documents from `/specs/001-monorepo-restructure/`  
+**Prerequisites**: plan.md, spec.md, research.md, data-model.md, contracts/, quickstart.md
 
-**Tests**: Tests are NOT explicitly requested in specification. Focus on example verification instead.
+**Branch**: `001-monorepo-restructure`  
+**Feature**: Restructure repository into Elixir umbrella monorepo with Raggio.Schema and Raggio.Syntax packages
 
-**Organization**: Tasks are grouped by user story to enable independent implementation and testing of each story.
+**Tests**: Tests are included per FR-009 requirement for automated example verification
+
+**Organization**: Tasks grouped by user story to enable independent implementation and testing of each story.
 
 ## Format: `[ID] [P?] [Story] Description`
 
 - **[P]**: Can run in parallel (different files, no dependencies)
-- **[Story]**: Which user story this task belongs to (e.g., US1, US2, US3)
-- Include exact file paths in descriptions
-
-## Path Conventions
-
-Per plan.md, this is an Elixir umbrella project:
-- **Umbrella root**: `mix.exs`, `config/config.exs`
-- **Package**: `apps/raggio_schema/`, `apps/raggio_syntax/`
-- **Example**: `examples/raggio_schema/`, `examples/raggio_syntax/`
-- **Test**: `test/example_test.exs` (root), package test in respective app
+- **[Story]**: Which user story this task belongs to (US1, US2, US3, US4, US5, US6)
+- File paths use Elixir umbrella monorepo structure per plan.md
 
 ---
 
 ## Phase 1: Setup (Shared Infrastructure)
 
-**Purpose**: Initialize Elixir umbrella project structure and shared tooling
+**Purpose**: Umbrella project initialization and structure
 
-- [x] T001 Create root umbrella mix.exs file with apps_path, version 0.1.0, and Mix alias
-- [x] T002 Create config/config.exs for shared configuration
-- [x] T003 [P] Create .formatter.exs at root with umbrella configuration
-- [x] T004 [P] Create .gitignore with Elixir/Mix ignore pattern (_build, deps, mix.lock artifacts)
-- [x] T005 [P] Create apps/ directory for umbrella application
-- [x] T006 [P] Create examples/ directory with two-level hierarchy structure
-- [x] T007 [P] Create test/ directory for example verification test
-- [x] T008 [P] Create README.md at root explaining umbrella structure and setup
-- [x] T009 [P] Create LICENSE file (MIT per research.md package configuration)
-- [x] T010 Verify umbrella structure match plan.md and compile successfully
+- [ ] T001 Create umbrella project structure with `mix new . --umbrella`
+- [ ] T002 Configure root mix.exs with umbrella settings and apps_path: "apps"
+- [ ] T003 [P] Create config/config.exs for shared configuration
+- [ ] T004 [P] Create config/test.exs for test environment configuration
+- [ ] T005 [P] Create root .formatter.exs with subdirectories: ["apps/*"]
+- [ ] T006 [P] Create root .gitignore with Elixir patterns
+- [ ] T007 [P] Create apps/raggio_schema/ directory
+- [ ] T008 [P] Create apps/raggio_syntax/ directory
+- [ ] T009 [P] Create examples/ directory at root
+- [ ] T010 [P] Create test/ directory at root for example verification
 
-**Checkpoint**: Umbrella project structure complete and compiling
+**Checkpoint**: Umbrella structure ready - package scaffolding can begin in parallel
 
 ---
 
 ## Phase 2: Foundational (Blocking Prerequisites)
 
-**Purpose**: Core package structure that MUST be complete before ANY user story can be implemented
+**Purpose**: Package scaffolds and shared tooling that user stories depend on
 
-**⚠️ CRITICAL**: No user story work can begin until both package skeleton are created
+**⚠️ CRITICAL**: Complete before user story implementation begins
 
-- [x] T011 Create apps/raggio_schema directory structure (lib, test, README.md)
-- [x] T012 [P] Create apps/raggio_schema/mix.exs with package configuration per research.md
-- [x] T013 [P] Create apps/raggio_schema/.formatter.exs with package-specific rule
-- [x] T014 [P] Create apps/raggio_schema/test/test_helper.exs
-- [x] T015 [P] Create apps/raggio_schema/README.md with package purpose (module-level only)
-- [x] T016 Create apps/raggio_syntax directory structure (lib, test, README.md)
-- [x] T017 [P] Create apps/raggio_syntax/mix.exs with package configuration per research.md
-- [x] T018 [P] Create apps/raggio_syntax/.formatter.exs with package-specific rule
-- [x] T019 [P] Create apps/raggio_syntax/test/test_helper.exs
-- [x] T020 [P] Create apps/raggio_syntax/README.md with package purpose (module-level only)
-- [x] T021 Run mix deps.get and mix compile to verify both package compile independently
+### Package Scaffolds (can run in parallel)
+
+- [ ] T011 [P] Initialize Raggio.Schema package with `mix new apps/raggio_schema`
+- [ ] T012 [P] Configure apps/raggio_schema/mix.exs with app: :raggio_schema, version: "0.1.0", elixir: "~> 1.14"
+- [ ] T013 [P] Create apps/raggio_schema/lib/raggio_schema.ex entry point with module doc
+- [ ] T014 [P] Create apps/raggio_schema/lib/raggio_schema/ subdirectory
+- [ ] T015 [P] Create apps/raggio_schema/test/test_helper.exs
+- [ ] T016 [P] Initialize Raggio.Syntax package with `mix new apps/raggio_syntax`
+- [ ] T017 [P] Configure apps/raggio_syntax/mix.exs with app: :raggio_syntax, version: "0.1.0", elixir: "~> 1.14", deps: [{:raggio_schema, in_umbrella: true}]
+- [ ] T018 [P] Create apps/raggio_syntax/lib/raggio_syntax.ex entry point with module doc
+- [ ] T019 [P] Create apps/raggio_syntax/lib/raggio_syntax/ subdirectory
+- [ ] T020 [P] Create apps/raggio_syntax/test/test_helper.exs
+
+### Example Test Infrastructure
+
+- [ ] T021 [P] Create test/test_helper.exs at root with ExUnit.start()
 
 **Checkpoint**: Foundation ready - user story implementation can now begin in parallel
 
@@ -66,495 +66,494 @@ Per plan.md, this is an Elixir umbrella project:
 
 ## Phase 3: User Story 1 - Developer imports and uses Raggio.Schema package (Priority: P1) 🎯 MVP
 
-**Goal**: Enable developer to define schema with composable API and validate data without macro
+**Goal**: Core schema definition and validation functionality with composable API
 
-**Independent Test**: Install Raggio.Schema as dependency, define simple schema (user with name/age), validate data successfully, handle validation error with clear message
+**Independent Test**: Install Raggio.Schema, define simple schema (user with name/age), validate data successfully
 
 ### Core Schema Structure
 
-- [x] T022 [P] [US1] Create apps/raggio_schema/lib/raggio_schema.ex entry point with module doc (purpose only)
-- [x] T023 [P] [US1] Create apps/raggio_schema/lib/raggio_schema/schema.ex with Schema struct per data-model.md
-- [x] T024 [P] [US1] Create apps/raggio_schema/lib/raggio_schema/error.ex with ValidationError and CompositionError struct
+- [ ] T022 [P] [US1] Create apps/raggio_schema/lib/raggio_schema/schema.ex with Schema struct per data-model.md
+- [ ] T023 [P] [US1] Create apps/raggio_schema/lib/raggio_schema/filter.ex with Filter struct per data-model.md
+- [ ] T024 [P] [US1] Create apps/raggio_schema/lib/raggio_schema/validation_result.ex per data-model.md
+- [ ] T025 [P] [US1] Create apps/raggio_schema/lib/raggio_schema/validation_error.ex per data-model.md
 
-### Primitive Type Function (can run in parallel)
+### Type Constructors (can run in parallel)
 
-- [x] T025 [P] [US1] Implement Raggio.Schema.string/0 in apps/raggio_schema/lib/raggio_schema.ex
-- [x] T026 [P] [US1] Implement Raggio.Schema.integer/0 in apps/raggio_schema/lib/raggio_schema.ex
-- [x] T027 [P] [US1] Implement Raggio.Schema.float/0 in apps/raggio_schema/lib/raggio_schema.ex
-- [x] T028 [P] [US1] Implement Raggio.Schema.boolean/0 in apps/raggio_schema/lib/raggio_schema.ex
-- [x] T029 [P] [US1] Implement Raggio.Schema.date/0 in apps/raggio_schema/lib/raggio_schema.ex
-- [x] T030 [P] [US1] Implement Raggio.Schema.datetime/0 in apps/raggio_schema/lib/raggio_schema.ex
-- [x] T031 [P] [US1] Implement Raggio.Schema.decimal/0 in apps/raggio_schema/lib/raggio_schema.ex
-- [x] T032 [P] [US1] Implement Raggio.Schema.atom/0 in apps/raggio_schema/lib/raggio_schema.ex
+- [ ] T026 [P] [US1] Implement Raggio.Schema.string/0 in apps/raggio_schema/lib/raggio_schema.ex
+- [ ] T027 [P] [US1] Implement Raggio.Schema.integer/0 in apps/raggio_schema/lib/raggio_schema.ex
+- [ ] T028 [P] [US1] Implement Raggio.Schema.float/0 in apps/raggio_schema/lib/raggio_schema.ex
+- [ ] T029 [P] [US1] Implement Raggio.Schema.boolean/0 in apps/raggio_schema/lib/raggio_schema.ex
+- [ ] T030 [P] [US1] Implement Raggio.Schema.date/0 in apps/raggio_schema/lib/raggio_schema.ex
+- [ ] T031 [P] [US1] Implement Raggio.Schema.datetime/0 in apps/raggio_schema/lib/raggio_schema.ex
+- [ ] T032 [P] [US1] Implement Raggio.Schema.decimal/0 in apps/raggio_schema/lib/raggio_schema.ex
+- [ ] T033 [P] [US1] Implement Raggio.Schema.atom/0 in apps/raggio_schema/lib/raggio_schema.ex
 
-### Composite Type Function
+### Composite Types (can run in parallel after T026-T033)
 
-- [x] T033 [US1] Implement Raggio.Schema.array/1 in apps/raggio_schema/lib/raggio_schema.ex
-- [x] T034 [US1] Implement Raggio.Schema.struct/1 in apps/raggio_schema/lib/raggio_schema.ex (core for user story)
-- [x] T035 [US1] Implement Raggio.Schema.enum/1 in apps/raggio_schema/lib/raggio_schema.ex
-- [x] T036 [US1] Implement Raggio.Schema.union/1 in apps/raggio_schema/lib/raggio_schema.ex
+- [ ] T034 [P] [US1] Implement Raggio.Schema.struct/1 in apps/raggio_schema/lib/raggio_schema.ex
+- [ ] T035 [P] [US1] Implement Raggio.Schema.list/1 in apps/raggio_schema/lib/raggio_schema.ex
+- [ ] T036 [P] [US1] Implement Raggio.Schema.map/0 in apps/raggio_schema/lib/raggio_schema.ex
+- [ ] T037 [P] [US1] Implement Raggio.Schema.union/1 in apps/raggio_schema/lib/raggio_schema.ex
+- [ ] T038 [P] [US1] Implement Raggio.Schema.enum/1 in apps/raggio_schema/lib/raggio_schema.ex
 
-### Validation Core
+### String Constraints (can run in parallel)
 
-- [x] T037 [US1] Create apps/raggio_schema/lib/raggio_schema/validator.ex with validation logic per data-model.md
-- [x] T038 [US1] Implement Raggio.Schema.validate/2 in apps/raggio_schema/lib/raggio_schema.ex (core validation function)
-- [x] T039 [US1] Implement Raggio.Schema.validate!/2 in apps/raggio_schema/lib/raggio_schema.ex (raising variant)
-- [x] T040 [US1] Add error accumulation logic per research.md Pattern 3
+- [ ] T039 [P] [US1] Implement Raggio.Schema.min_length/2 in apps/raggio_schema/lib/raggio_schema.ex
+- [ ] T040 [P] [US1] Implement Raggio.Schema.max_length/2 in apps/raggio_schema/lib/raggio_schema.ex
+- [ ] T041 [P] [US1] Implement Raggio.Schema.pattern/2 in apps/raggio_schema/lib/raggio_schema.ex
+- [ ] T042 [P] [US1] Implement Raggio.Schema.email/1 in apps/raggio_schema/lib/raggio_schema.ex
+- [ ] T043 [P] [US1] Implement Raggio.Schema.url/1 in apps/raggio_schema/lib/raggio_schema.ex
+- [ ] T044 [P] [US1] Implement Raggio.Schema.uuid/1 in apps/raggio_schema/lib/raggio_schema.ex
 
-### String Constraint (compose with pipe operator)
+### Number Constraints (can run in parallel)
 
-- [x] T041 [P] [US1] Implement Raggio.Schema.min_length/2 in apps/raggio_schema/lib/raggio_schema.ex
-- [x] T042 [P] [US1] Implement Raggio.Schema.max_length/2 in apps/raggio_schema/lib/raggio_schema.ex
-- [x] T043 [P] [US1] Implement Raggio.Schema.pattern/2 in apps/raggio_schema/lib/raggio_schema.ex
-- [x] T044 [P] [US1] Implement Raggio.Schema.email/1 in apps/raggio_schema/lib/raggio_schema.ex
+- [ ] T045 [P] [US1] Implement Raggio.Schema.min/2 in apps/raggio_schema/lib/raggio_schema.ex
+- [ ] T046 [P] [US1] Implement Raggio.Schema.max/2 in apps/raggio_schema/lib/raggio_schema.ex
+- [ ] T047 [P] [US1] Implement Raggio.Schema.positive/1 in apps/raggio_schema/lib/raggio_schema.ex
+- [ ] T048 [P] [US1] Implement Raggio.Schema.negative/1 in apps/raggio_schema/lib/raggio_schema.ex
+- [ ] T049 [P] [US1] Implement Raggio.Schema.range/3 in apps/raggio_schema/lib/raggio_schema.ex
 
-### Numeric Constraint
+### Collection Constraints (can run in parallel)
 
-- [x] T045 [P] [US1] Implement Raggio.Schema.min/2 in apps/raggio_schema/lib/raggio_schema.ex
-- [x] T046 [P] [US1] Implement Raggio.Schema.max/2 in apps/raggio_schema/lib/raggio_schema.ex
-- [x] T047 [P] [US1] Implement Raggio.Schema.positive/1 in apps/raggio_schema/lib/raggio_schema.ex
-- [x] T048 [P] [US1] Implement Raggio.Schema.range/3 in apps/raggio_schema/lib/raggio_schema.ex
+- [ ] T050 [P] [US1] Implement Raggio.Schema.min_items/2 in apps/raggio_schema/lib/raggio_schema.ex
+- [ ] T051 [P] [US1] Implement Raggio.Schema.max_items/2 in apps/raggio_schema/lib/raggio_schema.ex
+- [ ] T052 [P] [US1] Implement Raggio.Schema.unique/1 in apps/raggio_schema/lib/raggio_schema.ex
 
-### Composition Function
+### Modifier Functions (can run in parallel)
 
-- [x] T049 [US1] Implement Raggio.Schema.compose/2 with type compatibility check per clarification (composition-time error)
-- [x] T050 [US1] Implement Raggio.Schema.optional/1 in apps/raggio_schema/lib/raggio_schema.ex
-- [x] T051 [US1] Implement Raggio.Schema.default/2 in apps/raggio_schema/lib/raggio_schema.ex
+- [ ] T053 [P] [US1] Implement Raggio.Schema.optional/1 in apps/raggio_schema/lib/raggio_schema.ex
+- [ ] T054 [P] [US1] Implement Raggio.Schema.nullable/1 in apps/raggio_schema/lib/raggio_schema.ex
+- [ ] T055 [P] [US1] Implement Raggio.Schema.default/2 in apps/raggio_schema/lib/raggio_schema.ex
 
-### Package Test (US1 acceptance scenario verification)
+### Validation Engine
 
-- [x] T052 [US1] Create apps/raggio_schema/test/raggio_schema_test.exs with basic type creation test
-- [x] T053 [US1] Create apps/raggio_schema/test/validator_test.exs with validation test (valid data succeed, invalid fail)
-- [x] T054 [US1] Create apps/raggio_schema/test/composition_test.exs with pipe operator composition test
-- [x] T055 [US1] Create apps/raggio_schema/test/error_test.exs with composition-time error test
-- [x] T056 [US1] Run mix test in apps/raggio_schema to verify all test pass
+- [ ] T056 [US1] Create apps/raggio_schema/lib/raggio_schema/validator.ex with validation logic per data-model.md
+- [ ] T057 [US1] Implement Raggio.Schema.validate/2 in apps/raggio_schema/lib/raggio_schema.ex (depends on T056)
+- [ ] T058 [US1] Implement Raggio.Schema.validate!/2 in apps/raggio_schema/lib/raggio_schema.ex
 
-**Checkpoint**: At this point, User Story 1 should be fully functional - developer can define schema, validate data, handle error
+### Metadata and Custom Constraints
+
+- [ ] T059 [P] [US1] Implement Raggio.Schema.annotate/2 in apps/raggio_schema/lib/raggio_schema.ex
+- [ ] T060 [P] [US1] Implement Raggio.Schema.constraint/2 in apps/raggio_schema/lib/raggio_schema.ex
+- [ ] T061 [P] [US1] Define Raggio.Schema.Constraint protocol in apps/raggio_schema/lib/raggio_schema/constraint.ex
+- [ ] T062 [P] [US1] Implement Raggio.Schema.Constraint for Function in apps/raggio_schema/lib/raggio_schema/constraint.ex
+- [ ] T063 [P] [US1] Implement Raggio.Schema.Constraint for Regex in apps/raggio_schema/lib/raggio_schema/constraint.ex
+
+### Package Tests (US1 acceptance scenario verification)
+
+- [ ] T064 [P] [US1] Create apps/raggio_schema/test/raggio_schema_test.exs with basic type tests
+- [ ] T065 [P] [US1] Create apps/raggio_schema/test/types_test.exs with all type constructor tests
+- [ ] T066 [P] [US1] Create apps/raggio_schema/test/constraints_test.exs with constraint tests
+- [ ] T067 [P] [US1] Create apps/raggio_schema/test/validation_test.exs with validation tests (US1 acceptance 3, 4)
+- [ ] T068 [US1] Run `mix test` in apps/raggio_schema/ to verify all tests pass
+
+**Checkpoint**: At this point, User Story 1 should be fully functional - developer can define schemas and validate data
 
 ---
 
-## Phase 4: User Story 3 - Developer learns through working examples (Priority: P1) 🎯 MVP
+## Phase 4: User Story 3 - Developer learns through working examples (Priority: P1)
 
-**Goal**: Provide working, compilable example as primary documentation for Raggio.Schema
+**Goal**: Working examples for Raggio.Schema demonstrating common patterns
 
-**Independent Test**: Navigate to examples directory, run any example with elixir command, observe compilation and execution success with clear output
-
-**Note**: US3 depends on US1 completion but is also P1 priority (both are MVP)
+**Independent Test**: Navigate to examples directory, run any example, verify it compiles and executes successfully
 
 ### Example Directory Structure
 
-- [x] T057 [P] [US3] Create examples/raggio_schema/basic_validation/ directory
-- [x] T058 [P] [US3] Create examples/raggio_schema/composition/ directory
-- [ ] T059 [P] [US3] Create examples/raggio_schema/transformation/ directory (SKIPPED - no transformation implemented yet)
-- [ ] T060 [P] [US3] Create examples/raggio_schema/advanced/ directory (SKIPPED - covered in basic_validation)
+- [ ] T069 [P] [US3] Create examples/raggio_schema/basic_validation/ directory
+- [ ] T070 [P] [US3] Create examples/raggio_schema/composite_types/ directory
+- [ ] T071 [P] [US3] Create examples/raggio_schema/constraints/ directory
+- [ ] T072 [P] [US3] Create examples/raggio_schema/composition/ directory
 
-### Basic Validation Example (per quickstart.md)
+### Basic Validation Examples (can run in parallel)
 
-- [x] T061 [P] [US3] Create examples/raggio_schema/basic_validation/simple_schema.exs demonstrating US1 acceptance scenario 2-4
-- [x] T062 [P] [US3] Create examples/raggio_schema/basic_validation/nested_schema.exs showing struct within struct
-- [x] T063 [P] [US3] Create examples/raggio_schema/basic_validation/validation_error.exs showing error handling pattern
-- [x] T063a [P] [US3] Create examples/raggio_schema/basic_validation/array_validation.exs showing array validation
-- [x] T063b [P] [US3] Create examples/raggio_schema/basic_validation/enum_union.exs showing enum and union types
-- [x] T063c [P] [US3] Create examples/raggio_schema/basic_validation/optional_default.exs showing optional fields and defaults
+- [ ] T073 [P] [US3] Create examples/raggio_schema/basic_validation/simple_schema.exs demonstrating US1 acceptance scenario 2
+- [ ] T074 [P] [US3] Create examples/raggio_schema/basic_validation/type_validation.exs showing all primitive types
+- [ ] T075 [P] [US3] Create examples/raggio_schema/basic_validation/error_handling.exs showing US1 acceptance scenario 4
 
-### Composition Example
+### Composite Type Examples (can run in parallel)
 
-- [x] T064 [P] [US3] Create examples/raggio_schema/composition/combine_validator.exs showing pipe operator composition
-- [x] T065 [P] [US3] Create examples/raggio_schema/composition/custom_type.exs showing reusable schema pattern
-- [x] T066 [P] [US3] Create examples/raggio_schema/composition/reusable_schema.exs per quickstart.md pattern
+- [ ] T076 [P] [US3] Create examples/raggio_schema/composite_types/struct_validation.exs showing nested structs
+- [ ] T077 [P] [US3] Create examples/raggio_schema/composite_types/list_validation.exs showing list types
+- [ ] T078 [P] [US3] Create examples/raggio_schema/composite_types/union_types.exs showing union types
 
-### Transformation Example
+### Constraint Examples (can run in parallel)
 
-- [ ] T067 [P] [US3] Create examples/raggio_schema/transformation/data_mapping.exs if transformer implemented (SKIPPED - not in MVP)
-- [ ] T068 [P] [US3] Create examples/raggio_schema/transformation/coercion.exs showing type coercion (SKIPPED - not in MVP)
+- [ ] T079 [P] [US3] Create examples/raggio_schema/constraints/string_constraints.exs showing min_length, max_length, pattern
+- [ ] T080 [P] [US3] Create examples/raggio_schema/constraints/number_constraints.exs showing min, max, range
+- [ ] T081 [P] [US3] Create examples/raggio_schema/constraints/custom_constraints.exs showing constraint/2 usage
 
-### Advanced Example
+### Composition Examples (US4 related, can run in parallel)
 
-- [ ] T069 [P] [US3] Create examples/raggio_schema/advanced/conditional_validation.exs showing conditional logic (SKIPPED - not in MVP)
-- [ ] T070 [P] [US3] Create examples/raggio_schema/advanced/cross_field.exs showing cross-field validation (SKIPPED - not in MVP)
+- [ ] T082 [P] [US3] Create examples/raggio_schema/composition/reusable_schemas.exs showing composable patterns
+- [ ] T083 [P] [US3] Create examples/raggio_schema/composition/combinator_pattern.exs showing validator composition
+- [ ] T084 [P] [US3] Create examples/raggio_schema/composition/protocol_extension.exs showing Constraint protocol
 
-### Automated Example Test (per research.md and clarification)
+### Automated Example Test
 
-- [x] T071 [US3] Create test/example_test.exs implementing automated example verification per research.md
-- [ ] T072 [US3] Add ExUnit test that discover all example file in examples/**/*.exs
-- [ ] T073 [US3] Add execution check verifying exit code 0 for each example
-- [ ] T074 [US3] Run mix test test/example_test.exs and verify all Raggio.Schema example pass
+- [ ] T085 [US3] Create test/example_test.exs with automated verification of all examples per FR-009
+- [ ] T086 [US3] Run `mix test test/example_test.exs` and verify all Raggio.Schema examples pass (US3 acceptance 2)
 
-**Checkpoint**: At this point, User Story 3 should be complete - developer can learn from working example
+**Checkpoint**: At this point, User Story 3 (for Raggio.Schema) should be complete - developers can learn from working examples
 
 ---
 
-## Phase 5: User Story 2 - Developer uses Raggio.Syntax for AST manipulation (Priority: P2)
+## Phase 5: User Story 2 - Developer uses Raggio.Syntax for syntax manipulation (Priority: P2)
 
-**Goal**: Enable developer to construct, traverse, and transform AST using composable function
+**Goal**: Syntax tree construction, traversal, and transformation functionality
 
-**Independent Test**: Install Raggio.Syntax, create AST node programmatically, traverse with combinator, transform structure successfully
+**Independent Test**: Install Raggio.Syntax, create syntax nodes, traverse with combinators, transform successfully
 
-### Core AST Structure
+### Core Syntax Structure
 
-- [ ] T075 [P] [US2] Create apps/raggio_syntax/lib/raggio_syntax.ex entry point with module doc (purpose only)
-- [ ] T076 [P] [US2] Create apps/raggio_syntax/lib/raggio_syntax/ast.ex with AST struct per data-model.md
-- [ ] T077 [P] [US2] Create apps/raggio_syntax/lib/raggio_syntax/node.ex with base Node protocol
+- [ ] T087 [P] [US2] Create apps/raggio_syntax/lib/raggio_syntax/syntax_tree.ex with SyntaxTree struct per data-model.md
+- [ ] T088 [P] [US2] Create apps/raggio_syntax/lib/raggio_syntax/node.ex with base Node protocol per data-model.md
+- [ ] T089 [P] [US2] Create apps/raggio_syntax/lib/raggio_syntax/node/ directory for node types
 
-### Node Type Structure (can run in parallel)
+### Node Type Structures (can run in parallel)
 
-- [ ] T078 [P] [US2] Create apps/raggio_syntax/lib/raggio_syntax/node/field.ex with FieldNode struct per data-model.md
-- [ ] T079 [P] [US2] Create apps/raggio_syntax/lib/raggio_syntax/node/schema.ex with SchemaNode struct per data-model.md
-- [ ] T080 [P] [US2] Create apps/raggio_syntax/lib/raggio_syntax/node/type.ex with TypeNode struct per data-model.md
-- [ ] T081 [P] [US2] Create apps/raggio_syntax/lib/raggio_syntax/node/transform.ex with TransformNode struct per data-model.md
+- [ ] T090 [P] [US2] Create apps/raggio_syntax/lib/raggio_syntax/node/schema_node.ex with SchemaNode struct per data-model.md
+- [ ] T091 [P] [US2] Create apps/raggio_syntax/lib/raggio_syntax/node/field_node.ex with FieldNode struct per data-model.md
+- [ ] T092 [P] [US2] Create apps/raggio_syntax/lib/raggio_syntax/node/type_node.ex with TypeNode struct per data-model.md
+- [ ] T093 [P] [US2] Create apps/raggio_syntax/lib/raggio_syntax/node/transform_node.ex with TransformNode struct per data-model.md
 
-### Node Construction Function
+### Node Construction Functions (can run in parallel after T090-T093)
 
-- [ ] T082 [P] [US2] Implement Raggio.Syntax.field/2 in apps/raggio_syntax/lib/raggio_syntax.ex
-- [ ] T083 [P] [US2] Implement Raggio.Syntax.field/3 in apps/raggio_syntax/lib/raggio_syntax.ex (with option)
-- [ ] T084 [P] [US2] Implement Raggio.Syntax.schema/1 in apps/raggio_syntax/lib/raggio_syntax.ex
-- [ ] T085 [P] [US2] Implement Raggio.Syntax.schema/2 in apps/raggio_syntax/lib/raggio_syntax.ex (named variant)
-- [ ] T086 [P] [US2] Implement Raggio.Syntax.type/1 in apps/raggio_syntax/lib/raggio_syntax.ex
-- [ ] T087 [P] [US2] Implement Raggio.Syntax.type/2 in apps/raggio_syntax/lib/raggio_syntax.ex (generic variant)
+- [ ] T094 [P] [US2] Implement Raggio.Syntax.schema/1 in apps/raggio_syntax/lib/raggio_syntax.ex
+- [ ] T095 [P] [US2] Implement Raggio.Syntax.schema/2 (named variant) in apps/raggio_syntax/lib/raggio_syntax.ex
+- [ ] T096 [P] [US2] Implement Raggio.Syntax.field/2 in apps/raggio_syntax/lib/raggio_syntax.ex
+- [ ] T097 [P] [US2] Implement Raggio.Syntax.field/3 (with options) in apps/raggio_syntax/lib/raggio_syntax.ex
+- [ ] T098 [P] [US2] Implement Raggio.Syntax.type/1 in apps/raggio_syntax/lib/raggio_syntax.ex
+- [ ] T099 [P] [US2] Implement Raggio.Syntax.type/2 (generic variant) in apps/raggio_syntax/lib/raggio_syntax.ex
+- [ ] T100 [P] [US2] Implement Raggio.Syntax.transform_node/2 in apps/raggio_syntax/lib/raggio_syntax.ex
 
-### AST Construction
+### Syntax Tree Construction (can run in parallel)
 
-- [ ] T088 [P] [US2] Implement Raggio.Syntax.ast/1 in apps/raggio_syntax/lib/raggio_syntax.ex
-- [ ] T089 [P] [US2] Implement Raggio.Syntax.ast/2 in apps/raggio_syntax/lib/raggio_syntax.ex (with metadata)
+- [ ] T101 [P] [US2] Implement Raggio.Syntax.ast/1 in apps/raggio_syntax/lib/raggio_syntax.ex
+- [ ] T102 [P] [US2] Implement Raggio.Syntax.ast/2 (with metadata) in apps/raggio_syntax/lib/raggio_syntax.ex
 
-### Traversal Function (US2 acceptance scenario 3)
+### Traversal Functions (US2 acceptance scenario 3)
 
-- [ ] T090 [US2] Create apps/raggio_syntax/lib/raggio_syntax/traversal.ex with traversal logic per data-model.md
-- [ ] T091 [US2] Implement Raggio.Syntax.traverse/2 (depth-first) in apps/raggio_syntax/lib/raggio_syntax.ex
-- [ ] T092 [US2] Implement Raggio.Syntax.traverse/3 (with accumulator) in apps/raggio_syntax/lib/raggio_syntax.ex
-- [ ] T093 [US2] Implement Raggio.Syntax.traverse_breadth_first/2 in apps/raggio_syntax/lib/raggio_syntax.ex
-- [ ] T094 [P] [US2] Implement Raggio.Syntax.find/2 in apps/raggio_syntax/lib/raggio_syntax.ex
-- [ ] T095 [P] [US2] Implement Raggio.Syntax.find_all/2 in apps/raggio_syntax/lib/raggio_syntax.ex
+- [ ] T103 [US2] Create apps/raggio_syntax/lib/raggio_syntax/traversal.ex with traversal logic per data-model.md
+- [ ] T104 [US2] Implement Raggio.Syntax.traverse/2 (depth-first) in apps/raggio_syntax/lib/raggio_syntax.ex
+- [ ] T105 [US2] Implement Raggio.Syntax.traverse/3 (with accumulator) in apps/raggio_syntax/lib/raggio_syntax.ex
+- [ ] T106 [US2] Implement Raggio.Syntax.traverse_breadth_first/2 in apps/raggio_syntax/lib/raggio_syntax.ex
+- [ ] T107 [P] [US2] Implement Raggio.Syntax.find/2 in apps/raggio_syntax/lib/raggio_syntax.ex
+- [ ] T108 [P] [US2] Implement Raggio.Syntax.find_all/2 in apps/raggio_syntax/lib/raggio_syntax.ex
 
-### Transformation Function (US2 acceptance scenario 2)
+### Transformation Functions (US2 acceptance scenario 2)
 
-- [ ] T096 [US2] Create apps/raggio_syntax/lib/raggio_syntax/transformer.ex with transformation logic per data-model.md
-- [ ] T097 [US2] Implement Raggio.Syntax.transform/2 in apps/raggio_syntax/lib/raggio_syntax.ex
-- [ ] T098 [P] [US2] Implement Raggio.Syntax.map/2 in apps/raggio_syntax/lib/raggio_syntax.ex
-- [ ] T099 [P] [US2] Implement Raggio.Syntax.filter/2 in apps/raggio_syntax/lib/raggio_syntax.ex
-- [ ] T100 [P] [US2] Implement Raggio.Syntax.replace/3 in apps/raggio_syntax/lib/raggio_syntax.ex
+- [ ] T109 [US2] Create apps/raggio_syntax/lib/raggio_syntax/transformer.ex with transformation logic per data-model.md
+- [ ] T110 [US2] Implement Raggio.Syntax.transform/2 in apps/raggio_syntax/lib/raggio_syntax.ex
+- [ ] T111 [P] [US2] Implement Raggio.Syntax.map/2 (alias for transform) in apps/raggio_syntax/lib/raggio_syntax.ex
+- [ ] T112 [P] [US2] Implement Raggio.Syntax.filter/2 in apps/raggio_syntax/lib/raggio_syntax.ex
+- [ ] T113 [P] [US2] Implement Raggio.Syntax.replace/3 in apps/raggio_syntax/lib/raggio_syntax.ex
 
-### Query Function
+### Query Functions (can run in parallel)
 
-- [ ] T101 [P] [US2] Implement Raggio.Syntax.get_fields/1 in apps/raggio_syntax/lib/raggio_syntax.ex
-- [ ] T102 [P] [US2] Implement Raggio.Syntax.get_field/2 in apps/raggio_syntax/lib/raggio_syntax.ex
-- [ ] T103 [P] [US2] Implement Raggio.Syntax.get_type/1 in apps/raggio_syntax/lib/raggio_syntax.ex
-- [ ] T104 [P] [US2] Implement Raggio.Syntax.get_children/1 in apps/raggio_syntax/lib/raggio_syntax.ex
+- [ ] T114 [P] [US2] Implement Raggio.Syntax.get_fields/1 in apps/raggio_syntax/lib/raggio_syntax.ex
+- [ ] T115 [P] [US2] Implement Raggio.Syntax.get_field/2 in apps/raggio_syntax/lib/raggio_syntax.ex
+- [ ] T116 [P] [US2] Implement Raggio.Syntax.get_type/1 in apps/raggio_syntax/lib/raggio_syntax.ex
+- [ ] T117 [P] [US2] Implement Raggio.Syntax.get_children/1 in apps/raggio_syntax/lib/raggio_syntax.ex
 
-### Package Test (US2 acceptance scenario verification)
+### Package Tests (US2 acceptance scenario verification)
 
-- [ ] T105 [P] [US2] Create apps/raggio_syntax/test/raggio_syntax_test.exs with basic node creation test
-- [ ] T106 [P] [US2] Create apps/raggio_syntax/test/builder_test.exs with node composition test (US2 acceptance 1)
-- [ ] T107 [P] [US2] Create apps/raggio_syntax/test/traversal_test.exs with traversal test (US2 acceptance 3)
-- [ ] T108 [P] [US2] Create apps/raggio_syntax/test/transformer_test.exs with transformation test (US2 acceptance 2)
-- [ ] T109 [US2] Run mix test in apps/raggio_syntax to verify all test pass
+- [ ] T118 [P] [US2] Create apps/raggio_syntax/test/raggio_syntax_test.exs with basic node creation test
+- [ ] T119 [P] [US2] Create apps/raggio_syntax/test/builder_test.exs with node composition test (US2 acceptance 1)
+- [ ] T120 [P] [US2] Create apps/raggio_syntax/test/traversal_test.exs with traversal test (US2 acceptance 3)
+- [ ] T121 [P] [US2] Create apps/raggio_syntax/test/transformer_test.exs with transformation test (US2 acceptance 2)
+- [ ] T122 [US2] Run `mix test` in apps/raggio_syntax/ to verify all tests pass
 
-**Checkpoint**: At this point, User Story 2 should be fully functional - developer can build, traverse, transform AST
+**Checkpoint**: At this point, User Story 2 should be fully functional - developer can build, traverse, transform syntax trees
 
 ---
 
 ## Phase 6: User Story 3 (continued) - Examples for Raggio.Syntax (Priority: P1/P2)
 
-**Goal**: Provide working example for Raggio.Syntax (completing US3 for both package)
+**Goal**: Provide working examples for Raggio.Syntax (completing US3 for both packages)
 
-**Note**: This continue US3 but for the P2 package (Raggio.Syntax)
+**Note**: This continues US3 but for the P2 package (Raggio.Syntax)
 
 ### Example Directory Structure
 
-- [ ] T110 [P] [US3] Create examples/raggio_syntax/ast_building/ directory
-- [ ] T111 [P] [US3] Create examples/raggio_syntax/traversal/ directory
-- [ ] T112 [P] [US3] Create examples/raggio_syntax/transformation/ directory
-- [ ] T113 [P] [US3] Create examples/raggio_syntax/advanced/ directory
+- [ ] T123 [P] [US3] Create examples/raggio_syntax/syntax_building/ directory
+- [ ] T124 [P] [US3] Create examples/raggio_syntax/traversal/ directory
+- [ ] T125 [P] [US3] Create examples/raggio_syntax/transformation/ directory
+- [ ] T126 [P] [US3] Create examples/raggio_syntax/advanced/ directory
 
-### AST Building Example (per quickstart.md)
+### Syntax Building Examples (per quickstart.md, can run in parallel)
 
-- [ ] T114 [P] [US3] Create examples/raggio_syntax/ast_building/simple_ast.exs demonstrating US2 acceptance scenario 1
-- [ ] T115 [P] [US3] Create examples/raggio_syntax/ast_building/complex_schema.exs showing nested structure
-- [ ] T116 [P] [US3] Create examples/raggio_syntax/ast_building/node_composition.exs showing composing node
+- [ ] T127 [P] [US3] Create examples/raggio_syntax/syntax_building/simple_syntax.exs demonstrating US2 acceptance scenario 1
+- [ ] T128 [P] [US3] Create examples/raggio_syntax/syntax_building/complex_schema.exs showing nested structures
+- [ ] T129 [P] [US3] Create examples/raggio_syntax/syntax_building/node_composition.exs showing composing nodes
 
-### Traversal Example
+### Traversal Examples (can run in parallel)
 
-- [ ] T117 [P] [US3] Create examples/raggio_syntax/traversal/depth_first.exs showing DFS traversal per data-model.md
-- [ ] T118 [P] [US3] Create examples/raggio_syntax/traversal/visitor_pattern.exs showing visitor combinator
-- [ ] T119 [P] [US3] Create examples/raggio_syntax/traversal/filtering.exs showing find/find_all usage
+- [ ] T130 [P] [US3] Create examples/raggio_syntax/traversal/depth_first.exs showing DFS traversal per data-model.md
+- [ ] T131 [P] [US3] Create examples/raggio_syntax/traversal/visitor_pattern.exs showing visitor combinators
+- [ ] T132 [P] [US3] Create examples/raggio_syntax/traversal/filtering.exs showing find/find_all usage
 
-### Transformation Example
+### Transformation Examples (can run in parallel)
 
-- [ ] T120 [P] [US3] Create examples/raggio_syntax/transformation/modify_node.exs showing transform function
-- [ ] T121 [P] [US3] Create examples/raggio_syntax/transformation/rewrite_rule.exs showing AST rewrite
-- [ ] T122 [P] [US3] Create examples/raggio_syntax/transformation/optimization.exs showing optimization pattern
+- [ ] T133 [P] [US3] Create examples/raggio_syntax/transformation/modify_nodes.exs showing transform function
+- [ ] T134 [P] [US3] Create examples/raggio_syntax/transformation/rewrite_rules.exs showing syntax rewriting
+- [ ] T135 [P] [US3] Create examples/raggio_syntax/transformation/optimization.exs showing optimization patterns
 
-### Advanced Example
+### Advanced Examples (can run in parallel)
 
-- [ ] T123 [P] [US3] Create examples/raggio_syntax/advanced/code_generation.exs showing code gen pattern
-- [ ] T124 [P] [US3] Create examples/raggio_syntax/advanced/analysis.exs showing AST analysis
+- [ ] T136 [P] [US3] Create examples/raggio_syntax/advanced/code_generation.exs showing code gen patterns
+- [ ] T137 [P] [US3] Create examples/raggio_syntax/advanced/analysis.exs showing syntax analysis
 
 ### Automated Example Test Update
 
-- [ ] T125 [US3] Update test/example_test.exs to include Raggio.Syntax example verification
-- [ ] T126 [US3] Run mix test test/example_test.exs and verify all example (both package) pass
+- [ ] T138 [US3] Update test/example_test.exs to include Raggio.Syntax example verification
+- [ ] T139 [US3] Run `mix test test/example_test.exs` and verify all examples (both packages) pass
 
-**Checkpoint**: At this point, User Story 3 is fully complete - working example for both package
+**Checkpoint**: At this point, User Story 3 is fully complete - working examples for both packages
 
 ---
 
 ## Phase 7: User Story 4 - Developer extends functionality through composition (Priority: P2)
 
-**Goal**: Validate composability - developer can create custom validator/transformer by composing primitive
+**Goal**: Demonstrate composability through advanced examples and protocol extensions
 
-**Independent Test**: Use public API to create custom composite function (validator or transformer), use in real scenario, verify correct behavior without library modification
+**Independent Test**: Create custom composite function using public API, verify it works without library modifications
 
-**Note**: US4 test composability of both package, building on US1 and US2
+### Composability Examples (can run in parallel)
 
-### Additional Composition Utility (enable US4)
+- [ ] T140 [P] [US4] Create examples/raggio_schema/composition/custom_validators.exs demonstrating composable validators (US4 acceptance 1)
+- [ ] T141 [P] [US4] Create examples/raggio_schema/composition/domain_constraints.exs showing domain-specific composition
+- [ ] T142 [P] [US4] Create examples/raggio_syntax/advanced/custom_transformers.exs demonstrating composable transformers (US4 acceptance 1)
+- [ ] T143 [P] [US4] Create examples/raggio_syntax/advanced/combinator_patterns.exs showing transformation composition
 
-- [ ] T127 [P] [US4] Implement Raggio.Schema.transform/2 in apps/raggio_schema/lib/raggio_schema.ex
-- [ ] T128 [P] [US4] Implement Raggio.Schema.coerce/1 in apps/raggio_schema/lib/raggio_schema.ex
-- [ ] T129 [P] [US4] Implement Raggio.Syntax.merge/2 in apps/raggio_syntax/lib/raggio_syntax.ex
-- [ ] T130 [P] [US4] Implement Raggio.Syntax.compose/1 in apps/raggio_syntax/lib/raggio_syntax.ex
+### Advanced Composition Utilities (optional, for power users)
 
-### Composition Example (demonstrating US4)
+- [ ] T144 [P] [US4] Create apps/raggio_schema/lib/raggio_schema/combinators.ex with all/1, any/1, optional/1 functions
+- [ ] T145 [P] [US4] Create apps/raggio_syntax/lib/raggio_syntax/combinators.ex with composition helpers
 
-- [ ] T131 [P] [US4] Add custom validator example to examples/raggio_schema/composition/ showing US4 acceptance 1-2
-- [ ] T132 [P] [US4] Add custom transformer example to examples/raggio_syntax/transformation/ showing composition pattern
-- [ ] T133 [P] [US4] Create examples/raggio_schema/advanced/combinator.exs showing combinator pattern per research.md
-- [ ] T134 [US4] Verify example demonstrate composition without requiring library modification (US4 acceptance 1)
+### Verification
 
-**Checkpoint**: At this point, User Story 4 is complete - composability validated through working example
+- [ ] T146 [US4] Run examples demonstrating composability without library modification (US4 acceptance 1, 2)
+- [ ] T147 [US4] Verify 90% of use cases work without macros (SC-004)
+
+**Checkpoint**: At this point, User Story 4 is complete - composability validated through examples
 
 ---
 
-## Phase 8: Polish & Cross-Cutting Concerns
+## Phase 8: User Story 5 - Developer exports schema to BigQuery (Priority: P2)
 
-**Purpose**: Improvements that affect multiple user stories or complete remaining requirements
+**Goal**: BigQuery DDL export adapter for Raggio.Schema
+
+**Independent Test**: Define Raggio.Schema, export to BigQuery DDL, verify generated SQL is valid
+
+### BigQuery Exporter Implementation
+
+- [ ] T148 [US5] Create apps/raggio_schema/lib/raggio_schema/adapters/ directory
+- [ ] T149 [US5] Create apps/raggio_schema/lib/raggio_schema/adapters/bigquery.ex per adapters.md contract
+- [ ] T150 [US5] Implement Raggio.Schema.Exporter.BigQuery.to_ddl/2 per contracts/adapters.md (US5 acceptance 1)
+- [ ] T151 [US5] Implement Raggio.Schema.Exporter.BigQuery.to_ddl/3 with options (partition_by, cluster_by)
+- [ ] T152 [US5] Implement type mapping function (Schema types → BigQuery types) per research.md
+- [ ] T153 [US5] Implement STRUCT/ARRAY handling for nested schemas (US5 acceptance 3)
+- [ ] T154 [US5] Implement constraint mapping (required → NOT NULL) (US5 acceptance 2)
+
+### BigQuery Exporter Tests
+
+- [ ] T155 [P] [US5] Create apps/raggio_schema/test/adapters/bigquery_test.exs with type mapping tests
+- [ ] T156 [P] [US5] Add nested structure tests to bigquery_test.exs (US5 acceptance 3)
+- [ ] T157 [P] [US5] Add constraint mapping tests to bigquery_test.exs (US5 acceptance 2)
+- [ ] T158 [US5] Run `mix test apps/raggio_schema/test/adapters/bigquery_test.exs`
+
+### BigQuery Examples
+
+- [ ] T159 [P] [US5] Create examples/raggio_schema/adapters/bigquery_export.exs demonstrating DDL generation (US5 acceptance 1)
+- [ ] T160 [P] [US5] Create examples/raggio_schema/adapters/bigquery_nested.exs showing nested schemas
+
+**Checkpoint**: At this point, User Story 5 is complete - BigQuery export working
+
+---
+
+## Phase 9: User Story 6 - Developer imports schema from SheetSchema (Priority: P2)
+
+**Goal**: SheetSchema spreadsheet importer adapter for Raggio.Schema
+
+**Independent Test**: Provide SheetSchema spreadsheet, import to Raggio.Schema code, verify generated code compiles
+
+### SheetSchema Importer Implementation
+
+- [ ] T161 [US6] Create apps/raggio_schema/lib/raggio_schema/adapters/sheet_schema.ex per adapters.md contract
+- [ ] T162 [US6] Implement Raggio.Schema.Importer.SheetSchema.from_csv/1 per contracts/adapters.md (US6 acceptance 1)
+- [ ] T163 [US6] Implement Raggio.Schema.Importer.SheetSchema.from_csv/2 with options
+- [ ] T164 [US6] Implement CSV parsing with column validation per research.md SheetSchema format
+- [ ] T165 [US6] Implement type parser (string type syntax → Schema types) (US6 acceptance 2)
+- [ ] T166 [US6] Implement constraint parser (pipe-separated constraints → Schema functions) (US6 acceptance 3)
+- [ ] T167 [US6] Implement nesting resolution (parent_path → nested structs) per research.md
+- [ ] T168 [US6] Implement code generation using Raggio.Syntax for correctness
+- [ ] T169 [US6] Implement Raggio.Schema.Importer.SheetSchema.validate/1 for format validation
+- [ ] T170 [US6] Implement Raggio.Schema.Importer.SheetSchema.from_url/1 for Google Sheets integration (optional)
+- [ ] T171 [US6] Implement Raggio.Schema.Importer.SheetSchema.from_url/2 with options (optional)
+
+### SheetSchema Importer Tests
+
+- [ ] T172 [P] [US6] Create apps/raggio_schema/test/adapters/sheet_schema_test.exs with CSV parsing tests
+- [ ] T173 [P] [US6] Add type parsing tests to sheet_schema_test.exs (US6 acceptance 2)
+- [ ] T174 [P] [US6] Add constraint parsing tests to sheet_schema_test.exs (US6 acceptance 3)
+- [ ] T175 [P] [US6] Add nesting tests to sheet_schema_test.exs
+- [ ] T176 [P] [US6] Add validation tests to sheet_schema_test.exs
+- [ ] T177 [US6] Run `mix test apps/raggio_schema/test/adapters/sheet_schema_test.exs`
+
+### SheetSchema Examples
+
+- [ ] T178 [P] [US6] Create test fixtures: examples/raggio_schema/adapters/fixtures/user_schema.csv with sample SheetSchema
+- [ ] T179 [P] [US6] Create examples/raggio_schema/adapters/sheet_import.exs demonstrating CSV import (US6 acceptance 1)
+- [ ] T180 [P] [US6] Create examples/raggio_schema/adapters/sheet_nested.exs showing nested structure import
+
+**Checkpoint**: At this point, User Story 6 is complete - SheetSchema import working
+
+---
+
+## Phase 10: Polish & Cross-Cutting Concerns
+
+**Purpose**: Final touches, documentation, and release preparation
 
 ### Documentation
 
-- [ ] T135 [P] Update apps/raggio_schema/README.md with installation instruction and basic usage per quickstart.md
-- [ ] T136 [P] Update apps/raggio_syntax/README.md with installation instruction and basic usage per quickstart.md
-- [ ] T137 [P] Create CHANGELOG.md for each package documenting initial 0.1.0 release
-- [ ] T138 Update root README.md with umbrella overview, package description, example navigation
+- [ ] T181 [P] Create apps/raggio_schema/README.md with overview, installation, quickstart
+- [ ] T182 [P] Create apps/raggio_syntax/README.md with overview, installation, quickstart
+- [ ] T183 [P] Create root README.md with umbrella project overview and links to package READMEs
+- [ ] T184 [P] Update apps/raggio_schema/lib/raggio_schema.ex with module-level documentation (no function docs per FR-005)
+- [ ] T185 [P] Update apps/raggio_syntax/lib/raggio_syntax.ex with module-level documentation (no function docs per FR-005)
 
-### Additional Type and Constraint
+### Code Quality
 
-- [ ] T139 [P] Implement remaining array constraint (min_items, max_items, unique) in apps/raggio_schema/lib/raggio_schema.ex
-- [ ] T140 [P] Implement remaining string constraint (url) in apps/raggio_schema/lib/raggio_schema.ex
-- [ ] T141 [P] Implement negative/1 numeric constraint in apps/raggio_schema/lib/raggio_schema.ex
+- [ ] T186 Run `mix format` from root to format all code
+- [ ] T187 Run `mix compile --warnings-as-errors` to check for warnings
+- [ ] T188 Run `mix test --cover` from root to verify test coverage
+- [ ] T189 Verify no circular dependencies: confirm apps/raggio_schema/mix.exs does NOT depend on raggio_syntax (FR-004)
 
-### Error Handling Enhancement
+### Success Criteria Verification
 
-- [ ] T142 Add comprehensive error message for ValidationError per data-model.md specification
-- [ ] T143 Add comprehensive error message for CompositionError per clarification requirement
+- [ ] T190 Verify SC-001: Clone repo and compile all packages within 5 minutes
+- [ ] T191 Verify SC-002: Run any example and see output within 30 seconds
+- [ ] T192 Verify SC-003: Test independent package usage (create test project with only raggio_schema dependency)
+- [ ] T193 Verify SC-004: Confirm 90% of use cases work without macros (review examples)
+- [ ] T194 Verify SC-005: Confirm umbrella structure matches Ecto/Phoenix patterns (apps/, mix.exs structure)
+- [ ] T195 Verify SC-006: Verify developers can learn from examples without extensive docs
 
-### Formatter and Tooling
+### Final Validation
 
-- [ ] T144 [P] Run mix format across all package and verify consistent style
-- [ ] T145 [P] Run mix compile --warnings-as-errors and fix any warning
-- [ ] T146 [P] Add mix alias to root mix.exs per research.md (test.all, format.all)
-
-### Validation and Verification
-
-- [ ] T147 Run mix deps.get and mix compile from root - verify umbrella compile under 5 minute (SC-001)
-- [ ] T148 Run random example and verify execution under 30 second (SC-002)
-- [ ] T149 Create test project, add raggio_schema as dependency, verify independent usage (SC-003)
-- [ ] T150 Create test project, add raggio_syntax as dependency, verify independent usage (SC-003)
-- [ ] T151 Verify no circular dependency between package per clarification and FR-004
-- [ ] T152 Run quickstart.md validation - execute all command and verify output
-- [ ] T153 Verify example directory structure match two-level hierarchy per clarification
-- [ ] T154 Verify module-level documentation only (no function doc) per FR-005 and clarification
-
-### Final Verification
-
-- [ ] T155 Run mix test from umbrella root and verify all test pass (package test + example test)
-- [ ] T156 Verify all 4 user story acceptance scenario are met independently
-- [ ] T157 Verify all 6 success criteria (SC-001 through SC-006) are satisfied
-- [ ] T158 Verify all 13 functional requirement (FR-001 through FR-013) are implemented
-
-**Checkpoint**: Feature complete - all user story functional, all requirement met, ready for use
+- [ ] T196 Run full test suite: `mix test` from root
+- [ ] T197 Run example verification: `mix test test/example_test.exs`
+- [ ] T198 Verify all user stories have acceptance criteria met (US1-US6)
 
 ---
 
-## Dependencies & Execution Order
+## Task Statistics
 
-### Phase Dependencies
+**Total Tasks**: 198
 
-- **Setup (Phase 1)**: No dependencies - can start immediately
-- **Foundational (Phase 2)**: Depends on Setup completion - BLOCKS all user stories
-- **User Story 1 (Phase 3)**: Depends on Foundational (Phase 2) - Independent, can start immediately after Phase 2
-- **User Story 3 for Schema (Phase 4)**: Depends on User Story 1 completion (need working package to demo)
-- **User Story 2 (Phase 5)**: Depends on Foundational (Phase 2) - Independent, can run parallel to US1
-- **User Story 3 for Syntax (Phase 6)**: Depends on User Story 2 completion (need working package to demo)
-- **User Story 4 (Phase 7)**: Depends on User Story 1 AND 2 completion (test both package composability)
-- **Polish (Phase 8)**: Depends on all user stories being complete
+**Tasks by User Story**:
+- Setup (Phase 1): 10 tasks
+- Foundational (Phase 2): 11 tasks
+- US1 (Schema core): 47 tasks
+- US3 (Schema examples): 18 tasks
+- US2 (Syntax core): 36 tasks
+- US3 (Syntax examples): 17 tasks
+- US4 (Composability): 8 tasks
+- US5 (BigQuery export): 13 tasks
+- US6 (SheetSchema import): 20 tasks
+- Polish: 18 tasks
 
-### User Story Dependencies
-
-- **User Story 1 (P1)**: Can start after Foundational (Phase 2) - No dependencies on other stories
-- **User Story 2 (P2)**: Can start after Foundational (Phase 2) - No dependencies on other stories (can run parallel to US1)
-- **User Story 3 (P1)**: Depends on US1 for Schema example, US2 for Syntax example - Split into two phase
-- **User Story 4 (P2)**: Depends on both US1 and US2 completion - Test composability of both package
-
-### Within Each User Story
-
-**User Story 1** (Raggio.Schema):
-- Core structure first (T022-T024)
-- Then primitive type (T025-T032) in parallel
-- Then composite type (T033-T036)
-- Then validation core (T037-T040) - BLOCKS constraint function
-- Then constraint function (T041-T048) in parallel
-- Then composition function (T049-T051)
-- Finally test (T052-T056)
-
-**User Story 3** (Example):
-- Example directory structure (T057-T060) in parallel
-- Then example file (T061-T070) in parallel - all independent
-- Finally automated test (T071-T074)
-
-**User Story 2** (Raggio.Syntax):
-- Core structure first (T075-T077)
-- Then node type (T078-T081) in parallel
-- Then construction function (T082-T089) in parallel
-- Then traversal (T090-T095)
-- Then transformation (T096-T100)
-- Then query function (T101-T104) in parallel
-- Finally test (T105-T109) in parallel
-
-### Parallel Opportunities
-
-**Within Setup (Phase 1)**:
-- T003, T004, T005, T006, T007, T008, T009 can all run in parallel
-
-**Within Foundational (Phase 2)**:
-- T012-T015 (raggio_schema setup) can run parallel to T017-T020 (raggio_syntax setup)
-
-**User Story Parallelization**:
-- US1 (Phase 3) and US2 (Phase 5) can be developed in parallel by different developer after Phase 2 complete
-- Within US1: T025-T032 (primitive type) all parallel
-- Within US1: T041-T048 (constraint) all parallel after validation core complete
-- Within US3: T057-T060 (directory) parallel, T061-T070 (example file) all parallel
-- Within US2: T078-T081 (node type) parallel, T082-T089 (construction) parallel
+**Parallel Opportunities**: 142 tasks marked [P] can run in parallel within their phase
 
 ---
 
-## Parallel Example: User Story 1 (Raggio.Schema)
+## Dependencies & Story Completion Order
 
-```bash
-# After core structure (T022-T024), launch all primitive type together:
-Task T025: "Implement Raggio.Schema.string/0"
-Task T026: "Implement Raggio.Schema.integer/0"
-Task T027: "Implement Raggio.Schema.float/0"
-Task T028: "Implement Raggio.Schema.boolean/0"
-Task T029: "Implement Raggio.Schema.date/0"
-Task T030: "Implement Raggio.Schema.datetime/0"
-Task T031: "Implement Raggio.Schema.decimal/0"
-Task T032: "Implement Raggio.Schema.atom/0"
+### Story Dependencies
 
-# After validation core (T037-T040), launch all constraint together:
-Task T041: "Implement Raggio.Schema.min_length/2"
-Task T042: "Implement Raggio.Schema.max_length/2"
-Task T043: "Implement Raggio.Schema.pattern/2"
-Task T044: "Implement Raggio.Schema.email/1"
-Task T045: "Implement Raggio.Schema.min/2"
-Task T046: "Implement Raggio.Schema.max/2"
-Task T047: "Implement Raggio.Schema.positive/1"
-Task T048: "Implement Raggio.Schema.range/3"
+```
+Phase 1 (Setup) 
+  ↓
+Phase 2 (Foundational)
+  ↓
+├─→ Phase 3: US1 (Schema core) ← MVP
+│     ↓
+├─→ Phase 4: US3 (Schema examples)
+│
+├─→ Phase 5: US2 (Syntax core) ← Depends on US1 (in_umbrella dependency)
+│     ↓
+├─→ Phase 6: US3 (Syntax examples)
+│
+├─→ Phase 7: US4 (Composability) ← Depends on US1 + US2
+│
+├─→ Phase 8: US5 (BigQuery) ← Depends on US1
+│
+├─→ Phase 9: US6 (SheetSchema) ← Depends on US1 (and US2 for code gen)
+  ↓
+Phase 10 (Polish)
 ```
 
----
+### Parallel Execution Examples
 
-## Parallel Example: User Story 3 (Example)
+**After Foundational phase complete:**
 
-```bash
-# Launch all example directory creation together:
-Task T057: "Create examples/raggio_schema/basic_validation/ directory"
-Task T058: "Create examples/raggio_schema/composition/ directory"
-Task T059: "Create examples/raggio_schema/transformation/ directory"
-Task T060: "Create examples/raggio_schema/advanced/ directory"
+- **Parallel Track 1**: US1 tasks (T022-T068)
+- **Parallel Track 2**: US3 Schema examples preparation (T069-T072) - can prep directories early
 
-# Launch all example file creation together (after US1 complete):
-Task T061: "Create simple_schema.exs"
-Task T062: "Create nested_schema.exs"
-Task T063: "Create validation_error.exs"
-Task T064: "Create combine_validator.exs"
-Task T065: "Create custom_type.exs"
-Task T066: "Create reusable_schema.exs"
-Task T067: "Create data_mapping.exs"
-Task T068: "Create coercion.exs"
-Task T069: "Create conditional_validation.exs"
-Task T070: "Create cross_field.exs"
-```
+**After US1 complete:**
+
+- **Parallel Track 1**: US3 Schema examples (T073-T086)
+- **Parallel Track 2**: US5 BigQuery exporter (T148-T160)
+- **Parallel Track 3**: US2 Syntax core (T087-T122) - if dependency on US1 is minimal
+
+**After US2 complete:**
+
+- **Parallel Track 1**: US3 Syntax examples (T123-T139)
+- **Parallel Track 2**: US6 SheetSchema importer (T161-T180)
+- **Parallel Track 3**: US4 Composability examples (T140-T147)
 
 ---
 
 ## Implementation Strategy
 
-### MVP First (User Story 1 + User Story 3 for Schema only)
+### MVP (Minimum Viable Product)
 
-1. Complete Phase 1: Setup
-2. Complete Phase 2: Foundational (CRITICAL - blocks all stories)
-3. Complete Phase 3: User Story 1 (Raggio.Schema)
-4. Complete Phase 4: User Story 3 for Schema (Example)
-5. **STOP and VALIDATE**: Test User Story 1 independently with example
-6. Deploy/demo Raggio.Schema as standalone package
+**Scope**: Complete Phase 1-4 (Setup + Foundational + US1 + US3 Schema examples)
 
-**Rationale**: Both US1 and US3 are P1 priority. Together they deliver a complete, usable Raggio.Schema package with working example. This is the true MVP.
+**Delivers**:
+- ✅ Working Raggio.Schema package with full validation functionality
+- ✅ Working examples demonstrating all patterns
+- ✅ Automated example verification
+- ✅ Independent compilation and testing
+
+**Test**: A developer can install Raggio.Schema, define schemas, validate data, and learn from examples
+
+**Estimated Tasks**: ~86 tasks (43% of total)
 
 ### Incremental Delivery
 
-1. Complete Setup + Foundational → Foundation ready
-2. Add User Story 1 + User Story 3 (Schema) → Test independently → Deploy/Demo (MVP - Raggio.Schema!)
-3. Add User Story 2 + User Story 3 (Syntax) → Test independently → Deploy/Demo (Raggio.Syntax!)
-4. Add User Story 4 → Test composability → Complete feature
-5. Each increment adds value without breaking previous work
+1. **MVP** (Phases 1-4): Raggio.Schema + examples
+2. **Increment 2** (Phase 5-6): Add Raggio.Syntax + examples
+3. **Increment 3** (Phase 7): Validate composability
+4. **Increment 4** (Phases 8-9): Add adapters (BigQuery + SheetSchema)
+5. **Increment 5** (Phase 10): Polish and release
 
-### Parallel Team Strategy
-
-With multiple developers (after Foundational complete):
-
-1. **Developer A**: User Story 1 (Raggio.Schema implementation)
-2. **Developer B**: User Story 2 (Raggio.Syntax implementation) - parallel to A
-3. **Developer C**: User Story 3 preparation (example structure) - can prepare while A/B work
-4. After A complete: **Developer A or C**: User Story 3 for Schema (example creation)
-5. After B complete: **Developer B or C**: User Story 3 for Syntax (example creation)
-6. After all complete: **Any developer**: User Story 4 (composability validation)
+Each increment is independently testable and delivers value.
 
 ---
 
-## Notes
+## Format Validation
 
-- **[P] tasks**: Different files, no dependencies - can run in parallel
-- **[Story] label**: Maps task to specific user story for traceability
-- **Each user story**: Independently completable and testable
-- **No test task**: Test not explicitly requested in spec; example verification serve as validation
-- **Module-level doc only**: Per FR-005 and clarification - no function @doc
-- **Composition over macro**: Per FR-007 - pipe operator pattern throughout
-- **Two-level hierarchy**: example/[package]/[use_case] per clarification
-- **Composition-time error**: Per clarification - type incompatibility detected when composing
-- **Independent package**: Per FR-004 - no circular dependency, independently publishable
+✅ **All tasks follow checklist format**:
+- Checkbox: `- [ ]`
+- Task ID: Sequential (T001-T198)
+- [P] marker: 142 tasks marked for parallel execution
+- [Story] label: All US tasks properly labeled (US1-US6)
+- File paths: Included in all implementation task descriptions
 
-### Commit Strategy
+✅ **Task organization by user story**: Each story has complete implementation path with tests
 
-- Commit after each logical group of task (e.g., all primitive type T025-T032)
-- Commit at each checkpoint (end of phase)
-- Use conventional commit: `feat(schema): add primitive type function`
+✅ **Independent test criteria**: Each phase has checkpoint verifying story works independently
 
-### Validation Checkpoint
+---
 
-- After Phase 3: Verify US1 acceptance scenario 1-4 are met
-- After Phase 4: Verify US3 acceptance scenario 1-3 for Schema example
-- After Phase 5: Verify US2 acceptance scenario 1-3 are met
-- After Phase 6: Verify US3 acceptance scenario 1-3 for Syntax example
-- After Phase 7: Verify US4 acceptance scenario 1-3 are met
-- After Phase 8: Verify all 6 success criteria (SC-001 through SC-006)
-
-### Success Criteria Verification
-
-Map to specific task:
-- **SC-001** (compile < 5 min): T147
-- **SC-002** (example < 30 sec): T148
-- **SC-003** (independent usage): T149, T150
-- **SC-004** (90% without macro): Validated through US4 example
-- **SC-005** (Ecto/Phoenix structure): Validated through Phase 1-2 structure
-- **SC-006** (learn from example): Validated through US3 completion
-
-**Total Task**: 158 task organized across 8 phase, supporting 4 user story with clear dependency and parallel opportunity
+*Tasks ready for implementation. Execute in order respecting dependencies, or parallelize within phases as marked.*

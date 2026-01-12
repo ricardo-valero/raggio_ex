@@ -3,35 +3,35 @@
 **Branch**: `001-monorepo-restructure` | **Date**: 2026-01-12 | **Spec**: [spec.md](./spec.md)
 **Input**: Feature specification from `/specs/001-monorepo-restructure/spec.md`
 
+**Note**: This template is filled in by the `/speckit.plan` command. See `.specify/templates/commands/plan.md` for the execution workflow.
+
 ## Summary
 
-Transform the existing single-package codebase in `/old_code` into an Elixir umbrella monorepo with two independent package: Raggio.Schema (for data schema definition and validation) and Raggio.Syntax (for AST manipulation). Each package will expose a composable, function-based API (minimal macro) with working, compilable example as primary documentation. The structure follows Ecto/Phoenix patterns, with inspiration from Effect-TS/Schema for API design.
+Restructure the repository into an Elixir umbrella monorepo containing two independently compilable packages: Raggio.Schema (data validation with composable API) and Raggio.Syntax (syntax structure manipulation). The packages follow Effect-TS/Schema patterns for API design, minimize macro usage, prioritize function composition, and use working examples as primary documentation. Includes adapters for BigQuery export and SheetSchema import.
 
 ## Technical Context
 
-**Language/Version**: Elixir 1.14+ (compatible with current Elixir ecosystem)
-**Primary Dependencies**: None initially (both package are foundational library with no external dependency beyond Elixir stdlib)
-**Storage**: N/A (library do not persist data)
-**Testing**: ExUnit (standard Elixir test framework)
-**Target Platform**: Elixir/Erlang BEAM VM (any platform running Elixir)
-**Project Type**: Umbrella (multi-package monorepo)
-**Performance Goals**: Compilation time under 5 minute for all package; example execution under 30 second
-**Constraints**: Minimal macro usage; module-level documentation only; no circular dependency between package
-**Scale/Scope**: 2 package initially (Raggio.Schema, Raggio.Syntax); ~15-20 working example; migration of existing functionality from old_code
+**Language/Version**: Elixir 1.14+ (minimum supported version per spec clarifications)  
+**Primary Dependencies**: None initially (both packages are foundational libraries with no external dependencies beyond Elixir stdlib)  
+**Storage**: N/A (libraries for data validation and syntax manipulation, not data storage)  
+**Testing**: ExUnit (standard Elixir testing framework)  
+**Target Platform**: Elixir/Erlang VM (BEAM) on any OS supporting Elixir 1.14+  
+**Project Type**: Elixir umbrella monorepo (multi-package structure similar to Ecto/Phoenix)  
+**Performance Goals**: Compilation <5 minutes for all packages, example execution <30 seconds (SC-001, SC-002)  
+**Constraints**: Minimal macros in public API, module-level documentation only (no function docs), working examples as primary documentation, no circular dependencies between packages  
+**Scale/Scope**: 2 packages (Raggio.Schema, Raggio.Syntax), 4 adapters (BigQuery export, SheetSchema import), layered architecture (Syntax may depend on Schema, not vice versa), 90% of use cases achievable through function composition
 
 ## Constitution Check
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-**Status**: Constitution file is currently a template. No specific gate defined yet. Proceeding with standard Elixir best practice:
+**Note**: No constitution.md file found with specific constraints. Using general best practices:
+- ✅ **Modularity**: Two independent packages, clear separation of concerns
+- ✅ **Testability**: Automated test suite for examples (FR-009), acceptance criteria defined
+- ✅ **Simplicity**: Function composition over macros, minimal inline docs
+- ✅ **Standards**: Follows Elixir ecosystem conventions (umbrella projects, ExUnit)
 
-- ✓ **Test Coverage**: ExUnit test for all public API
-- ✓ **Documentation**: Module-level purpose only (per spec requirement)
-- ✓ **Composability**: Function composition over macro (per spec requirement)
-- ✓ **Independence**: Each package independently compilable and publishable
-- ✓ **Example Verification**: Automated test suite for all example
-
-**Re-evaluation Required**: After Phase 1 design completion
+**Constitution Status**: PASS (no violations)
 
 ## Project Structure
 
@@ -39,347 +39,214 @@ Transform the existing single-package codebase in `/old_code` into an Elixir umb
 
 ```text
 specs/001-monorepo-restructure/
-├── plan.md              # This file
-├── research.md          # Phase 0: Effect-TS/Schema pattern, umbrella structure
-├── data-model.md        # Phase 1: Schema and AST entity model
-├── quickstart.md        # Phase 1: Getting started guide
-├── contracts/           # Phase 1: Public API contract for both package
-│   ├── raggio_schema_api.md
-│   └── raggio_syntax_api.md
-└── tasks.md             # Phase 2: NOT created by this command
+├── spec.md              # Feature specification (completed)
+├── plan.md              # This file (/speckit.plan command output)
+├── research.md          # Phase 0 output (to be generated)
+├── data-model.md        # Phase 1 output (to be generated)
+├── quickstart.md        # Phase 1 output (to be generated)
+├── contracts/           # Phase 1 output (to be generated)
+└── tasks.md             # Phase 2 output (/speckit.tasks command - NOT created by /speckit.plan)
 ```
 
 ### Source Code (repository root)
 
 ```text
-# Elixir Umbrella Project Structure (Ecto/Phoenix style)
+# Elixir Umbrella Monorepo Structure (Ecto/Phoenix style)
 
 # Root umbrella configuration
 mix.exs                  # Umbrella project definition
-config/
-└── config.exs          # Shared configuration
+config/                  # Shared configuration
+  config.exs
+  test.exs
 
-# Package directory
-apps/
-├── raggio_schema/      # Schema definition and validation package
-│   ├── mix.exs         # Package-specific mix file
-│   ├── lib/
-│   │   ├── raggio_schema.ex           # Main module entry point
-│   │   ├── raggio_schema/
-│   │   │   ├── builder.ex             # Schema builder function
-│   │   │   ├── validator.ex           # Validation function
-│   │   │   ├── combinator.ex          # Composition combinator
-│   │   │   ├── type/                  # Type definition (string, integer, etc.)
-│   │   │   │   ├── string.ex
-│   │   │   │   ├── integer.ex
-│   │   │   │   ├── float.ex
-│   │   │   │   ├── boolean.ex
-│   │   │   │   ├── date.ex
-│   │   │   │   ├── datetime.ex
-│   │   │   │   ├── decimal.ex
-│   │   │   │   ├── array.ex
-│   │   │   │   ├── struct.ex
-│   │   │   │   └── enum.ex
-│   │   │   ├── error.ex               # Error type for validation failure
-│   │   │   └── transformer.ex         # Data transformation
-│   ├── test/
-│   │   ├── test_helper.exs
-│   │   ├── raggio_schema_test.exs
-│   │   ├── builder_test.exs
-│   │   ├── validator_test.exs
-│   │   └── type/                      # Test for each type
-│   └── README.md                       # Package-specific README
-│
-└── raggio_syntax/      # AST manipulation package
-    ├── mix.exs         # Package-specific mix file
-    ├── lib/
-    │   ├── raggio_syntax.ex           # Main module entry point
-    │   ├── raggio_syntax/
-    │   │   ├── ast.ex                 # Core AST definition
-    │   │   ├── builder.ex             # AST builder function
-    │   │   ├── traversal.ex           # Traversal combinator
-    │   │   ├── transformer.ex         # AST transformation function
-    │   │   ├── node/                  # AST node type
-    │   │   │   ├── field.ex
-    │   │   │   ├── schema.ex
-    │   │   │   ├── type.ex
-    │   │   │   └── transform.ex
-    │   │   └── error.ex               # AST error type
-    ├── test/
-    │   ├── test_helper.exs
-    │   ├── raggio_syntax_test.exs
-    │   ├── builder_test.exs
-    │   ├── traversal_test.exs
-    │   └── transformer_test.exs
-    └── README.md                       # Package-specific README
+# Package: Raggio.Schema
+apps/raggio_schema/
+  mix.exs                # Package-specific mix file
+  lib/
+    raggio_schema.ex     # Main module
+    raggio_schema/
+      types/             # Type constructors (string, integer, etc.)
+      constraints/       # Constraint functions (min, max, etc.)
+      validators/        # Validation engine
+      adapters/
+        bigquery.ex      # BigQuery exporter
+        sheet_schema.ex  # SheetSchema importer
+  test/
+    raggio_schema_test.exs
+    types_test.exs
+    constraints_test.exs
+    validators_test.exs
+    adapters/
+      bigquery_test.exs
+      sheet_schema_test.exs
 
-# Example directory (two-level hierarchy per clarification)
+# Package: Raggio.Syntax
+apps/raggio_syntax/
+  mix.exs                # Package-specific mix file
+  lib/
+    raggio_syntax.ex     # Main module
+    raggio_syntax/
+      node.ex            # Node type definitions
+      builder.ex         # Node construction functions
+      traversal.ex       # Tree traversal functions
+      transformer.ex     # Tree transformation functions
+  test/
+    raggio_syntax_test.exs
+    builder_test.exs
+    traversal_test.exs
+    transformer_test.exs
+
+# Working Examples (primary documentation)
 examples/
-├── raggio_schema/
-│   ├── basic_validation/
-│   │   ├── simple_schema.exs          # Basic schema definition
-│   │   ├── nested_schema.exs          # Nested structure
-│   │   └── validation_error.exs       # Error handling
-│   ├── composition/
-│   │   ├── combine_validator.exs      # Composing validator
-│   │   ├── custom_type.exs            # Creating custom type
-│   │   └── reusable_schema.exs        # Schema reuse pattern
-│   ├── transformation/
-│   │   ├── data_mapping.exs           # Transform input data
-│   │   └── coercion.exs               # Type coercion
-│   └── advanced/
-│       ├── conditional_validation.exs # Conditional logic
-│       └── cross_field.exs            # Cross-field validation
-│
-└── raggio_syntax/
-    ├── ast_building/
-    │   ├── simple_ast.exs             # Basic AST construction
-    │   ├── complex_schema.exs         # Complex AST structure
-    │   └── node_composition.exs       # Composing node
-    ├── traversal/
-    │   ├── depth_first.exs            # DFS traversal
-    │   ├── visitor_pattern.exs        # Visitor combinator
-    │   └── filtering.exs              # Filter node during traversal
-    ├── transformation/
-    │   ├── modify_node.exs            # Transform AST node
-    │   ├── rewrite_rule.exs           # Apply rewrite rule
-    │   └── optimization.exs           # AST optimization
-    └── advanced/
-        ├── code_generation.exs        # Generate code from AST
-        └── analysis.exs               # AST analysis pattern
+  raggio_schema/
+    basic_validation/    # Simple schema validation
+    composite_types/     # Structs, arrays, unions
+    constraints/         # Min/max, patterns, custom
+    adapters/
+      bigquery_export.exs
+      sheet_import.exs
+  raggio_syntax/
+    syntax_building/     # Creating syntax structures
+    traversal/           # Walking trees
+    transformation/      # Rewriting structures
+    analysis/            # Analyzing syntax patterns
 
-# Example test suite (automated verification)
+# Example Test Suite (FR-009)
 test/
-└── example_test.exs                   # Test that runs all example and verifies output
-
-# Archive original code
-old_code/
-└── data_schema/                       # Reference only, not part of new structure
+  example_test.exs       # Automated verification of all examples
+  test_helper.exs
 ```
 
-**Structure Decision**: Selected Elixir umbrella project structure to match Ecto/Phoenix patterns (FR-001). This provides:
-- Independent package compilation and publishing (FR-004)
-- Clear separation of concern (Schema vs Syntax)
-- Shared tooling at umbrella root
-- No circular dependency by design (FR-004 clarification)
-- Example organized by package and use case (clarification from session 2026-01-12)
+**Structure Decision**: Selected Elixir umbrella monorepo (Option 3 variant) to match Ecto/Phoenix organizational patterns. Two independent apps under `apps/` directory with shared tooling at root. Examples live at root level for easy access. This structure supports independent compilation/publishing while enabling shared development workflows.
 
 ## Complexity Tracking
 
-> No constitution violation detected. This section remains empty.
+> **Fill ONLY if Constitution Check has violations that must be justified**
 
-## Phase 0: Research & Decision
+No violations - constitution check passed.
 
-**Objective**: Resolve technical unknowns and establish API design pattern
+## Phase 0: Research & Design Decisions
 
-### Research Task
+**Status**: ✅ Complete
 
-1. **Effect-TS/Schema API Pattern Analysis**
-   - Research: How does Effect-TS/Schema structure composable API?
-   - Research: What composition pattern are used (pipe, compose, combinator)?
-   - Research: How are error handled in composition?
-   - Research: How is type safety achieved without macro?
-   - Output: Pattern applicable to Elixir functional programming
+Research tasks resolved:
 
-2. **Elixir Umbrella Best Practice**
-   - Research: How do Ecto and Phoenix structure umbrella project?
-   - Research: Dependency management between umbrella app
-   - Research: Shared configuration and tooling
-   - Research: Publishing strategy for umbrella package
-   - Output: Concrete umbrella structure decision
+1. ✅ **Effect-TS/Schema API Patterns**: Adopted pipe-based constraint composition pattern
+2. ✅ **Elixir Umbrella Best Practices**: Confirmed umbrella monorepo structure per user requirements
+3. ✅ **BigQuery DDL Generation**: Documented type mappings and DDL template
+4. ✅ **SheetSchema Format**: Defined custom format with 8 columns
+5. ✅ **Composable Function Design**: Selected pipe-first + higher-order functions + protocols
 
-3. **Composability without Macro**
-   - Research: Elixir function composition pattern (pipe operator, composition combinator)
-   - Research: How to achieve fluent API without `use` macro
-   - Research: Error accumulation pattern (Result/Either type in Elixir)
-   - Output: API design guideline for both package
+**Output**: ✅ `research.md` complete with all decisions documented
 
-4. **Example Testing Strategy**
-   - Research: How to automatically verify example output
-   - Research: Example execution in CI environment
-   - Research: Approach to maintain example freshness
-   - Output: Automated test suite approach for example
+## Phase 1: Design Artifacts
 
-**Output File**: `research.md` (consolidated finding with decision and rationale)
+**Status**: ✅ Complete
 
-## Phase 1: Design & Contract
+Artifacts generated:
 
-**Prerequisites**: `research.md` complete
+1. ✅ **data-model.md**: Complete entity definitions:
+   - Schema types (string, integer, array, struct, etc.)
+   - Constraint types (min, max, pattern, email, etc.)
+   - Syntax node types (SchemaNode, FieldNode, TypeNode, TransformNode)
+   - Validation result structures
+   - Error structures with path/message/value
+   - All relationships and state transitions documented
 
-### Task 1.1: Data Model Design
+2. ✅ **contracts/**: API contracts complete:
+   - `raggio_schema_api.md`: Full public API for schema definition and validation
+   - `raggio_syntax_api.md`: Full public API for syntax building, traversal, transformation
+   - `adapters.md`: BigQuery export and SheetSchema import adapter contracts
 
-**Objective**: Define entity and relationship for both package
+3. ✅ **quickstart.md**: Getting started guide with working examples
 
-**Input**: 
-- Feature spec Key Entity section
-- Existing old_code structure (old_code/data_schema, old_code/data_schema/ast)
-- Research finding on Effect-TS pattern
+**Output**: ✅ Complete design documentation ready for task decomposition
 
-**Output**: `data-model.md` containing:
+## Phase 2: Task Breakdown
 
-**Raggio.Schema Entity**:
-- Schema: Container for field definition and validation rule
-- Field: Individual data field with type, constraint, and validation
-- Type: Primitive type (string, integer, float, boolean, date, datetime, decimal, array, struct, enum)
-- Validator: Composable validation function
-- ValidationResult: Success or error with detail
-- ValidationError: Error information with path and message
-- Transformer: Data transformation function
+**Status**: Not Started (requires Phase 1 completion)
 
-**Raggio.Syntax Entity**:
-- AST: Root abstract syntax tree structure
-- Node: Base AST node (field, schema, type, transform)
-- FieldNode: Represents a field in schema
-- SchemaNode: Represents a schema definition
-- TypeNode: Represents a type annotation
-- TransformNode: Represents a transformation
-- Traversal: Visitor pattern for AST navigation
-- Transformer: AST rewrite function
+**Note**: Task breakdown happens in separate `/speckit.tasks` command. This plan provides the foundation for that decomposition.
 
-**Relationship**:
-- Schema contains multiple Field
-- Field has one Type
-- Type can be composite (array of Type, struct with Field)
-- Validator operate on Field and Schema
-- AST contains multiple Node
-- Node can have child Node (tree structure)
-- Traversal visit Node in defined order
-- Transformer produce new AST from existing AST
+Expected task categories:
+- Setup: Umbrella project structure, package scaffolding
+- Core: Schema types, constraints, validation engine
+- Core: Syntax nodes, builders, traversal, transformation
+- Adapters: BigQuery exporter, SheetSchema importer
+- Examples: Working examples for both packages
+- Testing: Unit tests, example verification suite
+- Documentation: README files, module-level docs
 
-**State Transition**:
-- Schema: draft → validated → ready
-- ValidationResult: pending → success/error
-- AST: constructed → traversed → transformed
+## Implementation Notes
 
-### Task 1.2: API Contract Definition
+### Critical Requirements
 
-**Objective**: Define public API for both package
+1. **Constraint API Must Match Spec**: Implementation must use `Schema.string(Schema.min(3), Schema.max(5))` pattern where constraints are composable functions passed as arguments (NOT keyword lists). This is the Effect-TS/Zod v4 style specified in FR-014.
 
-**Input**:
-- Functional requirement (FR-007, FR-008, FR-010, FR-011)
-- Data model from Task 1.1
-- Research finding on composable API pattern
+2. **Terminology Consistency**: Use "Syntax" (not "AST" or "Syntax Tree") throughout code, examples, and documentation per clarification session.
 
-**Output**: Two contract file in `contracts/`
+3. **No Circular Dependencies**: Raggio.Syntax may depend on Raggio.Schema, but Raggio.Schema must NOT depend on Raggio.Syntax (FR-004).
 
-**File**: `contracts/raggio_schema_api.md`
+4. **Minimal Documentation**: Module-level purpose only, no function docs. Working examples serve as primary documentation (FR-005).
 
-```markdown
-# Raggio.Schema Public API Contract
+5. **Error Structure**: Validation errors must include `%{path: [...], message: "...", value: actual_value}` (FR-015).
 
-## Module: Raggio.Schema
+### Package Dependency Architecture
 
-### Function: string()
-**Signature**: `() -> schema`
-**Purpose**: Create string type schema
-**Return**: Schema representing string type
-**Example**: `Raggio.Schema.string()`
-
-### Function: integer()
-**Signature**: `() -> schema`
-**Purpose**: Create integer type schema
-**Return**: Schema representing integer type
-
-### Function: compose(schema, schema)
-**Signature**: `(schema, schema) -> schema`
-**Purpose**: Combine two schema into composite schema
-**Return**: New schema combining both input
-**Error**: Composition error if type incompatible
-
-### Function: validate(schema, data)
-**Signature**: `(schema, any) -> {:ok, data} | {:error, validation_error}`
-**Purpose**: Validate data against schema
-**Return**: Success tuple with data or error tuple with validation detail
-
-[Additional function following same pattern...]
+```
+┌─────────────────┐
+│ Raggio.Syntax   │  (Can depend on Schema)
+│ (Syntax manip)  │
+└────────┬────────┘
+         │ depends on
+         ▼
+┌─────────────────┐
+│ Raggio.Schema   │  (No dependencies on Syntax)
+│ (Validation)    │
+└─────────────────┘
 ```
 
-**File**: `contracts/raggio_syntax_api.md`
+### Example Organization Pattern
 
-```markdown
-# Raggio.Syntax Public API Contract
+Examples follow two-level hierarchy: `examples/{package}/{use_case}/`
+- Each example is a single `.exs` file
+- Self-contained and independently runnable
+- Automated test suite verifies all examples compile and execute
+- Examples demonstrate one specific pattern/use case
 
-## Module: Raggio.Syntax
+### Adapter Design Pattern
 
-### Function: field(name, type)
-**Signature**: `(atom, type) -> node`
-**Purpose**: Create field node
-**Return**: FieldNode with name and type
+Both BigQuery exporter and SheetSchema importer follow adapter pattern:
+- Located in `apps/raggio_schema/lib/raggio_schema/adapters/`
+- Clean separation from core validation logic
+- Composable with schema definitions
+- Independently testable
 
-### Function: schema(fields)
-**Signature**: `([node]) -> node`
-**Purpose**: Create schema node from field list
-**Return**: SchemaNode containing field
+## Next Steps
 
-### Function: traverse(ast, visitor)
-**Signature**: `(node, (node -> any)) -> any`
-**Purpose**: Traverse AST applying visitor function
-**Return**: Result of traversal
+1. ✅ Complete specification clarification
+2. ✅ Execute Phase 0 research (research.md)
+3. ✅ Execute Phase 1 design (data-model.md, contracts/, quickstart.md)
+4. ✅ Update agent context (AGENTS.md)
+5. ⏳ **Next**: Run `/speckit.tasks` to generate task breakdown (Phase 2)
 
-[Additional function following same pattern...]
-```
+---
 
-### Task 1.3: Quickstart Guide
+## Phase Completion Summary
 
-**Objective**: Create getting started guide for developer
+**Phase 0 - Research**: ✅ Complete
+- All technical unknowns resolved
+- 5 research areas investigated
+- Decisions documented with rationale
 
-**Input**:
-- User story from spec (all 4 user story)
-- API contract from Task 1.2
-- Example structure from project layout
+**Phase 1 - Design**: ✅ Complete
+- Data model defined (26 entities)
+- API contracts created (3 documents)
+- Quickstart guide ready
+- Agent context updated
 
-**Output**: `quickstart.md` containing:
+**Ready for Phase 2**: Task decomposition via `/speckit.tasks`
 
-1. **Installation** (User Story 1 acceptance scenario 1)
-   - How to add Raggio.Schema to mix.exs
-   - How to add Raggio.Syntax to mix.exs
-   - Running mix deps.get
+---
 
-2. **First Schema** (User Story 1 acceptance scenario 2-4)
-   - Define simple schema with Raggio.Schema
-   - Validate data against schema
-   - Handle validation error
-
-3. **First AST** (User Story 2 acceptance scenario 1-3)
-   - Create AST node with Raggio.Syntax
-   - Compose node together
-   - Traverse AST structure
-
-4. **Exploring Example** (User Story 3 acceptance scenario 1-3)
-   - Navigate example directory
-   - Run example file
-   - Understand example pattern
-
-5. **Composing Custom Function** (User Story 4 acceptance scenario 1-3)
-   - Combine primitive function
-   - Create custom validator
-   - Build custom AST transformer
-
-### Task 1.4: Update Agent Context
-
-**Objective**: Update AI agent context with technology from this plan
-
-**Action**: Run agent context update script
-```bash
-.specify/scripts/bash/update-agent-context.sh opencode
-```
-
-**Verification**: Check that `.specify/memory/opencode/context.md` includes:
-- Elixir umbrella project structure
-- Raggio.Schema and Raggio.Syntax package
-- Composable API pattern without macro
-- Example-driven documentation approach
-
-## Phase 1 Completion Checklist
-
-- [ ] research.md completed with all decision documented
-- [ ] data-model.md defines all entity and relationship
-- [ ] contracts/raggio_schema_api.md specifies complete public API
-- [ ] contracts/raggio_syntax_api.md specifies complete public API
-- [ ] quickstart.md covers all 4 user story
-- [ ] Agent context updated with new technology
-- [ ] Constitution Check re-evaluated (no new violation)
-
-## Next Step
-
-After Phase 1 completion, run `/speckit.tasks` to generate Phase 2 task breakdown for implementation.
+*Planning phase complete. Implementation ready to begin.*

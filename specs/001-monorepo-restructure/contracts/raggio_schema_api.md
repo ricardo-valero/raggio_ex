@@ -1,545 +1,579 @@
-# Raggio.Schema Public API Contract
+# Raggio.Schema API Contract
 
-**Version**: 0.1.0  
-**Date**: 2026-01-12  
-**Package**: `raggio_schema`
+**Package**: `raggio_schema`  
+**Module**: `Raggio.Schema`  
+**Version**: 1.0.0
+
+## Overview
+
+Composable schema definition and validation library using pipe-based function composition.
 
 ---
 
-## Module: Raggio.Schema
+## Core Type Constructors
 
-Main entry point for schema definition and validation.
+### `string/0`
 
-### Type Definition Function
+Creates a string type schema.
 
-#### `string/0`
-**Signature**: `() -> schema`  
-**Purpose**: Create string type schema  
-**Return**: Schema representing string type  
-**Example**: 
-```elixir
-Raggio.Schema.string()
-```
+**Signature**: `string() :: Schema.t()`
 
-#### `integer/0`
-**Signature**: `() -> schema`  
-**Purpose**: Create integer type schema  
-**Return**: Schema representing integer type  
+**Returns**: Schema struct for string type
+
 **Example**:
 ```elixir
-Raggio.Schema.integer()
-```
-
-#### `float/0`
-**Signature**: `() -> schema`  
-**Purpose**: Create float type schema  
-**Return**: Schema representing float type  
-**Example**:
-```elixir
-Raggio.Schema.float()
-```
-
-#### `boolean/0`
-**Signature**: `() -> schema`  
-**Purpose**: Create boolean type schema  
-**Return**: Schema representing boolean type  
-**Example**:
-```elixir
-Raggio.Schema.boolean()
-```
-
-#### `date/0`
-**Signature**: `() -> schema`  
-**Purpose**: Create date type schema (without time)  
-**Return**: Schema representing date type  
-**Example**:
-```elixir
-Raggio.Schema.date()
-```
-
-#### `datetime/0`
-**Signature**: `() -> schema`  
-**Purpose**: Create datetime type schema (with time and timezone)  
-**Return**: Schema representing datetime type  
-**Example**:
-```elixir
-Raggio.Schema.datetime()
-```
-
-#### `decimal/0`
-**Signature**: `() -> schema`  
-**Purpose**: Create arbitrary precision decimal type schema  
-**Return**: Schema representing decimal type  
-**Example**:
-```elixir
-Raggio.Schema.decimal()
-```
-
-#### `atom/0`
-**Signature**: `() -> schema`  
-**Purpose**: Create atom type schema  
-**Return**: Schema representing atom type  
-**Example**:
-```elixir
-Raggio.Schema.atom()
+Schema.string()
+# => %Schema{type: :string, encoded: :string, filters: [], annotations: %{}}
 ```
 
 ---
 
-### Composite Type Function
+### `integer/0`
 
-#### `array/1`
-**Signature**: `(element_schema :: schema) -> schema`  
-**Purpose**: Create array type schema with specified element type  
-**Parameter**: `element_schema` - Schema for array element  
-**Return**: Schema representing array type  
+Creates an integer type schema.
+
+**Signature**: `integer() :: Schema.t()`
+
+**Returns**: Schema struct for integer type
+
 **Example**:
 ```elixir
-Raggio.Schema.array(Raggio.Schema.string())
+Schema.integer()
+# => %Schema{type: :integer, encoded: :integer, filters: [], annotations: %{}}
 ```
 
-#### `struct/1`
-**Signature**: `(fields :: [{atom, schema}]) -> schema`  
-**Purpose**: Create struct type schema with defined field  
-**Parameter**: `fields` - List of tuple `{field_name, field_schema}`  
-**Return**: Schema representing struct type  
-**Example**:
-```elixir
-Raggio.Schema.struct([
-  {:name, Raggio.Schema.string()},
-  {:age, Raggio.Schema.integer()}
-])
-```
+---
 
-#### `enum/1`
-**Signature**: `(values :: [any]) -> schema`  
-**Purpose**: Create enum type schema with allowed value  
-**Parameter**: `values` - List of allowed value  
-**Return**: Schema representing enum type  
-**Example**:
-```elixir
-Raggio.Schema.enum([:active, :inactive, :pending])
-```
+### `float/0`
 
-#### `union/1`
-**Signature**: `(schemas :: [schema]) -> schema`  
-**Purpose**: Create union type schema (value match one of provided schema)  
-**Parameter**: `schemas` - List of schema  
-**Return**: Schema representing union type  
+Creates a float type schema.
+
+**Signature**: `float() :: Schema.t()`
+
+---
+
+### `boolean/0`
+
+Creates a boolean type schema.
+
+**Signature**: `boolean() :: Schema.t()`
+
+---
+
+### `date/0`
+
+Creates a date type schema.
+
+**Signature**: `date() :: Schema.t()`
+
+---
+
+### `datetime/0`
+
+Creates a datetime type schema.
+
+**Signature**: `datetime() :: Schema.t()`
+
+---
+
+### `decimal/0`
+
+Creates a decimal type schema.
+
+**Signature**: `decimal() :: Schema.t()`
+
+---
+
+### `atom/0`
+
+Creates an atom type schema.
+
+**Signature**: `atom() :: Schema.t()`
+
+---
+
+## Composite Type Constructors
+
+### `struct/1`
+
+Creates a struct type schema with named fields.
+
+**Signature**: `struct(fields :: keyword(Schema.t())) :: Schema.t()`
+
+**Parameters**:
+- `fields` - Keyword list of field_name => schema pairs
+
+**Returns**: Schema struct for struct type
+
 **Example**:
 ```elixir
-Raggio.Schema.union([
-  Raggio.Schema.string(),
-  Raggio.Schema.integer()
+Schema.struct([
+  name: Schema.string() |> Schema.min_length(1),
+  age: Schema.integer() |> Schema.min(0)
 ])
 ```
 
 ---
 
-### Constraint Function (String)
+### `list/1`
 
-#### `min_length/2`
-**Signature**: `(schema :: schema, n :: non_neg_integer) -> schema`  
-**Purpose**: Add minimum length constraint to string or array schema  
-**Parameter**: 
-- `schema` - Schema to constrain  
-- `n` - Minimum length  
-**Return**: Schema with constraint added  
-**Error**: CompositionError if schema type not string or array  
+Creates a list type schema.
+
+**Signature**: `list(inner_schema :: Schema.t()) :: Schema.t()`
+
+**Parameters**:
+- `inner_schema` - Schema for list elements
+
 **Example**:
 ```elixir
-Raggio.Schema.string() |> Raggio.Schema.min_length(5)
-```
+Schema.list(Schema.string())
+# List of strings
 
-#### `max_length/2`
-**Signature**: `(schema :: schema, n :: non_neg_integer) -> schema`  
-**Purpose**: Add maximum length constraint to string or array schema  
-**Parameter**:
-- `schema` - Schema to constrain  
-- `n` - Maximum length  
-**Return**: Schema with constraint added  
-**Error**: CompositionError if schema type not string or array  
-**Example**:
-```elixir
-Raggio.Schema.string() |> Raggio.Schema.max_length(50)
-```
-
-#### `pattern/2`
-**Signature**: `(schema :: schema, regex :: Regex.t()) -> schema`  
-**Purpose**: Add pattern matching constraint to string schema  
-**Parameter**:
-- `schema` - Schema to constrain  
-- `regex` - Regular expression pattern  
-**Return**: Schema with constraint added  
-**Error**: CompositionError if schema type not string  
-**Example**:
-```elixir
-Raggio.Schema.string() |> Raggio.Schema.pattern(~r/^[A-Z]/)
-```
-
-#### `email/1`
-**Signature**: `(schema :: schema) -> schema`  
-**Purpose**: Add email format constraint to string schema  
-**Parameter**: `schema` - Schema to constrain  
-**Return**: Schema with constraint added  
-**Error**: CompositionError if schema type not string  
-**Example**:
-```elixir
-Raggio.Schema.string() |> Raggio.Schema.email()
-```
-
-#### `url/1`
-**Signature**: `(schema :: schema) -> schema`  
-**Purpose**: Add URL format constraint to string schema  
-**Parameter**: `schema` - Schema to constrain  
-**Return**: Schema with constraint added  
-**Error**: CompositionError if schema type not string  
-**Example**:
-```elixir
-Raggio.Schema.string() |> Raggio.Schema.url()
+Schema.list(Schema.integer() |> Schema.positive())
+# List of positive integers
 ```
 
 ---
 
-### Constraint Function (Numeric)
+### `map/0`
 
-#### `min/2`
-**Signature**: `(schema :: schema, value :: number) -> schema`  
-**Purpose**: Add minimum value constraint to numeric schema  
-**Parameter**:
-- `schema` - Schema to constrain  
-- `value` - Minimum value (inclusive)  
-**Return**: Schema with constraint added  
-**Error**: CompositionError if schema type not numeric  
+Creates a map type schema (unstructured key-value pairs).
+
+**Signature**: `map() :: Schema.t()`
+
+---
+
+### `union/1`
+
+Creates a union type schema (one of multiple types).
+
+**Signature**: `union(schemas :: [Schema.t()]) :: Schema.t()`
+
+**Parameters**:
+- `schemas` - List of alternative schemas (minimum 2)
+
 **Example**:
 ```elixir
-Raggio.Schema.integer() |> Raggio.Schema.min(0)
-```
-
-#### `max/2`
-**Signature**: `(schema :: schema, value :: number) -> schema`  
-**Purpose**: Add maximum value constraint to numeric schema  
-**Parameter**:
-- `schema` - Schema to constrain  
-- `value` - Maximum value (inclusive)  
-**Return**: Schema with constraint added  
-**Error**: CompositionError if schema type not numeric  
-**Example**:
-```elixir
-Raggio.Schema.integer() |> Raggio.Schema.max(100)
-```
-
-#### `positive/1`
-**Signature**: `(schema :: schema) -> schema`  
-**Purpose**: Add positive number constraint to numeric schema  
-**Parameter**: `schema` - Schema to constrain  
-**Return**: Schema with constraint added  
-**Error**: CompositionError if schema type not numeric  
-**Example**:
-```elixir
-Raggio.Schema.integer() |> Raggio.Schema.positive()
-```
-
-#### `negative/1`
-**Signature**: `(schema :: schema) -> schema`  
-**Purpose**: Add negative number constraint to numeric schema  
-**Parameter**: `schema` - Schema to constrain  
-**Return**: Schema with constraint added  
-**Error**: CompositionError if schema type not numeric  
-**Example**:
-```elixir
-Raggio.Schema.integer() |> Raggio.Schema.negative()
-```
-
-#### `range/3`
-**Signature**: `(schema :: schema, min :: number, max :: number) -> schema`  
-**Purpose**: Add range constraint to numeric schema  
-**Parameter**:
-- `schema` - Schema to constrain  
-- `min` - Minimum value (inclusive)  
-- `max` - Maximum value (inclusive)  
-**Return**: Schema with constraint added  
-**Error**: CompositionError if schema type not numeric  
-**Example**:
-```elixir
-Raggio.Schema.integer() |> Raggio.Schema.range(1, 100)
+Schema.union([
+  Schema.string(),
+  Schema.integer()
+])
+# Accepts string OR integer
 ```
 
 ---
 
-### Constraint Function (Array)
+### `enum/1`
 
-#### `min_items/2`
-**Signature**: `(schema :: schema, n :: non_neg_integer) -> schema`  
-**Purpose**: Add minimum item count constraint to array schema  
-**Parameter**:
-- `schema` - Schema to constrain  
-- `n` - Minimum item count  
-**Return**: Schema with constraint added  
-**Error**: CompositionError if schema type not array  
+Creates an enum type schema (one of specific values).
+
+**Signature**: `enum(values :: [term()]) :: Schema.t()`
+
+**Parameters**:
+- `values` - List of allowed values
+
 **Example**:
 ```elixir
-Raggio.Schema.array(Raggio.Schema.string()) |> Raggio.Schema.min_items(1)
-```
-
-#### `max_items/2`
-**Signature**: `(schema :: schema, n :: non_neg_integer) -> schema`  
-**Purpose**: Add maximum item count constraint to array schema  
-**Parameter**:
-- `schema` - Schema to constrain  
-- `n` - Maximum item count  
-**Return**: Schema with constraint added  
-**Error**: CompositionError if schema type not array  
-**Example**:
-```elixir
-Raggio.Schema.array(Raggio.Schema.string()) |> Raggio.Schema.max_items(10)
-```
-
-#### `unique/1`
-**Signature**: `(schema :: schema) -> schema`  
-**Purpose**: Add uniqueness constraint to array schema (no duplicate)  
-**Parameter**: `schema` - Schema to constrain  
-**Return**: Schema with constraint added  
-**Error**: CompositionError if schema type not array  
-**Example**:
-```elixir
-Raggio.Schema.array(Raggio.Schema.integer()) |> Raggio.Schema.unique()
+Schema.enum(["active", "inactive", "suspended"])
 ```
 
 ---
 
-### Validation Function
+## String Constraints
+
+### `min_length/1`
+
+Adds minimum length constraint to string schema.
+
+**Signature**: `min_length(Schema.t(), integer()) :: Schema.t()`
+
+**Parameters**:
+- `schema` - String schema to constrain
+- `length` - Minimum length (inclusive)
+
+**Returns**: Schema with min_length filter added
+
+**Example**:
+```elixir
+Schema.string() |> Schema.min_length(3)
+```
+
+**Pipe-friendly**: Yes (takes schema as first argument)
+
+---
+
+### `max_length/1`
+
+Adds maximum length constraint to string schema.
+
+**Signature**: `max_length(Schema.t(), integer()) :: Schema.t()`
+
+**Example**:
+```elixir
+Schema.string() |> Schema.max_length(50)
+```
+
+---
+
+### `pattern/1`
+
+Adds regex pattern constraint to string schema.
+
+**Signature**: `pattern(Schema.t(), Regex.t()) :: Schema.t()`
+
+**Parameters**:
+- `schema` - String schema
+- `pattern` - Regex pattern to match
+
+**Example**:
+```elixir
+Schema.string() |> Schema.pattern(~r/^[a-z0-9_]+$/)
+```
+
+---
+
+### `email/0`
+
+Adds email format constraint.
+
+**Signature**: `email(Schema.t()) :: Schema.t()`
+
+**Example**:
+```elixir
+Schema.string() |> Schema.email()
+```
+
+---
+
+### `url/0`
+
+Adds URL format constraint.
+
+**Signature**: `url(Schema.t()) :: Schema.t()`
+
+---
+
+### `uuid/0`
+
+Adds UUID format constraint.
+
+**Signature**: `uuid(Schema.t()) :: Schema.t()`
+
+---
+
+## Number Constraints
+
+### `min/1`
+
+Adds minimum value constraint.
+
+**Signature**: `min(Schema.t(), number()) :: Schema.t()`
+
+**Parameters**:
+- `schema` - Numeric schema
+- `value` - Minimum value (inclusive)
+
+**Example**:
+```elixir
+Schema.integer() |> Schema.min(0)
+Schema.float() |> Schema.min(0.0)
+```
+
+---
+
+### `max/1`
+
+Adds maximum value constraint.
+
+**Signature**: `max(Schema.t(), number()) :: Schema.t()`
+
+---
+
+### `positive/0`
+
+Adds constraint that value must be > 0.
+
+**Signature**: `positive(Schema.t()) :: Schema.t()`
+
+**Example**:
+```elixir
+Schema.integer() |> Schema.positive()
+```
+
+---
+
+### `negative/0`
+
+Adds constraint that value must be < 0.
+
+**Signature**: `negative(Schema.t()) :: Schema.t()`
+
+---
+
+### `range/2`
+
+Adds range constraint (min and max).
+
+**Signature**: `range(Schema.t(), number(), number()) :: Schema.t()`
+
+**Parameters**:
+- `min_value` - Minimum (inclusive)
+- `max_value` - Maximum (inclusive)
+
+**Example**:
+```elixir
+Schema.integer() |> Schema.range(1, 100)
+```
+
+---
+
+## Collection Constraints
+
+### `min_items/1`
+
+Adds minimum items constraint to list.
+
+**Signature**: `min_items(Schema.t(), non_neg_integer()) :: Schema.t()`
+
+**Example**:
+```elixir
+Schema.list(Schema.string()) |> Schema.min_items(1)
+```
+
+---
+
+### `max_items/1`
+
+Adds maximum items constraint to list.
+
+**Signature**: `max_items(Schema.t(), non_neg_integer()) :: Schema.t()`
+
+---
+
+### `unique/0`
+
+Adds uniqueness constraint to list items.
+
+**Signature**: `unique(Schema.t()) :: Schema.t()`
+
+---
+
+## Modifier Functions
+
+### `optional/0`
+
+Marks a field as optional (can be missing).
+
+**Signature**: `optional(Schema.t()) :: Schema.t()`
+
+**Example**:
+```elixir
+Schema.struct([
+  required_field: Schema.string(),
+  optional_field: Schema.string() |> Schema.optional()
+])
+```
+
+---
+
+### `nullable/0`
+
+Allows nil value for the schema.
+
+**Signature**: `nullable(Schema.t()) :: Schema.t()`
+
+**Note**: Different from `optional/0` - nullable allows nil value, optional allows missing field
+
+**Example**:
+```elixir
+Schema.string() |> Schema.nullable()
+# Accepts string or nil
+```
+
+---
+
+### `default/1`
+
+Sets default value for optional field.
+
+**Signature**: `default(Schema.t(), term()) :: Schema.t()`
+
+**Parameters**:
+- `value` - Default value to use when field is missing
+
+**Example**:
+```elixir
+Schema.string() |> Schema.optional() |> Schema.default("anonymous")
+```
+
+---
+
+## Validation Functions
+
+### `validate/2`
+
+Validates data against a schema.
+
+**Signature**: `validate(Schema.t(), data :: term()) :: ValidationResult.t()`
+
+**Parameters**:
+- `schema` - Schema to validate against
+- `data` - Data to validate
+
+**Returns**:
+- `{:ok, parsed_data}` - Validation succeeded
+- `{:error, [ValidationError.t()]}` - Validation failed
+
+**Example**:
+```elixir
+schema = Schema.struct([
+  email: Schema.string() |> Schema.email()
+])
+
+Schema.validate(schema, %{email: "alice@example.com"})
+# => {:ok, %{email: "alice@example.com"}}
+
+Schema.validate(schema, %{email: "not-an-email"})
+# => {:error, [%ValidationError{path: [:email], message: "Invalid email format", value: "not-an-email"}]}
+```
+
+---
+
+### `validate!/2`
+
+Validates data, raising on error.
+
+**Signature**: `validate!(Schema.t(), data :: term()) :: term() | no_return()`
+
+**Returns**: Parsed data on success
+
+**Raises**: `Raggio.Schema.ValidationError` on failure
+
+---
+
+## Metadata Functions
+
+### `annotate/2`
+
+Adds metadata to schema.
+
+**Signature**: `annotate(Schema.t(), annotations :: map()) :: Schema.t()`
+
+**Parameters**:
+- `annotations` - Map of metadata (description, custom message, etc.)
+
+**Example**:
+```elixir
+Schema.string()
+|> Schema.min_length(3)
+|> Schema.annotate(%{
+  description: "Username",
+  message: "Username must be at least 3 characters"
+})
+```
+
+---
+
+## Custom Constraints
+
+### `constraint/2`
+
+Adds custom validation function.
+
+**Signature**: `constraint(Schema.t(), validator :: (term() -> boolean() | {:error, String.t()})) :: Schema.t()`
+
+**Parameters**:
+- `validator` - Custom validation function
+
+**Example**:
+```elixir
+Schema.string()
+|> Schema.constraint(fn value ->
+  if String.starts_with?(value, "admin_"), do: true, else: {:error, "Must start with admin_"}
+end)
+```
+
+---
+
+## Protocol: Raggio.Schema.Constraint
+
+Allows custom constraint types.
+
+### Functions
 
 #### `validate/2`
-**Signature**: `(schema :: schema, data :: any) -> {:ok, any} | {:error, [validation_error]}`  
-**Purpose**: Validate data against schema  
-**Parameter**:
-- `schema` - Schema to validate against  
-- `data` - Data to validate  
-**Return**: 
-- `{:ok, validated_data}` on success  
-- `{:error, error_list}` on failure with accumulated error  
-**Example**:
-```elixir
-schema = Raggio.Schema.struct([
-  {:name, Raggio.Schema.string()},
-  {:age, Raggio.Schema.integer() |> Raggio.Schema.positive()}
-])
 
-case Raggio.Schema.validate(schema, %{name: "Alice", age: 30}) do
-  {:ok, data} -> IO.puts("Valid: #{inspect(data)}")
-  {:error, errors} -> IO.puts("Invalid: #{inspect(errors)}")
+**Signature**: `validate(constraint :: t(), value :: term()) :: :ok | :error`
+
+#### `error_message/1`
+
+**Signature**: `error_message(constraint :: t()) :: String.t()`
+
+### Example Implementation
+
+```elixir
+defmodule DomainConstraint do
+  defstruct [:domain]
 end
-```
 
-#### `validate!/2`
-**Signature**: `(schema :: schema, data :: any) -> any`  
-**Purpose**: Validate data against schema, raise on error  
-**Parameter**:
-- `schema` - Schema to validate against  
-- `data` - Data to validate  
-**Return**: Validated data  
-**Raise**: `Raggio.Schema.ValidationError` on validation failure  
-**Example**:
-```elixir
-validated = Raggio.Schema.validate!(schema, data)
-```
-
----
-
-### Composition Function
-
-#### `compose/2`
-**Signature**: `(schema1 :: schema, schema2 :: schema) -> {:ok, schema} | {:error, composition_error}`  
-**Purpose**: Compose two schema (merge constraint and validator)  
-**Parameter**:
-- `schema1` - First schema  
-- `schema2` - Second schema  
-**Return**: 
-- `{:ok, composed_schema}` if type compatible  
-- `{:error, composition_error}` if type incompatible  
-**Example**:
-```elixir
-base = Raggio.Schema.string()
-constrained = Raggio.Schema.string() |> Raggio.Schema.min_length(5)
-
-case Raggio.Schema.compose(base, constrained) do
-  {:ok, schema} -> schema
-  {:error, error} -> raise error
+defimpl Raggio.Schema.Constraint, for: DomainConstraint do
+  def validate(%{domain: domain}, value) do
+    if String.ends_with?(value, "@#{domain}"), do: :ok, else: :error
+  end
+  
+  def error_message(%{domain: d}) do
+    "Email must be from domain #{d}"
+  end
 end
-```
 
-#### `optional/1`
-**Signature**: `(schema :: schema) -> schema`  
-**Purpose**: Mark schema as optional (allow nil value)  
-**Parameter**: `schema` - Schema to mark optional  
-**Return**: Schema allowing nil  
-**Example**:
-```elixir
-Raggio.Schema.optional(Raggio.Schema.string())
-```
-
-#### `default/2`
-**Signature**: `(schema :: schema, value :: any) -> schema`  
-**Purpose**: Add default value to schema  
-**Parameter**:
-- `schema` - Schema to add default  
-- `value` - Default value (must match schema type)  
-**Return**: Schema with default value  
-**Example**:
-```elixir
-Raggio.Schema.string() |> Raggio.Schema.default("N/A")
+# Usage
+Schema.string()
+|> Schema.constraint(%DomainConstraint{domain: "example.com"})
 ```
 
 ---
 
-### Transformation Function
+## Validation Options
 
-#### `transform/2`
-**Signature**: `(schema :: schema, transformer :: (any -> {:ok, any} | {:error, any})) -> schema`  
-**Purpose**: Add data transformation to schema  
-**Parameter**:
-- `schema` - Schema to transform  
-- `transformer` - Transformation function  
-**Return**: Schema with transformation  
-**Example**:
+Options can be passed to `validate/2` as third argument:
+
 ```elixir
-Raggio.Schema.string() 
-|> Raggio.Schema.transform(fn s -> {:ok, String.trim(s)} end)
+Schema.validate(schema, data, mode: :all_errors)
 ```
 
-#### `coerce/1`
-**Signature**: `(schema :: schema) -> schema`  
-**Purpose**: Enable type coercion (e.g., "123" → 123 for integer)  
-**Parameter**: `schema` - Schema to enable coercion  
-**Return**: Schema with coercion enabled  
-**Example**:
-```elixir
-Raggio.Schema.integer() |> Raggio.Schema.coerce()
-```
+### Available Options
+
+- `mode: :fail_fast` (default) - Stop at first error
+- `mode: :all_errors` - Collect all errors
+- `partial: true` - Return `{:ok, {successes, failures}}` for structs
 
 ---
 
-## Module: Raggio.Schema.ValidationError
-
-Error structure for validation failure.
-
-### Structure
+## Type Specifications
 
 ```elixir
-%Raggio.Schema.ValidationError{
-  path: [atom | integer],        # Path to error field [:user, :email] or [:items, 0]
-  message: String.t(),            # Human-readable error message
-  value: any(),                   # Invalid value (optional)
-  constraint: atom()              # Constraint that failed
+@type t() :: %Raggio.Schema{
+  type: atom(),
+  encoded: atom(),
+  filters: [filter()],
+  annotations: map(),
+  fields: %{atom() => t()} | nil,
+  inner_type: t() | nil,
+  types: [t()] | nil
 }
-```
 
-### Example
+@type filter() :: {atom(), term()} | Filter.t()
 
-```elixir
-%Raggio.Schema.ValidationError{
-  path: [:user, :email],
-  message: "must be valid email format",
-  value: "not-an-email",
-  constraint: :email
+@type validation_result() :: {:ok, term()} | {:error, [validation_error()]}
+
+@type validation_error() :: %ValidationError{
+  path: [atom() | integer()],
+  message: String.t(),
+  value: term(),
+  constraint: atom() | nil
 }
 ```
 
 ---
 
-## Module: Raggio.Schema.CompositionError
-
-Error raised when composing incompatible schema.
-
-### Structure
-
-```elixir
-%Raggio.Schema.CompositionError{
-  message: String.t(),            # Error description
-  left_type: atom(),              # Type of first schema
-  right_type: atom()              # Type of second schema
-}
-```
-
-### Example
-
-```elixir
-%Raggio.Schema.CompositionError{
-  message: "Cannot compose incompatible type",
-  left_type: :string,
-  right_type: :integer
-}
-```
-
----
-
-## Usage Pattern
-
-### Basic Schema Definition
-
-```elixir
-# Simple type
-user_schema = Raggio.Schema.struct([
-  {:name, Raggio.Schema.string()},
-  {:age, Raggio.Schema.integer()}
-])
-
-# With constraint
-email_schema = Raggio.Schema.string() 
-|> Raggio.Schema.email()
-
-# Nested structure
-address_schema = Raggio.Schema.struct([
-  {:street, Raggio.Schema.string()},
-  {:city, Raggio.Schema.string()},
-  {:zip, Raggio.Schema.string() |> Raggio.Schema.pattern(~r/^\d{5}$/)}
-])
-
-full_schema = Raggio.Schema.struct([
-  {:name, Raggio.Schema.string()},
-  {:email, email_schema},
-  {:address, address_schema}
-])
-```
-
-### Composition Pattern
-
-```elixir
-# Composing constraint
-constrained = Raggio.Schema.string()
-|> Raggio.Schema.min_length(5)
-|> Raggio.Schema.max_length(50)
-|> Raggio.Schema.pattern(~r/^[A-Za-z\s]+$/)
-
-# Optional with default
-optional_field = Raggio.Schema.string()
-|> Raggio.Schema.default("N/A")
-|> Raggio.Schema.optional()
-```
-
-### Validation Pattern
-
-```elixir
-# Validate and handle error
-case Raggio.Schema.validate(schema, data) do
-  {:ok, validated} ->
-    # Proceed with validated data
-    process(validated)
-    
-  {:error, errors} ->
-    # Handle validation error
-    errors
-    |> Enum.map(fn err -> "#{Enum.join(err.path, ".")}: #{err.message}" end)
-    |> Enum.join("\n")
-    |> IO.puts()
-end
-```
-
----
-
-## Breaking Change Policy
-
-Per specification, this is a clean break from old_code. No backward compatibility guarantee.
-
-**Version**: All function follow semantic versioning. Breaking change increment major version.
+*API contract for Raggio.Schema complete.*

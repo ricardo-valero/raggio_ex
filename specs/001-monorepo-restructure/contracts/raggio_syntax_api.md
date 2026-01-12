@@ -1,534 +1,270 @@
-# Raggio.Syntax Public API Contract
+# Raggio.Syntax API Contract
 
-**Version**: 0.1.0  
-**Date**: 2026-01-12  
-**Package**: `raggio_syntax`
+**Package**: `raggio_syntax`  
+**Module**: `Raggio.Syntax`  
+**Version**: 1.0.0
+
+## Overview
+
+Composable syntax tree construction and manipulation library using pipe-based function composition.
 
 ---
 
-## Module: Raggio.Syntax
+## Node Construction
 
-Main entry point for AST construction and manipulation.
+### `schema/1`
+Creates a schema node.
 
-### Node Construction Function
+**Signature**: `schema(fields :: [FieldNode.t()]) :: SchemaNode.t()`
 
-#### `field/2`
-**Signature**: `(name :: atom, type :: node) -> node`  
-**Purpose**: Create field node  
-**Parameter**:
-- `name` - Field name (atom)  
-- `type` - TypeNode representing field type  
-**Return**: FieldNode  
 **Example**:
 ```elixir
-Raggio.Syntax.field(:name, Raggio.Syntax.type(:string))
-```
-
-#### `field/3`
-**Signature**: `(name :: atom, type :: node, opts :: keyword) -> node`  
-**Purpose**: Create field node with option  
-**Parameter**:
-- `name` - Field name (atom)  
-- `type` - TypeNode representing field type  
-- `opts` - Option keyword list (`:required`, `:default`)  
-**Return**: FieldNode with option  
-**Example**:
-```elixir
-Raggio.Syntax.field(:age, Raggio.Syntax.type(:integer), required: true)
-```
-
-#### `schema/1`
-**Signature**: `(fields :: [node]) -> node`  
-**Purpose**: Create schema node from field list  
-**Parameter**: `fields` - List of FieldNode  
-**Return**: SchemaNode  
-**Example**:
-```elixir
-Raggio.Syntax.schema([
-  Raggio.Syntax.field(:name, Raggio.Syntax.type(:string)),
-  Raggio.Syntax.field(:age, Raggio.Syntax.type(:integer))
+Syntax.schema([
+  Syntax.field(:name, Syntax.type(:string)),
+  Syntax.field(:age, Syntax.type(:integer))
 ])
 ```
 
-#### `schema/2`
-**Signature**: `(name :: atom, fields :: [node]) -> node`  
-**Purpose**: Create named schema node  
-**Parameter**:
-- `name` - Schema name (atom)  
-- `fields` - List of FieldNode  
-**Return**: Named SchemaNode  
+### `schema/2`
+Creates a named schema node.
+
+**Signature**: `schema(name :: atom(), fields :: [FieldNode.t()]) :: SchemaNode.t()`
+
+### `field/2`
+Creates a field node.
+
+**Signature**: `field(name :: atom(), type :: TypeNode.t()) :: FieldNode.t()`
+
 **Example**:
 ```elixir
-Raggio.Syntax.schema(:user, [
-  Raggio.Syntax.field(:name, Raggio.Syntax.type(:string))
-])
+Syntax.field(:email, Syntax.type(:string))
 ```
 
-#### `type/1`
-**Signature**: `(name :: atom) -> node`  
-**Purpose**: Create simple type node  
-**Parameter**: `name` - Type name (`:string`, `:integer`, etc.)  
-**Return**: TypeNode  
+### `field/3`
+Creates a field node with options.
+
+**Signature**: `field(name :: atom(), type :: TypeNode.t(), opts :: keyword()) :: FieldNode.t()`
+
+**Options**:
+- `required: boolean()` - Whether field is required
+- `default: term()` - Default value
+
+### `type/1`
+Creates a type node.
+
+**Signature**: `type(name :: atom()) :: TypeNode.t()`
+
 **Example**:
 ```elixir
-Raggio.Syntax.type(:string)
+Syntax.type(:string)
+Syntax.type(:integer)
 ```
 
-#### `type/2`
-**Signature**: `(name :: atom, parameters :: [node]) -> node`  
-**Purpose**: Create generic type node with parameter  
-**Parameter**:
-- `name` - Type name (`:array`, `:union`, etc.)  
-- `parameters` - List of TypeNode parameter  
-**Return**: Generic TypeNode  
+### `type/2`
+Creates a generic type node with parameters.
+
+**Signature**: `type(name :: atom(), parameters :: [TypeNode.t()]) :: TypeNode.t()`
+
 **Example**:
 ```elixir
-# Array of string
-Raggio.Syntax.type(:array, [Raggio.Syntax.type(:string)])
-
-# Union of string and integer
-Raggio.Syntax.type(:union, [
-  Raggio.Syntax.type(:string),
-  Raggio.Syntax.type(:integer)
-])
+Syntax.type(:list, [Syntax.type(:string)])
+# list(string)
 ```
 
-#### `transform/2`
-**Signature**: `(operation :: atom, function :: (any -> any)) -> node`  
-**Purpose**: Create transformation node  
-**Parameter**:
-- `operation` - Operation type (`:map`, `:filter`, `:reduce`)  
-- `function` - Transformation function  
-**Return**: TransformNode  
-**Example**:
-```elixir
-Raggio.Syntax.transform(:map, fn field -> %{field | required: true} end)
-```
+### `transform_node/2`
+Creates a transform node.
+
+**Signature**: `transform_node(operation :: atom(), transformer :: function()) :: TransformNode.t()`
 
 ---
 
-### AST Construction Function
+## Syntax Tree Construction
 
-#### `ast/1`
-**Signature**: `(root :: node) -> ast`  
-**Purpose**: Create AST from root node  
-**Parameter**: `root` - Root node (typically SchemaNode)  
-**Return**: AST structure  
+### `ast/1`
+Wraps a node in a SyntaxTree.
+
+**Signature**: `ast(root :: Node.t()) :: SyntaxTree.t()`
+
 **Example**:
 ```elixir
-schema_node = Raggio.Syntax.schema([...])
-ast = Raggio.Syntax.ast(schema_node)
+schema = Syntax.schema(:user, [...])
+tree = Syntax.ast(schema)
 ```
 
-#### `ast/2`
-**Signature**: `(root :: node, metadata :: map) -> ast`  
-**Purpose**: Create AST with metadata  
-**Parameter**:
-- `root` - Root node  
-- `metadata` - Arbitrary metadata map  
-**Return**: AST with metadata  
-**Example**:
-```elixir
-Raggio.Syntax.ast(schema_node, %{version: "1.0", author: "Alice"})
-```
+### `ast/2`
+Wraps a node with metadata.
+
+**Signature**: `ast(root :: Node.t(), metadata :: map()) :: SyntaxTree.t()`
 
 ---
 
-### Traversal Function
+## Traversal Functions
 
-#### `traverse/2`
-**Signature**: `(node :: node, visitor :: (node -> any)) -> any`  
-**Purpose**: Traverse AST depth-first, applying visitor function  
-**Parameter**:
-- `node` - Root node to traverse  
-- `visitor` - Function applied to each node  
-**Return**: Result of visitor application  
+### `traverse/2`
+Traverses syntax tree depth-first, applying visitor function.
+
+**Signature**: `traverse(tree :: SyntaxTree.t() | Node.t(), visitor :: (Node.t() -> term())) :: Node.t()`
+
 **Example**:
 ```elixir
-# Collect all field name
-Raggio.Syntax.traverse(ast, fn
-  %FieldNode{name: name} -> name
-  _ -> nil
-end)
-|> Enum.filter(&(&1 != nil))
-```
-
-#### `traverse/3`
-**Signature**: `(node :: node, acc :: any, visitor :: (node, any -> {action, any})) -> any`  
-**Purpose**: Traverse AST with accumulator  
-**Parameter**:
-- `node` - Root node to traverse  
-- `acc` - Initial accumulator value  
-- `visitor` - Function `(node, acc) -> {:continue | :halt, new_acc}`  
-**Return**: Final accumulator value  
-**Example**:
-```elixir
-# Count required field
-Raggio.Syntax.traverse(ast, 0, fn
-  %FieldNode{required: true}, count -> {:continue, count + 1}
-  _node, count -> {:continue, count}
+Syntax.traverse(tree, fn node ->
+  IO.inspect(node.type, label: "Visiting")
 end)
 ```
 
-#### `traverse_breadth_first/2`
-**Signature**: `(node :: node, visitor :: (node -> any)) -> any`  
-**Purpose**: Traverse AST breadth-first  
-**Parameter**:
-- `node` - Root node to traverse  
-- `visitor` - Function applied to each node  
-**Return**: Result of visitor application  
-**Example**:
-```elixir
-Raggio.Syntax.traverse_breadth_first(ast, &IO.inspect/1)
-```
+### `traverse/3`
+Traverses with accumulator.
 
-#### `find/2`
-**Signature**: `(node :: node, predicate :: (node -> boolean)) -> node | nil`  
-**Purpose**: Find first node matching predicate  
-**Parameter**:
-- `node` - Root node to search  
-- `predicate` - Function returning true for match  
-**Return**: Matching node or nil  
+**Signature**: `traverse(tree :: SyntaxTree.t() | Node.t(), acc :: term(), visitor :: (Node.t(), term() -> {:continue | :halt, term()})) :: term()`
+
 **Example**:
 ```elixir
-# Find field named :email
-Raggio.Syntax.find(ast, fn
-  %FieldNode{name: :email} -> true
-  _ -> false
+# Count nodes by type
+Syntax.traverse(tree, %{}, fn node, acc ->
+  {:continue, Map.update(acc, node.type, 1, &(&1 + 1))}
 end)
 ```
 
-#### `find_all/2`
-**Signature**: `(node :: node, predicate :: (node -> boolean)) -> [node]`  
-**Purpose**: Find all node matching predicate  
-**Parameter**:
-- `node` - Root node to search  
-- `predicate` - Function returning true for match  
-**Return**: List of matching node  
+### `traverse_breadth_first/2`
+Traverses syntax tree breadth-first.
+
+**Signature**: `traverse_breadth_first(tree :: SyntaxTree.t() | Node.t(), visitor :: (Node.t() -> term())) :: :ok`
+
+### `find/2`
+Finds first node matching predicate.
+
+**Signature**: `find(tree :: SyntaxTree.t() | Node.t(), predicate :: (Node.t() -> boolean())) :: Node.t() | nil`
+
 **Example**:
 ```elixir
-# Find all required field
-Raggio.Syntax.find_all(ast, fn
-  %FieldNode{required: true} -> true
-  _ -> false
+Syntax.find(tree, fn node ->
+  node.type == :field && node.name == :email
 end)
 ```
+
+### `find_all/2`
+Finds all nodes matching predicate.
+
+**Signature**: `find_all(tree :: SyntaxTree.t() | Node.t(), predicate :: (Node.t() -> boolean())) :: [Node.t()]`
 
 ---
 
-### Transformation Function
+## Transformation Functions
 
-#### `transform/2`
-**Signature**: `(node :: node, transformer :: (node -> node)) -> node`  
-**Purpose**: Apply transformation to all node, producing new AST  
-**Parameter**:
-- `node` - Root node to transform  
-- `transformer` - Function transforming each node  
-**Return**: New AST with transformed node  
+### `transform/2`
+Applies transformation to all nodes.
+
+**Signature**: `transform(tree :: SyntaxTree.t() | Node.t(), transformer :: (Node.t() -> Node.t())) :: SyntaxTree.t() | Node.t()`
+
 **Example**:
 ```elixir
-# Make all field required
-Raggio.Syntax.transform(ast, fn
-  %FieldNode{} = field -> %{field | required: true}
-  other -> other
+# Add metadata to all fields
+Syntax.transform(tree, fn node ->
+  case node do
+    %{type: :field} = field -> Map.put(field, :validated, true)
+    other -> other
+  end
 end)
 ```
 
-#### `map/2`
-**Signature**: `(node :: node, mapper :: (node -> node)) -> node`  
-**Purpose**: Map function over all node (alias for transform)  
-**Parameter**:
-- `node` - Root node  
-- `mapper` - Mapping function  
-**Return**: New AST  
+### `map/2`
+Alias for `transform/2`.
+
+**Signature**: `map(tree, mapper) :: tree`
+
+### `filter/2`
+Filters nodes (removes non-matching).
+
+**Signature**: `filter(tree :: SyntaxTree.t() | Node.t(), predicate :: (Node.t() -> boolean())) :: SyntaxTree.t() | Node.t() | nil`
+
 **Example**:
 ```elixir
-Raggio.Syntax.map(ast, fn node -> 
-  Map.put(node, :visited, true) 
+# Remove optional fields
+Syntax.filter(tree, fn node ->
+  case node do
+    %{type: :field, required: false} -> false
+    _ -> true
+  end
 end)
 ```
 
-#### `filter/2`
-**Signature**: `(node :: node, predicate :: (node -> boolean)) -> node`  
-**Purpose**: Filter node (remove node not matching predicate)  
-**Parameter**:
-- `node` - Root node  
-- `predicate` - Filter function  
-**Return**: New AST with filtered node  
-**Example**:
-```elixir
-# Remove optional field
-Raggio.Syntax.filter(ast, fn
-  %FieldNode{required: false} -> false
-  _ -> true
-end)
-```
+### `replace/3`
+Replaces specific node with replacement.
 
-#### `replace/3`
-**Signature**: `(node :: node, target :: node, replacement :: node) -> node`  
-**Purpose**: Replace specific node with replacement  
-**Parameter**:
-- `node` - Root node  
-- `target` - Node to replace  
-- `replacement` - Replacement node  
-**Return**: New AST with replacement  
-**Example**:
-```elixir
-old_field = Raggio.Syntax.field(:name, Raggio.Syntax.type(:string))
-new_field = Raggio.Syntax.field(:full_name, Raggio.Syntax.type(:string))
-
-Raggio.Syntax.replace(ast, old_field, new_field)
-```
+**Signature**: `replace(tree :: SyntaxTree.t() | Node.t(), target :: Node.t(), replacement :: Node.t()) :: SyntaxTree.t() | Node.t()`
 
 ---
 
-### Query Function
+## Query Functions
 
-#### `get_fields/1`
-**Signature**: `(node :: node) -> [node]`  
-**Purpose**: Extract all field node from schema  
-**Parameter**: `node` - SchemaNode  
-**Return**: List of FieldNode  
+### `get_fields/1`
+Extracts all field nodes from schema.
+
+**Signature**: `get_fields(tree :: SyntaxTree.t() | SchemaNode.t()) :: [FieldNode.t()]`
+
 **Example**:
 ```elixir
-fields = Raggio.Syntax.get_fields(schema_node)
+fields = Syntax.get_fields(schema_node)
+field_names = Enum.map(fields, & &1.name)
 ```
 
-#### `get_field/2`
-**Signature**: `(node :: node, name :: atom) -> node | nil`  
-**Purpose**: Get specific field by name  
-**Parameter**:
-- `node` - SchemaNode  
-- `name` - Field name  
-**Return**: FieldNode or nil  
-**Example**:
-```elixir
-email_field = Raggio.Syntax.get_field(schema_node, :email)
-```
+### `get_field/2`
+Gets specific field by name.
 
-#### `get_type/1`
-**Signature**: `(node :: node) -> atom`  
-**Purpose**: Get type of node  
-**Parameter**: `node` - Any node  
-**Return**: Type atom (`:field`, `:schema`, `:type`, `:transform`)  
-**Example**:
-```elixir
-Raggio.Syntax.get_type(node)  # => :field
-```
+**Signature**: `get_field(tree :: SyntaxTree.t() | SchemaNode.t(), name :: atom()) :: FieldNode.t() | nil`
 
-#### `get_children/1`
-**Signature**: `(node :: node) -> [node]`  
-**Purpose**: Get immediate children of node  
-**Parameter**: `node` - Parent node  
-**Return**: List of child node  
-**Example**:
-```elixir
-children = Raggio.Syntax.get_children(schema_node)
-```
+### `get_type/1`
+Gets type of node.
+
+**Signature**: `get_type(node :: Node.t()) :: atom()`
+
+### `get_children/1`
+Gets immediate children of node.
+
+**Signature**: `get_children(node :: Node.t()) :: [Node.t()]`
 
 ---
 
-### Validation Function
-
-#### `valid?/1`
-**Signature**: `(node :: node) -> boolean`  
-**Purpose**: Check if AST structure is valid  
-**Parameter**: `node` - Node to validate  
-**Return**: true if valid, false otherwise  
-**Example**:
-```elixir
-if Raggio.Syntax.valid?(ast) do
-  IO.puts("AST is valid")
-end
-```
-
-#### `validate/1`
-**Signature**: `(node :: node) -> :ok | {:error, [error]}`  
-**Purpose**: Validate AST structure with detailed error  
-**Parameter**: `node` - Node to validate  
-**Return**: `:ok` or error list  
-**Example**:
-```elixir
-case Raggio.Syntax.validate(ast) do
-  :ok -> :ok
-  {:error, errors} -> IO.inspect(errors)
-end
-```
-
----
-
-### Composition Function
-
-#### `merge/2`
-**Signature**: `(node1 :: node, node2 :: node) -> node`  
-**Purpose**: Merge two schema node  
-**Parameter**:
-- `node1` - First SchemaNode  
-- `node2` - Second SchemaNode  
-**Return**: Merged SchemaNode  
-**Example**:
-```elixir
-base_schema = Raggio.Syntax.schema([...])
-extended_schema = Raggio.Syntax.schema([...])
-
-merged = Raggio.Syntax.merge(base_schema, extended_schema)
-```
-
-#### `compose/1`
-**Signature**: `(nodes :: [node]) -> node`  
-**Purpose**: Compose multiple schema into one  
-**Parameter**: `nodes` - List of SchemaNode  
-**Return**: Composed SchemaNode  
-**Example**:
-```elixir
-Raggio.Syntax.compose([
-  base_schema,
-  additional_fields,
-  validation_schema
-])
-```
-
----
-
-## Module: Raggio.Syntax.Node
-
-Base node protocol and helper.
-
-### Node Type
-
-All node implement `Raggio.Syntax.Node` protocol with:
+## Type Specifications
 
 ```elixir
-%FieldNode{
+@type t() :: SyntaxTree.t()
+
+@type node() :: SchemaNode.t() | FieldNode.t() | TypeNode.t() | TransformNode.t()
+
+@type schema_node() :: %SchemaNode{
+  type: :schema,
+  name: atom(),
+  fields: [field_node()],
+  schema_type: :struct | :union | :enum,
+  metadata: map()
+}
+
+@type field_node() :: %FieldNode{
   type: :field,
   name: atom(),
-  field_type: TypeNode.t(),
+  field_type: type_node(),
   required: boolean(),
-  default: any(),
+  default: term() | nil,
   metadata: map()
 }
 
-%SchemaNode{
-  type: :schema,
-  name: atom() | nil,
-  fields: [FieldNode.t()],
-  schema_type: atom(),
-  metadata: map()
-}
-
-%TypeNode{
+@type type_node() :: %TypeNode{
   type: :type,
   name: atom(),
-  parameters: [TypeNode.t()],
+  parameters: [type_node()],
   metadata: map()
 }
 
-%TransformNode{
+@type transform_node() :: %TransformNode{
   type: :transform,
   operation: atom(),
-  function: (any -> any),
-  input: node(),
-  output: TypeNode.t() | nil,
+  target: term(),
+  transformer: (node() -> node()),
   metadata: map()
 }
 ```
 
 ---
 
-## Module: Raggio.Syntax.Visitor
-
-Helper for building custom visitor.
-
-#### `visitor/1`
-**Signature**: `(handlers :: keyword) -> (node -> any)`  
-**Purpose**: Build visitor from handler map  
-**Parameter**: `handlers` - Keyword list of `{node_type, handler_fn}`  
-**Return**: Visitor function  
-**Example**:
-```elixir
-my_visitor = Raggio.Syntax.Visitor.visitor([
-  field: fn field -> IO.puts("Field: #{field.name}") end,
-  schema: fn schema -> IO.puts("Schema: #{schema.name}") end
-])
-
-Raggio.Syntax.traverse(ast, my_visitor)
-```
-
----
-
-## Usage Pattern
-
-### Building AST
-
-```elixir
-# Simple schema
-user_ast = Raggio.Syntax.schema(:user, [
-  Raggio.Syntax.field(:name, Raggio.Syntax.type(:string)),
-  Raggio.Syntax.field(:age, Raggio.Syntax.type(:integer), required: true)
-])
-
-# Complex nested schema
-address_ast = Raggio.Syntax.schema(:address, [
-  Raggio.Syntax.field(:street, Raggio.Syntax.type(:string)),
-  Raggio.Syntax.field(:city, Raggio.Syntax.type(:string))
-])
-
-user_with_address = Raggio.Syntax.schema(:user, [
-  Raggio.Syntax.field(:name, Raggio.Syntax.type(:string)),
-  Raggio.Syntax.field(:address, address_ast)
-])
-```
-
-### Traversing AST
-
-```elixir
-# Collect information
-field_names = Raggio.Syntax.traverse(ast, 0, fn
-  %FieldNode{name: name}, acc -> {:continue, [name | acc]}
-  _, acc -> {:continue, acc}
-end)
-
-# Conditional traversal
-first_required = Raggio.Syntax.traverse(ast, nil, fn
-  %FieldNode{required: true} = field, nil -> {:halt, field}
-  _, acc -> {:continue, acc}
-end)
-```
-
-### Transforming AST
-
-```elixir
-# Make all field optional with default
-transformed = Raggio.Syntax.transform(ast, fn
-  %FieldNode{} = field -> 
-    %{field | required: false, default: nil}
-  other -> 
-    other
-end)
-
-# Remove field matching condition
-filtered = Raggio.Syntax.filter(ast, fn
-  %FieldNode{name: :internal_id} -> false  # Remove this field
-  _ -> true
-end)
-```
-
-### Pattern Matching
-
-```elixir
-# Extract specific information
-case Raggio.Syntax.find(ast, fn n -> n.type == :field && n.name == :email end) do
-  %FieldNode{field_type: type} ->
-    IO.puts("Email type: #{inspect(type)}")
-  nil ->
-    IO.puts("Email field not found")
-end
-```
-
----
-
-## Breaking Change Policy
-
-Per specification, this is a clean break from old_code. No backward compatibility guarantee.
-
-**Version**: All function follow semantic versioning. Breaking change increment major version.
+*API contract for Raggio.Syntax complete.*

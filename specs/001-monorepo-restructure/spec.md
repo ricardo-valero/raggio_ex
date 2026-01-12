@@ -3,18 +3,27 @@
 **Feature Branch**: `001-monorepo-restructure`  
 **Created**: 2026-01-12  
 **Status**: Draft  
-**Input**: User description: "Lets create a repository in the same style as ecto and phoenix where we have several packages. Let's try to keep documentation in code at a minimum, we should prefer having working and compilable examples! We should base it from our /old_code folder. Our main two packages for now should be DataSchema and AST, but I want to rename them both to be Raggio.Schema and Raggio.Syntax respectively. We should investigate how does Effect-TS/Schema is doing their API under the hood both for Schema and their AST for inspiration. We should try to keep macros to a minimum and composability to a maximum"
+**Input**: User description: "Lets create a repository in the same style as ecto and phoenix where we have several packages. Let's try to keep documentation in code at a minimum, we should prefer having working and compilable examples! We should base it from our /old_code folder. Our main two packages for now should be DataSchema and Syntax, but I want to rename them both to be Raggio.Schema and Raggio.Syntax respectively. We should investigate how does Effect-TS/Schema is doing their API under the hood both for Schema and their Syntax for inspiration. We should try to keep macros to a minimum and composability to a maximum"
 
 ## Clarifications
 
 ### Session 2026-01-12
 
-- Q: How should example file be organized in the repository structure? → A: Two-level hierarchy: examples/[package]/[use_case] (e.g., examples/raggio_schema/basic_validation, examples/raggio_syntax/ast_building)
+- Q: Should schema import/export adapters be included in this restructure? → A: Include schema import/export as separate user stories with clear adapters for BigQuery export and SheetSchema import
+- Q: What terminology should be used instead of "AST" (Abstract Syntax Tree)? → A: Use "Syntax" alone (not "AST" or "Syntax Tree") throughout spec, code, and examples
+- Q: Should the implementation constraint API be fixed to match the spec? → A: Yes - fix implementation to match spec where constraints are composable functions passed as arguments (Schema.string(Schema.min(3), Schema.max(5))), not keyword lists
+- Q: What data formats should BigQuery exporter and SheetSchema importer use? → A: BigQuery: Standard SQL DDL output; SheetSchema: Google Sheets with columns [field_name, type, required, constraints]
+- Q: How should example file be organized in the repository structure? → A: Two-level hierarchy: examples/[package]/[use_case] (e.g., examples/raggio_schema/basic_validation, examples/raggio_syntax/syntax_building)
 - Q: How should the system handle incompatible schema type composition? → A: Return descriptive error with type mismatch detail at composition time (when combining schema)
 - Q: How should circular dependencies between packages be handled? → A: Prevent circular dependency through architecture (package should be layered, no circular reference allowed)
 - Q: What test strategy should be used to verify example remain accurate? → A: Automated test suite that executes all example and verifies output
 - Q: What is the minimal inline documentation standard? → A: Module-level purpose only, no function docs (example serve as documentation)
 - Q: Should schema validation follow "parse, don't validate" principle? → A: Yes - validation should parse input into well-typed domain data, not just check and pass through
+- Q: Which constraint syntax style should Raggio.Schema adopt for its API? → A: Nested function composition - Schema.string(Schema.min(3), Schema.max(5)) - constraints as composable functions passed as arguments (Effect-TS/Schema style)
+- Q: How should schema validation handle partial success/failure in composite types (structs, arrays)? → A: Mode-based behavior - Default mode returns binary {:ok, data} | {:error, errors_with_paths} (Zod/Effect-TS style, fail-fast or collect all errors). Opt-in {:partial, true} mode returns {:ok, {successes, failures}} for composites allowing partial results
+- Q: What structure should error objects use for representing validation failures? → A: Structured map with %{path: [...], message: "...", value: actual_value} - includes the path to failed field, error message, and the invalid value for debugging context
+- Q: What is the minimum Elixir version requirement for the packages? → A: Elixir 1.14+ - provides modern features while maintaining good compatibility with current ecosystem
+- Q: What dependency relationships are allowed between Raggio.Schema and Raggio.Syntax packages? → A: One-way dependency allowed - Raggio.Syntax can depend on Raggio.Schema (layered architecture), but Raggio.Schema must not depend on Raggio.Syntax, ensuring no circular dependencies
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -35,19 +44,19 @@ A developer working on a data validation project needs to define schemas for the
 
 ---
 
-### User Story 2 - Developer uses Raggio.Syntax for AST manipulation (Priority: P2)
+### User Story 2 - Developer uses Raggio.Syntax for syntax manipulation (Priority: P2)
 
-A developer building code generation or transformation tools needs to work with abstract syntax trees. They use Raggio.Syntax to construct, traverse, and transform ASTs using composable functions rather than pattern matching on complex macro-generated structures.
+A developer building code generation or transformation tools needs to work with syntax structures. They use Raggio.Syntax to construct, traverse, and transform syntax trees using composable functions rather than pattern matching on complex macro-generated structures.
 
 **Why this priority**: This enables advanced use cases like metaprogramming and code generation, building on the foundation of P1. It's essential for the complete product vision but can be used independently of schema validation.
 
-**Independent Test**: Can be fully tested by installing Raggio.Syntax, creating AST nodes programmatically, traversing them with provided combinators, and transforming them. Delivers value for developers building DSLs or code generators.
+**Independent Test**: Can be fully tested by installing Raggio.Syntax, creating syntax nodes programmatically, traversing them with provided combinators, and transforming them. Delivers value for developers building DSLs or code generators.
 
 **Acceptance Scenarios**:
 
-1. **Given** Raggio.Syntax is installed, **When** developer creates AST nodes using the builder API, **Then** nodes are created with proper structure and can be composed together
-2. **Given** an AST structure, **When** developer applies a transformation function, **Then** the AST is transformed correctly and maintains structural integrity
-3. **Given** an AST structure, **When** developer traverses it using provided combinators, **Then** they can access and process all nodes in a predictable order
+1. **Given** Raggio.Syntax is installed, **When** developer creates syntax nodes using the builder API, **Then** nodes are created with proper structure and can be composed together
+2. **Given** a syntax structure, **When** developer applies a transformation function, **Then** the syntax is transformed correctly and maintains structural integrity
+3. **Given** a syntax structure, **When** developer traverses it using provided combinators, **Then** they can access and process all nodes in a predictable order
 
 ---
 
@@ -61,7 +70,7 @@ A new developer encountering the Raggio packages for the first time needs to und
 
 **Acceptance Scenarios**:
 
-1. **Given** the repository is cloned, **When** developer navigates to the example directory, **Then** they find multiple working example organized by package and use case in a two-level hierarchy (examples/raggio_schema/basic_validation, examples/raggio_syntax/ast_building)
+1. **Given** the repository is cloned, **When** developer navigates to the example directory, **Then** they find multiple working example organized by package and use case in a two-level hierarchy (examples/raggio_schema/basic_validation, examples/raggio_syntax/syntax_building)
 2. **Given** an example file, **When** developer runs it with the appropriate command, **Then** it compiles and executes successfully, showing expected output that is verified by an automated test suite
 3. **Given** an example file, **When** developer reads the code, **Then** the code is clear and demonstrates one specific pattern or use case without extensive comment (module-level purpose only)
 
@@ -79,14 +88,46 @@ A developer with specific domain requirements needs to extend the base functiona
 
 1. **Given** base primitive functions are available, **When** developer composes them into a custom function, **Then** the custom function works correctly without requiring library modifications
 2. **Given** a custom composed function, **When** developer uses it alongside built-in functions, **Then** it integrates seamlessly with the rest of the API
-3. **Given** common extension patterns, **When** developer follows the compositional approach shown in examples, **Then** they can solve their domain-specific needs without macro magic
+3. **Given** common extension patterns, **When** developer follows the compositional approach shown in examples, **Then** they can solve their domain-specific needs without macro magic (applies to both schema validators and syntax transformers)
+
+---
+
+### User Story 5 - Developer exports schema to BigQuery (Priority: P2)
+
+A developer building a data pipeline needs to generate BigQuery table definitions from their Raggio.Schema definitions. They use the BigQuery exporter adapter to automatically convert schema definitions into BigQuery DDL, ensuring consistency between validation rules and database schema.
+
+**Why this priority**: This enables integration with external systems and demonstrates the practical utility of schema definitions beyond validation. It's P2 because it builds on the core schema functionality and provides concrete value for data engineering use cases.
+
+**Independent Test**: Can be fully tested by defining a Raggio.Schema, passing it to the BigQuery exporter, and verifying the generated DDL is valid and accurately represents the schema structure and constraints.
+
+**Acceptance Scenarios**:
+
+1. **Given** a Raggio.Schema definition, **When** developer calls the BigQuery exporter adapter, **Then** valid BigQuery standard SQL DDL is generated representing the schema structure
+2. **Given** schema constraints (min/max, required fields), **When** exporting to BigQuery, **Then** appropriate BigQuery column constraints (e.g., NOT NULL) are included in the SQL DDL
+3. **Given** nested schema structures, **When** exporting to BigQuery, **Then** they are converted to appropriate BigQuery STRUCT or RECORD types in the DDL output
+
+---
+
+### User Story 6 - Developer imports schema from SheetSchema (Priority: P2)
+
+A developer working with non-technical stakeholders who define data structures in spreadsheets needs to convert SheetSchema definitions into Raggio.Schema. They use the SheetSchema importer adapter to automatically generate schema code from spreadsheet definitions, bridging the gap between business requirements and code.
+
+**Why this priority**: This enables collaboration with non-technical stakeholders and reduces manual translation errors. It's P2 because it builds on the core functionality and provides value for teams with spreadsheet-based workflows.
+
+**Independent Test**: Can be fully tested by providing a valid SheetSchema definition (spreadsheet format), running it through the importer, and verifying the generated Raggio.Schema code compiles and validates data correctly according to the spreadsheet specification.
+
+**Acceptance Scenarios**:
+
+1. **Given** a valid SheetSchema spreadsheet with columns [field_name, type, required, constraints], **When** developer runs the importer, **Then** valid Raggio.Schema code is generated
+2. **Given** type specifications in the "type" column of SheetSchema, **When** importing, **Then** they are converted to appropriate Raggio.Schema type functions (e.g., "string" → Schema.string())
+3. **Given** validation rules in the "constraints" column of SheetSchema, **When** importing, **Then** they are parsed and converted to equivalent Raggio.Schema constraint functions (e.g., "min:3,max:5" → Schema.min(3), Schema.max(5))
 
 ---
 
 ### Edge Cases
 
 - When a developer tries to compose incompatible schema type, the system returns a descriptive error with type mismatch detail at composition time (before validation is attempted)
-- Circular dependency between package are prevented through layered architecture (no circular reference allowed)
+- Circular dependency between package are prevented through layered architecture - Raggio.Syntax may depend on Raggio.Schema, but not vice versa
 - What happens when a developer tries to import both old DataSchema and new Raggio.Schema in the same project?
 - How are version conflicts handled when different packages have different dependency requirements?
 - What happens when examples reference features that are not yet implemented or have changed?
@@ -97,22 +138,30 @@ A developer with specific domain requirements needs to extend the base functiona
 
 - **FR-001**: Repository MUST be structured as a monorepo containing multiple independent packages in the style of Ecto and Phoenix
 - **FR-002**: Repository MUST contain a package named Raggio.Schema (migrated from old_code/data_schema)
-- **FR-003**: Repository MUST contain a package named Raggio.Syntax (migrated from AST components in old_code/data_schema/ast)
-- **FR-004**: Each package MUST be independently compilable and publishable with no circular dependency (package should be layered)
+- **FR-003**: Repository MUST contain a package named Raggio.Syntax (migrated from syntax manipulation components in old_code/data_schema/ast)
+- **FR-004**: Each package MUST be independently compilable and publishable with no circular dependency - packages follow layered architecture where Raggio.Syntax may depend on Raggio.Schema, but Raggio.Schema must not depend on Raggio.Syntax
 - **FR-005**: Each package MUST have minimal inline code documentation limited to module-level purpose only (no function doc), preferring working example over comment
 - **FR-006**: Repository MUST include a collection of working, compilable example organized in a two-level hierarchy (examples/[package]/[use_case])
 - **FR-007**: Package APIs MUST favor function composition over macro-based DSLs
 - **FR-008**: Package APIs MUST prioritize composability, allowing developer to combine small function into larger behavior with composition-time error for incompatible type
+- **FR-014**: Raggio.Schema API MUST use nested function composition syntax where constraints are composable functions passed as arguments (e.g., Schema.string(Schema.min(3), Schema.max(5))), following Effect-TS/Schema patterns. Implementation must match this spec exactly - constraints are NOT keyword lists but first-class composable functions
+- **FR-015**: Raggio.Schema validation MUST return binary results by default: {:ok, parsed_data} on success or {:error, errors} on failure, where each error is a structured map with :path (list showing location like [:user, :addresses, 2, :zipcode]), :message (human-readable description), and :value (the actual invalid value that failed validation)
+- **FR-016**: Raggio.Schema MUST support two error collection modes: fail-fast (default, stops at first error returning single error) and all-errors (collects all validation errors, returning list of error maps)
+- **FR-017**: Raggio.Schema MUST provide opt-in partial validation mode (via {:partial, true} option) that returns {:ok, {successes, failures}} for composite types, allowing recovery of valid fields even when some fields fail validation
 - **FR-009**: Example MUST compile and run successfully as part of an automated test suite that verifies output
 - **FR-010**: Raggio.Schema MUST provide functionality for defining and validating data schemas following the "parse, don't validate" principle - validation should parse input into well-typed domain data structures, not merely check validity and pass through
-- **FR-011**: Raggio.Syntax MUST provide functionality for building and manipulating abstract syntax trees
+- **FR-011**: Raggio.Syntax MUST provide functionality for building and manipulating syntax structures (nodes, trees, and transformations)
 - **FR-012**: Package design SHOULD be influenced by Effect-TS/Schema patterns for API ergonomics and composability
 - **FR-013**: Packages are a clean break from old_code - no backward compatibility layer or migration support will be provided
+- **FR-018**: Raggio.Schema MUST provide a BigQuery exporter adapter that converts schema definitions to valid BigQuery standard SQL DDL, including appropriate column types, constraints, and nested STRUCT/RECORD types for composite schemas
+- **FR-019**: Raggio.Schema MUST provide a SheetSchema importer adapter that parses Google Sheets with columns [field_name, type, required, constraints] and converts them into valid Raggio.Schema code, including type mappings and constraint conversions
 
 ### Key Entities
 
-- **Raggio.Schema Package**: A composable library for defining data schemas, providing validation, and transformation capabilities. Contains builders, validators, and composable schema primitives migrated and refactored from old DataSchema.
-- **Raggio.Syntax Package**: A library for working with abstract syntax trees through composable functions. Contains AST node builders, traversal functions, and transformation utilities migrated from the AST components.
+- **Raggio.Schema Package**: A composable library for defining data schemas, providing validation, and transformation capabilities. Uses nested function composition syntax (e.g., Schema.string(Schema.min(3), Schema.max(5))) where constraints are first-class composable functions. Validation returns binary results by default ({:ok, data} | {:error, errors_with_paths}), with support for fail-fast or all-errors modes, and optional partial validation mode for composites. Includes adapters for exporting schemas to BigQuery DDL and importing from SheetSchema spreadsheet definitions. Contains builders, validators, composable schema primitives, and import/export adapters migrated and refactored from old DataSchema.
+- **BigQuery Exporter**: An adapter that converts Raggio.Schema definitions to BigQuery standard SQL DDL, mapping schema types to BigQuery column types, constraints to column constraints, and nested structures to STRUCT/RECORD types.
+- **SheetSchema Importer**: An adapter that parses Google Sheets with columns [field_name, type, required, constraints] and generates valid Raggio.Schema code, including type mappings and constraint conversions.
+- **Raggio.Syntax Package**: A library for working with syntax structures through composable functions. Contains syntax node builders, traversal functions, and transformation utilities migrated from the syntax manipulation components.
 - **Example Projects**: Self-contained, executable code examples that demonstrate package usage patterns. Each example focuses on one specific use case and is independently runnable.
 - **Monorepo Structure**: The organizational pattern that contains multiple packages, shared tooling, and cross-package development workflows similar to Elixir's Ecto and Phoenix projects.
 
@@ -123,7 +172,7 @@ A developer with specific domain requirements needs to extend the base functiona
 - **SC-001**: A developer can clone the repository and successfully compile all packages within 5 minutes on a machine with Elixir installed
 - **SC-002**: A developer can run any example in the examples directory and see working output within 30 seconds
 - **SC-003**: Each package can be added as a dependency to a new project and used independently without requiring the other packages
-- **SC-004**: 90% of common use cases for schema definition and AST manipulation can be accomplished through function composition without writing custom macros
+- **SC-004**: 90% of common use cases for schema definition and syntax manipulation can be accomplished through function composition without writing custom macros
 - **SC-005**: The repository structure matches the organizational patterns of established Elixir monorepos (Ecto/Phoenix style) as verified by presence of package-specific mix.exs files and umbrella project structure
 - **SC-006**: Developers can understand basic usage of either package by reading and running examples without consulting extensive API documentation
 
@@ -131,15 +180,17 @@ A developer with specific domain requirements needs to extend the base functiona
 
 ### Assumptions
 
+- Elixir 1.14 or newer is available on target systems
 - The Elixir programming language and Mix build tool will continue to be used
 - The /old_code folder contains the current implementation that needs to be restructured
-- The existing functionality in DataSchema and AST is valuable and should be preserved in the new packages
+- The existing functionality in DataSchema and syntax manipulation is valuable and should be preserved in the new packages
 - Effect-TS/Schema's approach to composability and API design is compatible with Elixir's functional programming paradigm
 - Developers using this library are familiar with functional composition concepts
 - The monorepo will be managed using standard Elixir umbrella project conventions
 
 ### Constraints
 
+- Must support Elixir 1.14 or newer as minimum version
 - Must minimize use of Elixir macros in the public API
 - Must maintain compilable example as first-class documentation (module-level purpose only, no function doc)
 - Must preserve existing functionality from old_code during migration

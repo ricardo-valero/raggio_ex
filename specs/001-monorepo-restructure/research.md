@@ -1,93 +1,148 @@
-# Research: Multi-Package Monorepo Restructure
+# Research Findings: Multi-Package Monorepo Restructure
 
 **Date**: 2026-01-12  
-**Status**: Complete  
-**Purpose**: Resolve technical unknowns and establish API design pattern for Raggio.Schema and Raggio.Syntax
+**Feature**: Multi-Package Monorepo Restructure  
+**Branch**: `001-monorepo-restructure`
+
+This document consolidates research findings from Phase 0 of the implementation plan, resolving all technical unknowns identified in the planning phase.
 
 ---
 
-## 1. Effect-TS/Schema API Pattern Analysis
+## 1. Effect-TS/Schema API Patterns
 
 ### Decision
-Adopt **pipe-first composition** with **combinator function** and **structured error accumulation** pattern inspired by Effect-TS/Schema.
+Adopt Effect-TS/Schema's **pipe-based constraint composition pattern** adapted for Elixir's native pipe operator.
 
 ### Rationale
-Effect-TS/Schema demonstrates a proven approach for building composable, type-safe API that prioritize developer experience:
+Effect-TS/Schema's constraint composition leverages TypeScript's method chaining which maps naturally to Elixir's pipe operator. This enables readable constraint composition like `Schema.string() |> Schema.min(3) |> Schema.max(5)` while preserving builder/validator separation and maintaining Elixir's functional idioms.
 
-1. **Pipe-first composition**: Natural left-to-right reading flow matches Elixir's `|>` operator perfectly
-2. **Combinator function**: Higher-order function that compose schema (e.g., `compose`, `array`, `struct`) provide clean composition without macro
-3. **Structured error**: Tree-structured error with path information make debugging easier
-4. **Data-last function signature**: All function accept data as last argument, enabling pipeline composition
+### Key Patterns Identified
 
-### Key Pattern Transferable to Elixir
+**1. Builder-Validator Separation**
+- Base type constructors: `Schema.string()`, `Schema.integer()`
+- Separate constraint functions: `min/1`, `max/1`, `pattern/1`
+- Constraints modify schema without changing core type
 
-**Composition through pipe operator**:
+**2. Pipe-Based Composition**
+- Constraints compose via pipe operator: `|>`
+- Each constraint function returns transformed schema
+- Natural reading order: base type → constraint 1 → constraint 2
+
+**3. Immutable Schema Values**
+- Schemas are immutable structs
+- Each constraint application returns new schema
+- Enables safe composition without mutation
+
+**4. Structured Validation Results**
+- Returns `{:ok, parsed_data}` or `{:error, issues}`
+- Errors include `path`, `message`, and `value` fields
+- Supports collecting all errors or fail-fast mode
+
+**5. Annotation-Based Metadata**
+- Constraints carry metadata (descriptions, custom messages)
+- Used for error messages and documentation generation
+- Stored in schema struct alongside filters
+
+### Implementation Approach for Raggio.Schema
+
 ```elixir
-# Effect-TS pattern
-pipe(input, Schema.string(), Schema.minLength(5), Schema.maxLength(50))
+# Core schema struct
+%Raggio.Schema{
+  type: :string,           # Base type
+  encoded: :string,        # Wire format
+  filters: [              # Constraint list
+    {:min_length, 3},
+    {:max_length, 50}
+  ],
+  annotations: %{         # Metadata
+    description: "Username",
+    message: "Invalid username format"
+  }
+}
 
-# Elixir equivalent
-"input"
-|> Raggio.Schema.string()
-|> Raggio.Schema.min_length(5)
-|> Raggio.Schema.max_length(50)
+# Constraint functions return schema transformers
+def min_length(length) do
+  fn schema ->
+    %{schema | filters: [{:min_length, length} | schema.filters]}
+  end
+end
+
+# Usage via pipes
+Schema.string()
+|> Schema.min_length(3)
+|> Schema.max_length(50)
+|> Schema.pattern(~r/^[a-z0-9_]+$/)
 ```
 
-**Structural composition with combinator**:
-```elixir
-# Combine schema using combinator function
-Raggio.Schema.struct([
-  {:name, Raggio.Schema.string()},
-  {:age, Raggio.Schema.integer() |> Raggio.Schema.positive()},
-  {:email, Raggio.Schema.string() |> Raggio.Schema.email()}
-])
-```
+### Alternatives Considered
 
-**Error accumulation**:
-```elixir
-# Validation return structured error with path
-{:error, [
-  %{path: [:user, :email], message: "invalid email format"},
-  %{path: [:user, :age], message: "must be positive integer"}
-]}
-```
+**Nested Function Calls**: `Schema.string(Schema.min(3, Schema.max(5)))`
+- **Rejected**: Inverts natural reading order, creates deep nesting
 
-**Separation of schema definition from execution**:
-```elixir
-# Schema are data structure describing validation
-user_schema = Raggio.Schema.struct([...])
+**Keyword List Arguments**: `Schema.string(min: 3, max: 5)`
+- **Rejected**: Violates single responsibility, doesn't scale for complex compositions
 
-# Execution happen separately
-Raggio.Schema.validate(user_schema, data)
-```
-
-### Alternative Considered
-- **Macro-based DSL** (like Ecto.Schema): Rejected because spec requires minimal macro (FR-007)
-- **Protocol-based composition**: Rejected because function composition is more explicit and easier to debug
-- **Behaviour-based**: Rejected because it adds unnecessary complexity for this use case
+**Macro-Based DSL**: `defschema [username: string() |> min(3)]`
+- **Rejected**: Adds complexity, hides composition mechanics, harder to debug
 
 ---
 
-## 2. Elixir Umbrella Structure
+## 2. Elixir Umbrella Project Structure
 
 ### Decision
-Use **Elixir umbrella project** structure for monorepo, but keep package **independently publishable** similar to Ecto/Phoenix approach.
+Use **Elixir umbrella monorepo** structure for this specific project (not separate repositories).
 
 ### Rationale
-Research shows that Ecto and Phoenix actually prefer **multi-repo over umbrella** for publishable package. However, for this project, umbrella structure provide benefit:
+While Ecto/Phoenix ecosystem packages are maintained as separate repositories for independent library distribution, this restructure explicitly requests "repository in the same style as ecto and phoenix where we have several packages" stored together. The umbrella pattern provides:
+- Unified development workflow for related packages
+- Shared tooling and configuration
+- Simplified local development and testing
+- Single repository for both packages per user requirements
 
-1. **Unified development experience**: All package in one repository simplify development workflow
-2. **Shared tooling**: Mix task, formatter, and CI configuration can be shared
-3. **Independent publishing**: Each app in umbrella can still be published to Hex independently
-4. **Clear dependency management**: Path dependency during development, proper version in production
+### Key Umbrella Conventions
 
-The key insight: Umbrella project work well when package are tightly related but independently useful (Raggio.Schema and Raggio.Syntax fit this pattern).
+**Directory Structure**:
+```
+/
+├── mix.exs              # Umbrella project definition
+├── config/
+│   ├── config.exs       # Shared configuration
+│   └── test.exs
+├── apps/
+│   ├── raggio_schema/   # Package 1
+│   │   ├── mix.exs
+│   │   ├── lib/
+│   │   └── test/
+│   └── raggio_syntax/   # Package 2
+│       ├── mix.exs
+│       ├── lib/
+│       └── test/
+├── examples/            # Shared examples at root
+└── test/               # Cross-package integration tests
+```
 
-### Concrete Structure
-
+**Dependency Management**:
 ```elixir
-# Root mix.exs (umbrella)
-defmodule Raggio.MixProject do
+# In apps/raggio_syntax/mix.exs
+defp deps do
+  [
+    {:raggio_schema, in_umbrella: true},  # Umbrella dependency
+    # other deps...
+  ]
+end
+```
+
+**Testing Strategy**:
+- Each app has own `test/` directory for unit tests
+- Root-level `test/` for integration tests across packages
+- `mix test` from root runs all tests
+- `mix test` from app directory runs only that app's tests
+
+### Umbrella Project Configuration
+
+**Root mix.exs**:
+```elixir
+defmodule Raggio.Umbrella.MixProject do
   use Mix.Project
 
   def project do
@@ -101,313 +156,389 @@ defmodule Raggio.MixProject do
   end
 
   defp deps do
-    []  # Umbrella level dependency (if any)
+    []
   end
 
   defp aliases do
     [
-      "test.all": ["test", "cmd --app raggio_schema mix test", "cmd --app raggio_syntax mix test"],
-      "format.all": ["format", "cmd --app raggio_schema mix format", "cmd --app raggio_syntax mix format"]
-    ]
-  end
-end
-
-# Package mix.exs (apps/raggio_schema/mix.exs)
-defmodule RaggioSchema.MixProject do
-  use Mix.Project
-
-  def project do
-    [
-      app: :raggio_schema,
-      version: "0.1.0",
-      build_path: "../../_build",
-      config_path: "../../config/config.exs",
-      deps_path: "../../deps",
-      lockfile: "../../mix.lock",
-      elixir: "~> 1.14",
-      start_permanent: Mix.env() == :prod,
-      deps: deps(),
-      
-      # Publishing configuration
-      description: "Composable schema definition and validation library",
-      package: package(),
-      name: "Raggio.Schema",
-      source_url: "https://github.com/your_org/raggio"
-    ]
-  end
-
-  defp deps do
-    []  # No external dependency initially
-  end
-
-  defp package do
-    [
-      maintainers: ["Your Name"],
-      licenses: ["MIT"],
-      links: %{"GitHub" => "https://github.com/your_org/raggio"},
-      files: ~w(lib mix.exs README.md LICENSE CHANGELOG.md)
+      test: ["test --cover"],
+      "format.all": ["format", "cmd mix format"]
     ]
   end
 end
 ```
 
-### Best Practice Applied
-1. **Separate `.formatter.exs`** per package with consistent rule
-2. **Independent versioning**: Each package has own version and changelog
-3. **Mix aliases** for coordinated testing and formatting
-4. **Shared build artifact** (`_build`, `deps`, `mix.lock`) at umbrella root
-5. **Package-specific README** with clear usage example
-
-### Alternative Considered
-- **Multi-repo** (separate repository for each package): Rejected because package are tightly related and developed together initially
-- **Single package with namespace**: Rejected because spec explicitly require independent package (FR-004)
+### Implementation Notes
+- Each package maintains independent version numbers
+- Packages can be published to Hex independently later
+- Shared configuration in root `config/` directory
+- Examples at root level for easy access
+- No circular dependencies enforced at package level
 
 ---
 
-## 3. Composability without Macro
+## 3. BigQuery DDL Generation
 
 ### Decision
-Use **pure function with pipe operator**, **combinator pattern**, and **explicit data structure** to achieve composability without macro.
+Generate **BigQuery Standard SQL DDL** using CREATE TABLE statements with explicit column definitions, type specifications, and mode constraints.
 
 ### Rationale
-Elixir provide native support for function composition through pipe operator. By designing function with data-last signature and using struct to carry state, we can build fluent API without `use` macro:
+BigQuery Standard SQL DDL supports strongly-typed columns, nested STRUCT types, ARRAY types, and column modes (NULLABLE/REQUIRED). This aligns well with Raggio.Schema's structured type definitions and validation rules.
 
-1. **Pipe operator** (`|>`) enable natural left-to-right composition
-2. **Combinator function** (higher-order function) compose behavior
-3. **Explicit data passing** make function pure and testable
-4. **Struct as state container** maintain state through pipeline
+### Type Mappings
 
-### Pattern to Apply
+| Raggio Type | BigQuery Type | Notes |
+|-------------|---------------|-------|
+| string      | STRING        | Variable-length character data |
+| integer     | INT64         | 64-bit signed integer |
+| decimal     | NUMERIC       | Exact decimal (38 digits precision) |
+| float       | FLOAT64       | 64-bit floating point |
+| boolean     | BOOL          | TRUE/FALSE values |
+| datetime    | DATETIME      | Calendar date and time (no timezone) |
+| timestamp   | TIMESTAMP     | Absolute point in time (with timezone) |
+| date        | DATE          | Calendar date only |
+| time        | TIME          | Time of day only |
+| binary      | BYTES         | Variable-length binary data |
+| json        | JSON          | Native JSON type |
 
-**Pattern 1: Data-last function for pipe composition**
+### DDL Template
+
+```sql
+CREATE TABLE `project.dataset.table_name` (
+  id INT64 NOT NULL,
+  name STRING NOT NULL,
+  email STRING,
+  tags ARRAY<STRING>,
+  address STRUCT<
+    street STRING,
+    city STRING NOT NULL,
+    geo STRUCT<
+      lat FLOAT64,
+      lng FLOAT64
+    >
+  >
+)
+PARTITION BY DATE(created_at)
+CLUSTER BY id;
+```
+
+### Nested Structure Handling
+
+**STRUCT Syntax**:
+```sql
+-- Simple nested structure
+address STRUCT<
+  street STRING,
+  city STRING NOT NULL
+>
+
+-- Deeply nested
+location STRUCT<
+  address STRUCT<
+    geo STRUCT<
+      lat FLOAT64,
+      lng FLOAT64
+    >
+  >
+>
+```
+
+**ARRAY Syntax**:
+```sql
+-- Array of primitives
+tags ARRAY<STRING>
+
+-- Array of structs
+orders ARRAY<STRUCT<
+  id INT64 NOT NULL,
+  amount NUMERIC NOT NULL
+>>
+```
+
+### Constraint Mapping
+
+| Raggio Constraint | BigQuery Representation | Support Level |
+|-------------------|-------------------------|---------------|
+| required=true     | `NOT NULL` column mode  | Full support |
+| required=false    | Default (nullable)      | Full support |
+| default value     | `DEFAULT value`         | Full support |
+| min/max           | Not supported           | Document in comments |
+| pattern           | Not supported           | Document in comments |
+
+### Implementation Strategy
+
+**Code Generation Approach**:
 ```elixir
-defmodule Raggio.Schema do
-  # BAD: Data-first (doesn't pipe well)
-  def validate(data, schema), do: ...
+defmodule Raggio.Schema.Exporter.BigQuery do
+  def to_ddl(schema, table_name, opts \\ []) do
+    columns = generate_columns(schema)
+    clauses = generate_clauses(opts)
+    
+    """
+    CREATE TABLE `#{table_name}` (
+    #{columns}
+    )#{clauses}
+    """
+  end
   
-  # GOOD: Data-last (pipes naturally)
-  def validate(schema, data), do: ...
+  defp map_type({:struct, fields}) do
+    field_defs = Enum.map(fields, fn {name, spec} ->
+      type = map_type(spec.type)
+      mode = if spec.required, do: " NOT NULL", else: ""
+      "  #{name} #{type}#{mode}"
+    end)
+    
+    "STRUCT<\n#{Enum.join(field_defs, ",\n")}\n>"
+  end
   
-  # Usage
-  data |> Raggio.Schema.validate(user_schema)
+  defp map_type({:array, inner_type}) do
+    "ARRAY<#{map_type(inner_type)}>"
+  end
+  
+  defp map_type(:string), do: "STRING"
+  defp map_type(:integer), do: "INT64"
+  # ... other mappings
 end
 ```
 
-**Pattern 2: Combinator for composition**
+---
+
+## 4. Functional Composition Patterns
+
+### Decision
+**Pipe-First Design + Higher-Order Functions + Protocol-Based Extension**
+
+### Rationale
+This combination provides maximum composability through Elixir's native pipe operator, enables flexible composition through functions that return functions, and allows extensibility via protocols without requiring users to write macros. Satisfies the "90% of use cases without macros" requirement.
+
+### Core Patterns
+
+**Pattern 1: Pipe-First Data Pipeline**
 ```elixir
-defmodule Raggio.Schema do
-  def compose(validators) when is_list(validators) do
-    fn schema ->
-      Enum.reduce(validators, {:ok, schema}, fn
-        validator, {:ok, schema} -> validator.(schema)
-        _validator, error -> error
+# Natural Elixir style
+schema =
+  Schema.new()
+  |> Schema.field(:name, :string)
+  |> Schema.field(:age, :integer)
+  |> Schema.constraint(:age, &(&1 > 0))
+```
+
+**Pattern 2: Higher-Order Function Builders**
+```elixir
+# Constraint builders return functions
+defmodule Constraints do
+  def min(value), do: fn x -> x >= value end
+  def max(value), do: fn x -> x <= value end
+  def range(min, max), do: fn x -> x >= min and x <= max end
+end
+
+# Usage
+Schema.field(:age, :integer, Constraints.range(0, 120))
+```
+
+**Pattern 3: Combinator Pattern**
+```elixir
+# Combining validators
+defmodule Combinators do
+  def all(validators) do
+    fn value ->
+      Enum.reduce_while(validators, :ok, fn validator, :ok ->
+        case validator.(value) do
+          :ok -> {:cont, :ok}
+          error -> {:halt, error}
+        end
       end)
     end
   end
-  
-  # Usage
-  combined = Raggio.Schema.compose([
-    &Raggio.Schema.min_length(&1, 5),
-    &Raggio.Schema.max_length(&1, 50),
-    &Raggio.Schema.pattern(&1, ~r/@/)
-  ])
 end
+
+# Usage
+age_validator = Combinators.all([
+  Constraints.min(0),
+  Constraints.max(120)
+])
 ```
 
-**Pattern 3: ValidationSet for error accumulation**
+**Pattern 4: Protocol-Based Extension**
 ```elixir
-defmodule Raggio.Schema.ValidationSet do
-  defstruct data: %{}, error: [], valid?: true
-  
-  def new(data), do: %__MODULE__{data: data}
-  
-  def validate(vset, field, validator) do
-    case validator.(vset.data[field]) do
-      :ok -> vset
-      {:error, msg} -> 
-        %{vset | 
-          error: [{field, msg} | vset.error],
-          valid?: false
-        }
-    end
-  end
-  
-  def apply(vset) do
-    if vset.valid?, do: {:ok, vset.data}, else: {:error, Enum.reverse(vset.error)}
-  end
+# Define protocol for custom constraints
+defprotocol Raggio.Schema.Constraint do
+  def validate(constraint, value)
+  def error_message(constraint)
 end
 
-# Usage accumulates all error
-%{email: "bad", age: -5}
-|> ValidationSet.new()
-|> ValidationSet.validate(:email, &validate_email/1)
-|> ValidationSet.validate(:age, &validate_age/1)
-|> ValidationSet.apply()
-```
+# Users extend without modifying library
+defmodule EmailConstraint do
+  defstruct [:domain]
+end
 
-**Pattern 4: Struct-based fluent API**
-```elixir
-defmodule Raggio.Schema do
-  defstruct [:type, :constraint, :validator]
-  
-  def string(), do: %__MODULE__{type: :string, constraint: [], validator: []}
-  
-  def min_length(schema, n) do
-    %{schema | constraint: [{:min_length, n} | schema.constraint]}
+defimpl Raggio.Schema.Constraint, for: EmailConstraint do
+  def validate(%{domain: d}, value) do
+    if String.ends_with?(value, "@#{d}"), do: :ok, else: :error
   end
-  
-  def max_length(schema, n) do
-    %{schema | constraint: [{:max_length, n} | schema.constraint]}
-  end
-  
-  # Usage
-  Raggio.Schema.string()
-  |> Raggio.Schema.min_length(5)
-  |> Raggio.Schema.max_length(50)
+  def error_message(%{domain: d}), do: "must be @#{d}"
 end
 ```
 
-### Error Handling Pattern
+### Trade-offs Analysis
 
-**Composition-time error** (per clarification):
-```elixir
-defmodule Raggio.Schema do
-  def compose(schema1, schema2) do
-    case compatible?(schema1.type, schema2.type) do
-      true -> 
-        {:ok, merge_schema(schema1, schema2)}
-      false -> 
-        {:error, %Raggio.Schema.CompositionError{
-          message: "Cannot compose incompatible type",
-          left_type: schema1.type,
-          right_type: schema2.type
-        }}
-    end
-  end
-end
-```
+| Pattern | Pros | Cons | Use When |
+|---------|------|------|----------|
+| Pipe-First | Natural Elixir, easy to read | Requires data-first arg | Always (default) |
+| Higher-Order Functions | Flexible, composable | Harder to debug closures | Building reusable constraints |
+| Combinators | Powerful composition | Learning curve | Complex validation logic |
+| Protocols | Type-safe extension | Requires struct definitions | Advanced extensions |
 
-### Alternative Considered
-- **Macro-based DSL**: Rejected per spec requirement (FR-007)
-- **Protocol-based**: Considered but pure function are simpler and more explicit
-- **GenServer for state**: Rejected because schema are immutable data structure
+### Implementation for Both Packages
+
+**Raggio.Schema**:
+- Core module with struct for field/constraint accumulation
+- Pipe-first builder functions
+- `Constraints` module with common builders
+- `Combinators` module for composition
+- `Raggio.Schema.Constraint` protocol
+
+**Raggio.Syntax**:
+- Core module with struct for transform accumulation
+- Pipe-first transform registration
+- `Transformers` module with common patterns
+- `Combinators` for chaining transformers
+- `Raggio.Syntax.Transformer` protocol (optional)
 
 ---
 
-## 4. Example Testing Strategy
+## 5. SheetSchema Format Definition
 
 ### Decision
-Implement **automated test suite** using ExUnit that executes all example file and verifies output using **doctest-style assertion**.
+Define **SheetSchema** as a custom spreadsheet format with columns: `[field_name, type, required, constraints, description, example, default, parent_path]`
 
 ### Rationale
-Example must remain accurate as API evolve (FR-009). Automated testing ensure:
+No existing standard adequately addresses Elixir schema generation with composable validation. SheetSchema is purpose-built for Raggio.Schema's pipe-based API while remaining accessible to non-technical stakeholders.
 
-1. **Example always compile**: Catch syntax error and API change
-2. **Output is verified**: Ensure example produce expected result
-3. **CI integration**: Run automatically on every commit
-4. **Fast feedback**: Developer know immediately when example break
+### Column Definitions
 
-### Implementation Approach
+| Column | Type | Required | Description |
+|--------|------|----------|-------------|
+| field_name | string | yes | Field identifier (snake_case) |
+| type | string | yes | Elixir type or complex type expression |
+| required | boolean | no | Whether field must be present (default: false) |
+| constraints | string | no | Pipe-separated validation functions |
+| description | string | no | Human-readable documentation |
+| example | string | no | Sample valid value |
+| default | string | no | Default value if not provided |
+| parent_path | string | no | Dot-notation path for nesting |
 
-**Structure**:
+### Constraint Syntax
+
+Constraints use Raggio.Schema function notation separated by pipes, matching code:
+
 ```
-test/
-└── example_test.exs     # Single test file that discover and run all example
+min_length(3) | max_length(50) | pattern(^[a-z]+$)
+one_of(["active", "inactive", "suspended"])
+positive() | even()
+email()
 ```
 
-**Test implementation**:
+**Common Constraints**:
+- String: `min_length/1`, `max_length/1`, `pattern/1`, `email/0`, `url/0`, `uuid/0`
+- Number: `min/1`, `max/1`, `positive/0`, `negative/0`, `even/0`, `odd/0`
+- Collection: `min_items/1`, `max_items/1`, `unique/0`
+- Universal: `one_of/1`, `custom/2`
+
+### Type Syntax
+
+**Primitives**: `string`, `integer`, `float`, `boolean`, `atom`, `date`, `datetime`, `time`
+
+**Complex Types**:
+- `list(type)` - homogeneous list
+- `map` - key-value map (fields via parent_path)
+- `tuple(type1, type2)` - fixed-length tuple
+- `union(type1, type2)` - one of multiple types
+- `nullable(type)` - type or nil
+
+### Example Sheet
+
+| field_name | type | required | constraints | description | example | default | parent_path |
+|------------|------|----------|-------------|-------------|---------|---------|-------------|
+| id | integer | yes | positive() | Unique identifier | 12345 | | |
+| email | string | yes | email() \| max_length(255) | Email address | alice@example.com | | |
+| username | string | yes | min_length(3) \| max_length(30) \| pattern(^[a-z0-9_]+$) | Login username | alice_j | | |
+| age | integer | no | min(13) \| max(120) | Age in years | 28 | | |
+| street | string | no | max_length(100) | Street address | 123 Main St | | address |
+| city | string | no | max_length(50) | City name | Portland | | address |
+| latitude | float | no | min(-90) \| max(90) | Latitude | 45.5231 | | address.geo |
+| longitude | float | no | min(-180) \| max(180) | Longitude | -122.6765 | | address.geo |
+
+### Nested Structure Representation
+
+Use `parent_path` column with dot notation:
+- Empty = top-level field
+- `address` = nested in `address` map
+- `address.geo` = nested in `geo` map inside `address`
+
+**Generated Code Example**:
 ```elixir
-defmodule ExampleTest do
-  use ExUnit.Case, async: true
-  
-  @examples_dir Path.expand("../examples", __DIR__)
-  
-  # Discover all .exs file in example directory
-  @example_files @examples_dir
-                 |> Path.join("**/*.exs")
-                 |> Path.wildcard()
-                 |> Enum.sort()
-  
-  for example_file <- @example_files do
-    relative_path = Path.relative_to(example_file, @examples_dir)
-    
-    test "example: #{relative_path}" do
-      # Execute example file
-      {output, exit_code} = System.cmd("elixir", [unquote(example_file)], 
-        stderr_to_stdout: true,
-        env: [{"MIX_ENV", "test"}]
-      )
-      
-      # Verify execution succeeded
-      assert exit_code == 0, """
-      Example failed: #{unquote(relative_path)}
-      Output:
-      #{output}
-      """
-      
-      # Verify output contains expected marker (optional)
-      # Example file can include "# Expected: <pattern>" comment
-      # Test parse and verify output match pattern
-    end
-  end
-end
-```
-
-**Example file pattern**:
-```elixir
-# examples/raggio_schema/basic_validation/simple_schema.exs
-
-# Expected output: Validation succeeded: %{name: "Alice", age: 30}
-
-user_schema = Raggio.Schema.struct([
-  {:name, Raggio.Schema.string()},
-  {:age, Raggio.Schema.integer()}
+Raggio.Schema.struct([
+  {:id, Raggio.Schema.integer() |> Raggio.Schema.positive()},
+  {:email, Raggio.Schema.string() |> Raggio.Schema.email() |> Raggio.Schema.max_length(255)},
+  {:username, Raggio.Schema.string() 
+    |> Raggio.Schema.min_length(3) 
+    |> Raggio.Schema.max_length(30) 
+    |> Raggio.Schema.pattern(~r/^[a-z0-9_]+$/)},
+  {:age, Raggio.Schema.integer() 
+    |> Raggio.Schema.min(13) 
+    |> Raggio.Schema.max(120) 
+    |> Raggio.Schema.optional()},
+  {:address, Raggio.Schema.struct([
+    {:street, Raggio.Schema.string() |> Raggio.Schema.max_length(100) |> Raggio.Schema.optional()},
+    {:city, Raggio.Schema.string() |> Raggio.Schema.max_length(50) |> Raggio.Schema.optional()},
+    {:geo, Raggio.Schema.struct([
+      {:latitude, Raggio.Schema.float() |> Raggio.Schema.min(-90) |> Raggio.Schema.max(90) |> Raggio.Schema.optional()},
+      {:longitude, Raggio.Schema.float() |> Raggio.Schema.min(-180) |> Raggio.Schema.max(180) |> Raggio.Schema.optional()}
+    ]) |> Raggio.Schema.optional()}
+  ]) |> Raggio.Schema.optional()}
 ])
-
-case Raggio.Schema.validate(user_schema, %{name: "Alice", age: 30}) do
-  {:ok, data} -> 
-    IO.puts("Validation succeeded: #{inspect(data)}")
-  {:error, error} -> 
-    IO.puts("Validation failed: #{inspect(error)}")
-end
 ```
 
-**CI integration**:
-```yaml
-# .github/workflows/ci.yml
-- name: Run example test
-  run: mix test test/example_test.exs
-```
+### Implementation Considerations
 
-### Verification Strategy
-1. **Compilation check**: Example must compile without error
-2. **Execution check**: Example must run to completion (exit code 0)
-3. **Output verification** (optional): Parse expected output from comment and verify
+**Parser Requirements**:
+1. CSV/TSV reading with `NimbleCSV`
+2. Type parsing with regex for complex types
+3. Constraint parsing: split on `|`, parse function calls
+4. Nesting resolution: build path tree, construct bottom-up
+5. Boolean parsing: accept `true/false/yes/no/1/0` (case-insensitive)
+6. Code generation via Raggio.Syntax for correctness
+7. Validation: duplicate fields, required columns, type syntax, circular nesting
+8. Error handling: row-level errors, collect all before failing
 
-### Alternative Considered
-- **Manual verification**: Rejected because not scalable and error-prone
-- **Doctest in module doc**: Rejected because spec requires minimal inline documentation
-- **Separate test per example**: Rejected because single test file is simpler to maintain
+**Google Sheets Integration**:
+- Google Sheets API v4 for direct import
+- Support sharing link format
+- Handle multiple sheets (specify name or use first)
+- Cache with TTL for repeated imports
 
 ---
 
-## Summary of Decision
+## Summary of Decisions
 
-| Area | Decision | Key Rationale |
-|------|----------|---------------|
-| API Pattern | Pipe-first composition with combinator | Match Elixir idiom; proven by Effect-TS |
-| Project Structure | Umbrella project with independent package | Balance unified development with independent publishing |
-| Composition | Pure function + pipe operator + struct | No macro required; explicit and testable |
-| Error Handling | Composition-time error + accumulated validation error | Fail fast on type mismatch; accumulate validation error |
-| Example Testing | Automated ExUnit test discovering all example | Ensure example accuracy with CI integration |
+| Area | Decision | Rationale |
+|------|----------|-----------|
+| **API Pattern** | Pipe-based composition like Effect-TS | Natural Elixir idiom, readable, composable |
+| **Project Structure** | Elixir umbrella monorepo | Matches user requirements, unified development |
+| **BigQuery Export** | Standard SQL DDL with STRUCT/ARRAY | Full BigQuery compatibility, supports nesting |
+| **Composition Style** | Pipe-first + Higher-order functions + Protocols | 90% cases without macros, extensible |
+| **SheetSchema Format** | Custom format with 8 columns | User-friendly, parseable, maps to Raggio.Schema API |
 
-## Implementation Readiness
+---
 
-All NEEDS CLARIFICATION item from Technical Context are now resolved:
-- ✅ Language/Version: Elixir 1.14+
-- ✅ Testing: ExUnit with automated example verification
-- ✅ Project Type: Umbrella monorepo
-- ✅ API Design: Pipe-first composition without macro
-- ✅ Error Strategy: Composition-time + validation-time
+## Next Steps
 
-**Next Phase**: Phase 1 - Design & Contract (data model, API contract, quickstart guide)
+1. ✅ Phase 0 Research - Complete
+2. ⏳ Phase 1 Design: Create data-model.md, contracts/, quickstart.md
+3. ⏳ Update agent context with new technologies
+4. ⏳ Phase 2: Generate tasks.md via `/speckit.tasks`
+
+---
+
+*Research phase complete. All technical unknowns resolved. Ready for Phase 1 design artifacts.*
