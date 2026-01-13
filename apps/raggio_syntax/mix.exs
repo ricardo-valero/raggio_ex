@@ -14,7 +14,7 @@ defmodule RaggioSyntax.MixProject do
       deps: deps(),
 
       # Publishing configuration
-      description: "AST manipulation library with composable functions",
+      description: "Syntax manipulation library with composable functions",
       package: package(),
       name: "Raggio.Syntax",
       source_url: "https://github.com/your_org/raggio"
@@ -30,7 +30,9 @@ defmodule RaggioSyntax.MixProject do
 
   # Run "mix help deps" to learn about dependencies.
   defp deps do
-    []
+    [
+      {:raggio_schema, in_umbrella: true}
+    ]
   end
 
   defp package do

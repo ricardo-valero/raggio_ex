@@ -13,7 +13,7 @@ defmodule Raggio.Schema.ErrorTest do
     end
 
     test "ValidationError contains error details" do
-      schema = Schema.string() |> Schema.min_length(5)
+      schema = Schema.string(min: 5)
 
       try do
         Schema.validate!(schema, "hi")
@@ -21,15 +21,15 @@ defmodule Raggio.Schema.ErrorTest do
         e in Raggio.Schema.ValidationError ->
           assert is_list(e.errors)
           assert length(e.errors) > 0
-          assert [%{constraint: :min_length}] = e.errors
+          assert [%{constraint: :min}] = e.errors
       end
     end
 
     test "ValidationError message includes all errors" do
       schema =
         Schema.struct([
-          {:name, Schema.string() |> Schema.min_length(3)},
-          {:age, Schema.integer() |> Schema.positive()}
+          {:name, Schema.string(min: 3)},
+          {:age, Schema.integer(min: 1)}
         ])
 
       try do
@@ -50,13 +50,13 @@ defmodule Raggio.Schema.ErrorTest do
 
   describe "error structure" do
     test "error contains path, message, value, and constraint" do
-      schema = Schema.string() |> Schema.min_length(5)
+      schema = Schema.string(min: 5)
       {:error, [error]} = Schema.validate(schema, "hi")
 
       assert is_list(error.path)
       assert is_binary(error.message)
       assert error.value == "hi"
-      assert error.constraint == :min_length
+      assert error.constraint == :min
     end
 
     test "error path is empty for top-level validation" do
@@ -78,7 +78,7 @@ defmodule Raggio.Schema.ErrorTest do
     end
 
     test "error path includes array index" do
-      schema = Schema.array(Schema.integer())
+      schema = Schema.list(Schema.integer())
       {:error, errors} = Schema.validate(schema, [1, "two", 3])
 
       assert [%{path: [1]}] = errors
@@ -103,7 +103,7 @@ defmodule Raggio.Schema.ErrorTest do
           address: %{city: "Portland", zip: "97201"}
         })
 
-      assert [%{path: [:address]}] = errors
+      assert [%{path: [:address, :zip]}] = errors
     end
 
     test "error path includes deeply nested fields" do
@@ -114,7 +114,7 @@ defmodule Raggio.Schema.ErrorTest do
       {:error, errors} =
         Schema.validate(outer_schema, %{middle: %{inner: %{value: "not an int"}}})
 
-      assert [%{path: [:middle]}] = errors
+      assert [%{path: [:middle, :inner, :value]}] = errors
     end
   end
 
@@ -122,9 +122,9 @@ defmodule Raggio.Schema.ErrorTest do
     test "accumulates multiple errors from different fields" do
       schema =
         Schema.struct([
-          {:name, Schema.string() |> Schema.min_length(3)},
-          {:age, Schema.integer() |> Schema.positive()},
-          {:email, Schema.string() |> Schema.email()}
+          {:name, Schema.string(min: 3)},
+          {:age, Schema.integer(min: 1)},
+          {:email, Schema.string(pattern: Schema.email())}
         ])
 
       invalid_data = %{name: "ab", age: -5, email: "not-email"}
@@ -139,22 +139,17 @@ defmodule Raggio.Schema.ErrorTest do
     end
 
     test "accumulates multiple constraint violations on single field" do
-      schema =
-        Schema.string()
-        |> Schema.min_length(5)
-        |> Schema.max_length(10)
-        |> Schema.pattern(~r/^[A-Z]+$/)
+      schema = Schema.string(min: 5, max: 10, pattern: ~r/^[A-Z]+$/)
 
       {:error, errors} = Schema.validate(schema, "ab")
 
-      # Should have at least min_length and pattern errors
       assert length(errors) >= 1
       constraints = Enum.map(errors, & &1.constraint)
-      assert :min_length in constraints
+      assert :min in constraints
     end
 
     test "accumulates errors from array elements" do
-      schema = Schema.array(Schema.integer() |> Schema.positive())
+      schema = Schema.list(Schema.integer(min: 1))
       {:error, errors} = Schema.validate(schema, [1, -2, 3, -4, 5])
 
       assert length(errors) == 2
@@ -167,14 +162,14 @@ defmodule Raggio.Schema.ErrorTest do
     test "accumulates errors from nested structs" do
       address_schema =
         Schema.struct([
-          {:city, Schema.string() |> Schema.min_length(2)},
-          {:zip, Schema.string() |> Schema.pattern(~r/^\d{5}$/)}
+          {:city, Schema.string(min: 2)},
+          {:zip, Schema.string(pattern: ~r/^\d{5}$/)}
         ])
 
       person_schema =
         Schema.struct([
-          {:name, Schema.string() |> Schema.min_length(2)},
-          {:age, Schema.integer() |> Schema.positive()},
+          {:name, Schema.string(min: 2)},
+          {:age, Schema.integer(min: 1)},
           {:address, address_schema}
         ])
 
@@ -186,51 +181,7 @@ defmodule Raggio.Schema.ErrorTest do
 
       {:error, errors} = Schema.validate(person_schema, invalid_data)
 
-      # name, age, city, zip all invalid
       assert length(errors) == 4
-    end
-  end
-
-  describe "CompositionError" do
-    test "raises on incompatible type compositions" do
-      assert_raise Raggio.Schema.CompositionError, ~r/email.*integer/, fn ->
-        Schema.integer() |> Schema.email()
-      end
-
-      assert_raise Raggio.Schema.CompositionError, ~r/min_length.*integer/, fn ->
-        Schema.integer() |> Schema.min_length(5)
-      end
-
-      assert_raise Raggio.Schema.CompositionError, ~r/positive.*string/, fn ->
-        Schema.string() |> Schema.positive()
-      end
-    end
-
-    test "provides helpful error messages" do
-      try do
-        Schema.boolean() |> Schema.pattern(~r/test/)
-      rescue
-        e in Raggio.Schema.CompositionError ->
-          message = Exception.message(e)
-          assert message =~ "pattern"
-          assert message =~ "boolean"
-      end
-    end
-
-    test "does not raise on compatible compositions" do
-      # String constraints on string type
-      assert %Schema{} = Schema.string() |> Schema.min_length(5)
-      assert %Schema{} = Schema.string() |> Schema.email()
-      assert %Schema{} = Schema.string() |> Schema.pattern(~r/test/)
-
-      # Numeric constraints on numeric types
-      assert %Schema{} = Schema.integer() |> Schema.positive()
-      assert %Schema{} = Schema.integer() |> Schema.min(10)
-      assert %Schema{} = Schema.float() |> Schema.max(100.0)
-
-      # Generic modifiers on any type
-      assert %Schema{} = Schema.string() |> Schema.optional()
-      assert %Schema{} = Schema.integer() |> Schema.default(42)
     end
   end
 
@@ -243,11 +194,11 @@ defmodule Raggio.Schema.ErrorTest do
 
       {:error, [error]} = Schema.validate(schema, %{user: %{name: 123}})
       path_string = Enum.join(error.path, ".")
-      assert path_string == "user"
+      assert path_string == "user.name"
     end
 
     test "formats array path with indices" do
-      schema = Schema.array(Schema.integer())
+      schema = Schema.list(Schema.integer())
       {:error, [error]} = Schema.validate(schema, [1, "two", 3])
 
       assert error.path == [1]
@@ -255,10 +206,10 @@ defmodule Raggio.Schema.ErrorTest do
 
     test "includes constraint type in error" do
       test_cases = [
-        {Schema.string() |> Schema.min_length(5), "hi", :min_length},
-        {Schema.string() |> Schema.email(), "not-email", :email},
-        {Schema.integer() |> Schema.positive(), -5, :positive},
-        {Schema.enum([:a, :b]), :c, :enum},
+        {Schema.string(min: 5), "hi", :min},
+        {Schema.string(pattern: Schema.email()), "not-email", :pattern},
+        {Schema.integer(min: 1), -5, :min},
+        {Schema.literal(:a, :b), :c, :literal},
         {Schema.string(), 123, :type}
       ]
 
@@ -273,31 +224,28 @@ defmodule Raggio.Schema.ErrorTest do
     test "can fix errors and revalidate" do
       schema =
         Schema.struct([
-          {:name, Schema.string() |> Schema.min_length(3)},
-          {:age, Schema.integer() |> Schema.positive()}
+          {:name, Schema.string(min: 3)},
+          {:age, Schema.integer(min: 1)}
         ])
 
-      # Start with invalid data
       invalid_data = %{name: "ab", age: -5}
       assert {:error, errors} = Schema.validate(schema, invalid_data)
       assert length(errors) == 2
 
-      # Fix one error
       partially_fixed = %{invalid_data | name: "Alice"}
       assert {:error, errors} = Schema.validate(schema, partially_fixed)
       assert length(errors) == 1
 
-      # Fix all errors
       valid_data = %{partially_fixed | age: 30}
       assert {:ok, _} = Schema.validate(schema, valid_data)
     end
 
     test "error messages are helpful for debugging" do
-      schema = Schema.string() |> Schema.min_length(5)
+      schema = Schema.string(min: 5)
       {:error, [error]} = Schema.validate(schema, "hi")
 
       assert error.message =~ "5"
-      assert error.constraint == :min_length
+      assert error.constraint == :min
       assert error.value == "hi"
     end
   end

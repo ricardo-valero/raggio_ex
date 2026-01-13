@@ -1,0 +1,9 @@
+field_name,type,required,constraints,description,example,default,parent_path
+id,integer,true,positive(),Unique identifier,12345,,
+email,string,true,email() | max_length(255),Email address,alice@example.com,,
+username,string,true,min_length(3) | max_length(30),Login username,alice_j,,
+age,integer,false,min(13) | max(120),Age in years,28,,
+street,string,false,max_length(100),Street address,123 Main St,,address
+city,string,false,max_length(50),City name,Portland,,address
+latitude,float,false,min(-90) | max(90),Latitude,45.5231,,address.geo
+longitude,float,false,min(-180) | max(180),Longitude,-122.6765,,address.geo

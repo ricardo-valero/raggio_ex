@@ -1,575 +1,243 @@
 # Data Model: Multi-Package Monorepo Restructure
 
-**Feature**: Multi-Package Monorepo Restructure  
-**Branch**: `001-monorepo-restructure`  
-**Date**: 2026-01-12
+**Date**: 2026-01-13  
+**Feature**: 001-monorepo-restructure
 
-This document defines all entities, their attributes, relationships, and state transitions for the Raggio.Schema and Raggio.Syntax packages.
+## Core Entities
 
----
+### Schema Struct (Raggio.Schema)
 
-## 1. Raggio.Schema Entities
+The central data structure representing a schema definition.
 
-### 1.1 Schema
-
-Represents a complete schema definition with type information, constraints, and metadata.
-
-**Attributes**:
-- `type` (atom, required) - Base type identifier (`:string`, `:integer`, `:struct`, etc.)
-- `encoded` (atom, required) - Wire format type for encoding/decoding
-- `filters` (list, optional) - List of constraint tuples or Filter structs
-- `annotations` (map, optional) - Metadata including description, custom error messages
-- `fields` (map, optional) - For `:struct` type, map of field_name => nested Schema
-- `inner_type` (Schema.t, optional) - For `:list` and `:array` types, schema of elements
-- `types` (list(Schema.t), optional) - For `:union` type, list of alternative schemas
-
-**Example**:
 ```elixir
-%Raggio.Schema{
-  type: :string,
-  encoded: :string,
-  filters: [
-    {:min_length, 3},
-    {:max_length, 50},
-    {:pattern, ~r/^[a-z0-9_]+$/}
-  ],
-  annotations: %{
-    description: "Username",
-    message: "Invalid username format"
-  }
-}
+defstruct [
+  :type,           # atom - :string, :integer, :float, :boolean, :decimal, 
+                   #        :date, :datetime, :atom, :struct, :list, :tuple, 
+                   #        :record, :union, :literal
+  :encoded,        # atom - wire format type hint
+  :constraints,    # keyword list - [{:min, 3}, {:max, 10}, {:pattern, ~r/.../, {:unique, true}]
+  :fields,         # keyword list | nil - for struct: [{:name, schema}, ...]
+                   #                      for record: [key: key_schema, value: value_schema]
+  :inner_type,     # Schema.t() | nil - for list: element schema
+  :types,          # [Schema.t()] | nil - for union/tuple: list of schemas
+  :values,         # [any()] | nil - for literal: allowed values
+  :optional,       # boolean - field can be missing (default: false)
+  :nullable,       # boolean - value can be nil (default: false)
+  :default,        # any() | nil - default value when nil/missing
+  :annotations     # map - user metadata
+]
 ```
 
-**State Transitions**:
-```
-[Construction] → [Validated] → [Executed]
-     ↓              ↓              ↓
-  Building      Type checking   Validation
-  constraints   constraints     against data
-```
+**Field Semantics**:
 
----
+| Field | Used By | Purpose |
+|-------|---------|---------|
+| `type` | All | Identifies the schema type |
+| `encoded` | All | Hint for serialization format |
+| `constraints` | Primitives, List | Validation constraints as keyword list |
+| `fields` | Struct, Record | Named fields or key/value schemas |
+| `inner_type` | List | Element schema |
+| `types` | Union, Tuple | Component schemas |
+| `values` | Literal | Allowed literal values |
+| `optional` | All (in struct context) | Field presence descriptor |
+| `nullable` | All | Nil value allowed |
+| `default` | All | Default value |
+| `annotations` | All | User-defined metadata |
 
-### 1.2 Filter
+### Validation Error
 
-Represents a single validation constraint that can be applied to data.
-
-**Attributes**:
-- `predicate` (function, required) - Validation function: `(value) -> boolean | {:error, message}`
-- `path` (list, optional) - Path to field being validated (for nested structures)
-- `message` (string, optional) - Custom error message
-- `metadata` (map, optional) - Additional constraint metadata
-
-**Example**:
 ```elixir
-%Filter{
-  predicate: fn value -> String.length(value) >= 3 end,
-  path: [:user, :username],
-  message: "Username must be at least 3 characters",
-  metadata: %{constraint_type: :min_length, value: 3}
+%{
+  path: [atom() | integer()],  # Path to error location
+  message: String.t(),          # Human-readable error description
+  value: any(),                 # The invalid value
+  constraint: atom() | nil      # Which constraint failed (:min, :max, :pattern, :unique, :type)
 }
 ```
 
----
+### Validation Result
 
-### 1.3 ValidationResult
-
-Represents the outcome of validating data against a schema.
-
-**Attributes**:
-- `status` (atom, required) - `:ok` or `:error`
-- `data` (any, for `:ok`) - Parsed and validated data
-- `errors` (list(ValidationError), for `:error`) - List of validation failures
-
-**Example**:
 ```elixir
-# Success
-{:ok, %{username: "alice_j", age: 28}}
-
-# Failure
-{:error, [
-  %ValidationError{
-    path: [:username],
-    message: "Username too short",
-    value: "al"
-  },
-  %ValidationError{
-    path: [:age],
-    message: "Must be at least 13",
-    value: 10
-  }
-]}
+@type validation_result :: 
+  {:ok, any()} | 
+  {:error, [validation_error()]} |
+  {:ok, {successes :: any(), failures :: [validation_error()]}}  # partial mode
 ```
 
----
+## Type Constructors
 
-### 1.4 ValidationError
+### Primitive Types
 
-Represents a single validation failure with context.
+| Constructor | Returns | Constraints |
+|-------------|---------|-------------|
+| `string(opts \\ [])` | `%Schema{type: :string}` | min, max, pattern, default |
+| `integer(opts \\ [])` | `%Schema{type: :integer}` | min, max, default |
+| `float(opts \\ [])` | `%Schema{type: :float}` | min, max, default |
+| `boolean(opts \\ [])` | `%Schema{type: :boolean}` | default |
+| `decimal(opts \\ [])` | `%Schema{type: :decimal}` | min, max, default |
+| `date(opts \\ [])` | `%Schema{type: :date}` | default |
+| `datetime(opts \\ [])` | `%Schema{type: :datetime}` | default |
+| `atom(opts \\ [])` | `%Schema{type: :atom}` | default |
 
-**Attributes**:
-- `path` (list, required) - Path to failed field as list of atoms/integers (e.g., `[:user, :addresses, 2, :zipcode]`)
-- `message` (string, required) - Human-readable error description
-- `value` (any, required) - The actual invalid value that failed validation
-- `constraint` (atom, optional) - Type of constraint that failed (`:min_length`, `:pattern`, etc.)
+### Composite Types
 
-**Example**:
+| Constructor | Returns | Arguments |
+|-------------|---------|-----------|
+| `struct(fields)` | `%Schema{type: :struct, fields: fields}` | `[{atom, Schema.t}]` |
+| `list(inner, opts \\ [])` | `%Schema{type: :list, inner_type: inner}` | `Schema.t`, min, max, unique, default |
+| `tuple(types)` | `%Schema{type: :tuple, types: types}` | `[Schema.t]` |
+| `record(key, value)` | `%Schema{type: :record, fields: [...]}` | `Schema.t`, `Schema.t` |
+| `union(types)` | `%Schema{type: :union, types: types}` | `[Schema.t]` |
+| `literal(values...)` | `%Schema{type: :literal, values: [...]}` | variadic any() |
+
+### Field Descriptors
+
+| Function | Returns | Effect |
+|----------|---------|--------|
+| `optional(schema)` | `%Schema{...schema, optional: true}` | Field can be missing |
+| `nullable(schema)` | `%Schema{...schema, nullable: true}` | Value can be nil |
+
+## Constraint Semantics
+
+### min
+
 ```elixir
-%ValidationError{
-  path: [:user, :email],
-  message: "Invalid email format",
-  value: "not-an-email",
-  constraint: :email
-}
+# For numbers: value >= min
+Schema.integer(min: 0)  # value must be >= 0
+
+# For strings: String.length(value) >= min
+Schema.string(min: 3)   # string must have at least 3 characters
+
+# For lists: length(value) >= min
+Schema.list(Schema.string(), min: 1)  # list must have at least 1 element
 ```
 
----
+### max
 
-### 1.5 BigQueryDDL
-
-Represents a generated BigQuery DDL statement.
-
-**Attributes**:
-- `table_name` (string, required) - Fully-qualified or simple table name
-- `columns` (list(ColumnDef), required) - List of column definitions
-- `partition_by` (string, optional) - PARTITION BY clause
-- `cluster_by` (list(string), optional) - CLUSTER BY fields
-- `options` (map, optional) - Additional table options
-
-**Relationships**:
-- Generated from one Schema
-- Contains multiple ColumnDef entities
-
-**Example**:
 ```elixir
-%BigQueryDDL{
-  table_name: "project.dataset.users",
-  columns: [
-    %ColumnDef{name: "id", type: "INT64", mode: "REQUIRED"},
-    %ColumnDef{name: "email", type: "STRING", mode: "REQUIRED"}
-  ],
-  partition_by: "DATE(created_at)",
-  cluster_by: ["id", "status"]
-}
+# For numbers: value <= max
+Schema.integer(max: 100)  # value must be <= 100
+
+# For strings: String.length(value) <= max
+Schema.string(max: 20)    # string must have at most 20 characters
+
+# For lists: length(value) <= max
+Schema.list(Schema.string(), max: 10)  # list must have at most 10 elements
 ```
 
----
+### pattern
 
-### 1.6 ColumnDef
-
-Represents a single column in BigQuery DDL.
-
-**Attributes**:
-- `name` (string, required) - Column name
-- `type` (string, required) - BigQuery type (STRING, INT64, STRUCT<...>, etc.)
-- `mode` (string, optional) - "REQUIRED", "NULLABLE", or "REPEATED" (default: "NULLABLE")
-- `default` (string, optional) - Default value expression
-- `description` (string, optional) - Column description
-
-**Example**:
 ```elixir
-%ColumnDef{
-  name: "email",
-  type: "STRING",
-  mode: "REQUIRED",
-  description: "User email address"
-}
-
-# Nested STRUCT
-%ColumnDef{
-  name: "address",
-  type: "STRUCT<street STRING, city STRING NOT NULL>",
-  mode: "NULLABLE"
-}
+# For strings only: Regex.match?(pattern, value)
+Schema.string(pattern: ~r/^[A-Z][a-z]+$/)  # must match pattern
 ```
 
----
+### unique
 
-### 1.7 SheetSchema
-
-Represents a parsed spreadsheet schema definition.
-
-**Attributes**:
-- `rows` (list(SheetRow), required) - List of field definitions from spreadsheet
-- `source_url` (string, optional) - Google Sheets URL if imported remotely
-- `sheet_name` (string, optional) - Name of sheet within spreadsheet
-- `parsed_at` (DateTime.t, required) - When sheet was parsed
-
-**Relationships**:
-- Contains multiple SheetRow entities
-- Converts to one Schema
-
-**Example**:
 ```elixir
-%SheetSchema{
-  rows: [
-    %SheetRow{field_name: "email", type: "string", required: true, constraints: "email() | max_length(255)"},
-    %SheetRow{field_name: "age", type: "integer", required: false, constraints: "min(13) | max(120)"}
-  ],
-  source_url: "https://docs.google.com/spreadsheets/d/abc123",
-  sheet_name: "UserSchema",
-  parsed_at: ~U[2026-01-12 10:30:00Z]
-}
+# For lists only: no duplicate elements
+Schema.list(Schema.string(), unique: true)  # all elements must be unique
 ```
 
----
+## Syntax Node Entities (Raggio.Syntax)
 
-### 1.8 SheetRow
+### Node Protocol
 
-Represents a single row from SheetSchema spreadsheet.
-
-**Attributes**:
-- `field_name` (string, required) - Field identifier
-- `type` (string, required) - Type expression
-- `required` (boolean, optional, default: false) - Whether field is required
-- `constraints` (string, optional) - Pipe-separated constraint functions
-- `description` (string, optional) - Human-readable documentation
-- `example` (string, optional) - Example value
-- `default` (string, optional) - Default value
-- `parent_path` (string, optional) - Dot-notation nesting path
-
-**Example**:
 ```elixir
-%SheetRow{
-  field_name: "username",
-  type: "string",
-  required: true,
-  constraints: "min_length(3) | max_length(30) | pattern(^[a-z0-9_]+$)",
-  description: "Login username",
-  example: "alice_j",
-  default: nil,
-  parent_path: nil  # Top-level field
-}
-
-# Nested field
-%SheetRow{
-  field_name: "street",
-  type: "string",
-  required: false,
-  constraints: "max_length(100)",
-  description: "Street address",
-  example: "123 Main St",
-  default: nil,
-  parent_path: "address"  # Nested in address
-}
+defprotocol Raggio.Syntax.Node do
+  @spec node_type(t) :: atom()
+  def node_type(node)
+  
+  @spec children(t) :: [t]
+  def children(node)
+end
 ```
 
----
+### SchemaNode
 
-## 2. Raggio.Syntax Entities
-
-### 2.1 SyntaxTree
-
-Represents a complete syntax tree with metadata.
-
-**Attributes**:
-- `root` (Node.t, required) - Root node of the tree
-- `metadata` (map, optional) - Tree-level metadata
-
-**Example**:
 ```elixir
-%SyntaxTree{
-  root: %SchemaNode{
-    name: :user,
-    fields: [...]
-  },
-  metadata: %{
-    version: "1.0",
-    created_at: ~U[2026-01-12 10:00:00Z]
-  }
-}
+defstruct [
+  :type,        # :schema
+  :name,        # atom | nil - optional name
+  :schema_type, # atom - :struct, :list, etc.
+  :fields,      # [FieldNode.t()] | nil
+  :metadata     # map
+]
 ```
 
----
+### FieldNode
 
-### 2.2 Node (Protocol)
-
-Base protocol that all node types implement.
-
-**Required Functions**:
-- `node_type/1` - Returns node type atom (`:schema`, `:field`, `:type`, `:transform`)
-- `children/1` - Returns list of child nodes
-
----
-
-### 2.3 SchemaNode
-
-Represents a schema definition node in the syntax tree.
-
-**Attributes**:
-- `type` (atom, required) - Always `:schema`
-- `name` (atom, required) - Schema name
-- `fields` (list(FieldNode), required) - List of field definitions
-- `schema_type` (atom, optional) - `:struct`, `:union`, `:enum` (default: `:struct`)
-- `metadata` (map, optional) - Node metadata
-
-**Example**:
 ```elixir
-%SchemaNode{
-  type: :schema,
-  name: :user,
-  fields: [
-    %FieldNode{name: :email, field_type: %TypeNode{name: :string}},
-    %FieldNode{name: :age, field_type: %TypeNode{name: :integer}}
-  ],
-  schema_type: :struct,
-  metadata: %{}
-}
+defstruct [
+  :type,       # :field
+  :name,       # atom - field name
+  :field_type, # TypeNode.t() - field type reference
+  :required,   # boolean
+  :default,    # any() | nil
+  :metadata    # map
+]
 ```
 
-**Relationships**:
-- Contains multiple FieldNode children
-- Root of schema definition
+### TypeNode
 
----
-
-### 2.4 FieldNode
-
-Represents a field within a schema.
-
-**Attributes**:
-- `type` (atom, required) - Always `:field`
-- `name` (atom, required) - Field name
-- `field_type` (TypeNode, required) - Type of the field
-- `required` (boolean, optional, default: false) - Whether field is required
-- `default` (any, optional) - Default value
-- `metadata` (map, optional) - Field metadata
-
-**Example**:
 ```elixir
-%FieldNode{
-  type: :field,
-  name: :email,
-  field_type: %TypeNode{
-    name: :string,
-    constraints: [:email, {:max_length, 255}]
-  },
-  required: true,
-  default: nil,
-  metadata: %{description: "User email address"}
-}
+defstruct [
+  :type,       # :type
+  :name,       # atom - type name (:string, :integer, etc.)
+  :parameters, # [TypeNode.t()] | nil - for generics
+  :metadata    # map
+]
 ```
 
-**Relationships**:
-- Belongs to one SchemaNode
-- Has one TypeNode
+### SyntaxTree
 
----
-
-### 2.5 TypeNode
-
-Represents a type specification.
-
-**Attributes**:
-- `type` (atom, required) - Always `:type`
-- `name` (atom, required) - Type name (`:string`, `:integer`, `:list`, `:struct`, etc.)
-- `parameters` (list, optional) - Type parameters (for generic types like `list(string)`)
-- `constraints` (list, optional) - List of constraint tuples
-- `metadata` (map, optional) - Type metadata
-
-**Example**:
 ```elixir
-# Simple type
-%TypeNode{
-  type: :type,
-  name: :string,
-  parameters: [],
-  constraints: [],
-  metadata: %{}
-}
-
-# Generic type
-%TypeNode{
-  type: :type,
-  name: :list,
-  parameters: [
-    %TypeNode{name: :string, constraints: [email: true]}
-  ],
-  constraints: [min_items: 1, max_items: 10],
-  metadata: %{}
-}
+defstruct [
+  :root,     # Node.t() - root node
+  :metadata  # map - tree-level metadata
+]
 ```
 
----
+## Adapter Entities
 
-### 2.6 TransformNode
+### BigQuery Column Mapping
 
-Represents a transformation operation on a syntax tree.
+| Schema Type | BigQuery Type |
+|-------------|---------------|
+| `:string` | `STRING` |
+| `:integer` | `INT64` |
+| `:float` | `FLOAT64` |
+| `:boolean` | `BOOL` |
+| `:decimal` | `NUMERIC` |
+| `:date` | `DATE` |
+| `:datetime` | `DATETIME` |
+| `:atom` | `STRING` |
+| `:struct` | `STRUCT<...>` |
+| `:list` | `ARRAY<...>` |
 
-**Attributes**:
-- `type` (atom, required) - Always `:transform`
-- `operation` (atom, required) - Operation type (`:rename`, `:add_field`, `:remove_field`, `:modify_type`, etc.)
-- `target` (term, required) - What to transform (pattern or path)
-- `transformer` (function, required) - Transformation function
-- `metadata` (map, optional) - Transform metadata
+### SheetSchema Column Format
 
-**Example**:
-```elixir
-%TransformNode{
-  type: :transform,
-  operation: :rename_field,
-  target: {:field, :old_name},
-  transformer: fn field_node -> 
-    %{field_node | name: :new_name}
-  end,
-  metadata: %{reason: "API migration"}
-}
-```
+| Column | Type | Description |
+|--------|------|-------------|
+| `field_name` | string | Field identifier |
+| `type` | string | Type name (string, integer, list(string), etc.) |
+| `required` | boolean | Whether field is required |
+| `constraints` | string | Pipe-separated constraints (min:3\|max:10) |
+| `description` | string | Human-readable description |
+| `example` | string | Example value |
+| `default` | string | Default value |
+| `parent_path` | string | Dot notation for nesting (address.city) |
 
----
+## State Transitions
 
-## 3. Entity Relationships
-
-### Raggio.Schema Relationships
-
-```
-Schema
-  ├─ filters: [Filter]
-  ├─ fields: %{name => Schema}  (for struct types)
-  └─ annotations: %{metadata}
-
-ValidationResult
-  ├─ data: any (for :ok status)
-  └─ errors: [ValidationError] (for :error status)
-
-SheetSchema
-  ├─ rows: [SheetRow]
-  └─ converts_to: Schema
-
-BigQueryDDL
-  ├─ generated_from: Schema
-  └─ columns: [ColumnDef]
-```
-
-### Raggio.Syntax Relationships
+Schema structs are immutable. Wrapper functions return new structs:
 
 ```
-SyntaxTree
-  └─ root: Node
-
-SchemaNode (implements Node)
-  └─ fields: [FieldNode]
-
-FieldNode (implements Node)
-  └─ field_type: TypeNode
-
-TypeNode (implements Node)
-  └─ parameters: [TypeNode]  (for generic types)
-
-TransformNode (implements Node)
-  └─ applies_to: Node
+Schema.t() --optional()--> Schema.t(optional: true)
+Schema.t() --nullable()--> Schema.t(nullable: true)
 ```
 
----
-
-## 4. State Transitions
-
-### Schema Validation Flow
-
+Validation is stateless:
 ```
-[Input Data] → [Schema] → [Validation Engine] → [ValidationResult]
-                   ↓
-              [Filters Applied]
-                   ↓
-          [Success Path | Error Path]
-                   ↓              ↓
-              {:ok, data}    {:error, [errors]}
+{Schema.t(), any()} --validate()--> {:ok, any()} | {:error, [error()]}
 ```
-
-### Syntax Tree Transformation Flow
-
-```
-[Source Tree] → [Transform Accumulation] → [Apply Transforms] → [Result Tree]
-                        ↓
-                [TransformNode list]
-                        ↓
-                [Sequential Application]
-```
-
-### SheetSchema Import Flow
-
-```
-[Spreadsheet] → [Parse Rows] → [Group by parent_path] → [Build Tree] → [Generate Code]
-      ↓               ↓                  ↓                     ↓              ↓
-  CSV/TSV        SheetRow list      Nested map          Schema tree    Elixir code
-```
-
-### BigQuery Export Flow
-
-```
-[Schema] → [Type Mapping] → [Column Generation] → [DDL Formatting] → [SQL String]
-    ↓             ↓                  ↓                    ↓                 ↓
- Analyze      Map types        Build ColumnDef       Format SQL      Output DDL
-```
-
----
-
-## 5. Validation Rules
-
-### Raggio.Schema Rules
-
-1. **Schema Integrity**:
-   - `type` must be a known type atom
-   - `filters` must be list of valid constraint tuples or Filter structs
-   - `fields` (for struct) must be map with atom keys and Schema values
-   - Circular references in nested structs are prohibited
-
-2. **Filter Constraints**:
-   - `predicate` must be a function with arity 1
-   - Must return boolean, `{:error, message}`, or `:ok`
-   - `path` must be list of atoms and/or integers
-
-3. **Validation Results**:
-   - `path` in ValidationError must accurately represent nesting
-   - Multiple errors for same path are allowed (collected mode)
-   - Errors must include original invalid `value` for debugging
-
-### Raggio.Syntax Rules
-
-1. **Node Structure**:
-   - Every node must have `type` field matching its module (`:schema`, `:field`, `:type`, `:transform`)
-   - `SchemaNode.fields` must be list of FieldNode
-   - `FieldNode.field_type` must be valid TypeNode
-   - Circular references in type parameters are prohibited
-
-2. **Tree Integrity**:
-   - SyntaxTree must have exactly one root node
-   - All child relationships must form a valid tree (no cycles)
-   - Transform operations must preserve tree validity
-
-3. **Type Parameters**:
-   - Generic types (list, map) must have valid parameter types
-   - Union types must have at least 2 alternatives
-   - Tuple types must specify all element types
-
----
-
-## 6. Identity & Uniqueness
-
-### Raggio.Schema
-
-- **Schema**: No unique identifier (value-based equality)
-- **Filter**: No unique identifier (value-based equality)
-- **ValidationError**: Uniquely identified by `path` within a ValidationResult
-- **SheetRow**: Uniquely identified by combination of `field_name` and `parent_path`
-
-### Raggio.Syntax
-
-- **Node**: No unique identifier (structural equality)
-- **SyntaxTree**: No unique identifier (structural equality)
-- **Path-based identity**: Nodes can be identified by path from root (e.g., `[:fields, 0, :field_type]`)
-
----
-
-## 7. Data Volume Assumptions
-
-- **Schema depth**: Maximum nesting level ~10 for practical use
-- **Fields per schema**: Typically 10-50, support up to 1000
-- **Validation errors**: Collect up to 100 errors per validation (configurable)
-- **SheetSchema rows**: Support up to 1000 rows per sheet
-- **Syntax tree nodes**: Support up to 10,000 nodes per tree
-- **Transform operations**: Support chaining up to 100 transforms
-
----
-
-*Data model complete. All entities, relationships, and rules defined for implementation.*

@@ -5,20 +5,28 @@ defmodule Raggio.Schema.Validator do
 
   alias Raggio.Schema
 
-  @doc """
-  Validate data against schema.
-  """
-  def validate(schema = %Schema{}, data) do
-    # Apply default values before validation
+  def validate(schema = %Schema{}, data), do: validate(schema, data, [])
+
+  def validate(schema = %Schema{}, data, opts) do
+    mode = Keyword.get(opts, :mode, :fail_fast)
+    partial = Keyword.get(opts, :partial, false)
+
     data = apply_default(schema, data)
 
     errors = []
-    errors = validate_type(schema, data, [], errors)
-    errors = validate_constraints(schema, data, [], errors)
+    errors = validate_nullable(schema, data, [], errors)
 
-    case errors do
-      [] -> {:ok, data}
-      _ -> {:error, Enum.reverse(errors)}
+    if errors != [] do
+      {:error, Enum.reverse(errors)}
+    else
+      errors = validate_type(schema, data, [], errors)
+      errors = validate_constraints(schema, data, [], errors, mode)
+
+      case {errors, partial} do
+        {[], _} -> {:ok, data}
+        {_, false} -> {:error, Enum.reverse(errors)}
+        {_, true} -> {:ok, {data, Enum.reverse(errors)}}
+      end
     end
   end
 
@@ -26,7 +34,17 @@ defmodule Raggio.Schema.Validator do
   defp apply_default(%Schema{default: default}, nil), do: default
   defp apply_default(_schema, data), do: data
 
+  defp validate_nullable(%Schema{optional: true}, nil, _path, errors), do: errors
+  defp validate_nullable(%Schema{nullable: true}, nil, _path, errors), do: errors
+
+  defp validate_nullable(%Schema{optional: false, nullable: false}, nil, path, errors) do
+    add_error(errors, path, "is required", nil, :required)
+  end
+
+  defp validate_nullable(_schema, _data, _path, errors), do: errors
+
   defp validate_type(%Schema{optional: true}, nil, _path, errors), do: errors
+  defp validate_type(%Schema{nullable: true}, nil, _path, errors), do: errors
 
   defp validate_type(%Schema{type: :string}, data, _path, errors) when is_binary(data),
     do: errors
@@ -78,21 +96,25 @@ defmodule Raggio.Schema.Validator do
   end
 
   defp validate_type(%Schema{type: :decimal}, data, path, errors) do
-    if is_number(data) do
+    if is_number(data) or match?(%Decimal{}, data) do
       errors
     else
       add_error(errors, path, "must be Decimal type", data, :type)
     end
   end
 
-  defp validate_type(%Schema{type: :array, fields: fields}, data, path, errors)
-       when is_list(data) do
-    element_schema = Keyword.get(fields, :element)
+  defp validate_type(%Schema{type: :map}, data, _path, errors) when is_map(data), do: errors
 
+  defp validate_type(%Schema{type: :map}, data, path, errors) do
+    add_error(errors, path, "must be map type", data, :type)
+  end
+
+  defp validate_type(%Schema{type: :list, inner_type: inner_schema}, data, path, errors)
+       when is_list(data) do
     data
     |> Enum.with_index()
     |> Enum.reduce(errors, fn {item, index}, acc ->
-      case validate(element_schema, item) do
+      case validate(inner_schema, item) do
         {:ok, _} ->
           acc
 
@@ -104,8 +126,8 @@ defmodule Raggio.Schema.Validator do
     end)
   end
 
-  defp validate_type(%Schema{type: :array}, data, path, errors) do
-    add_error(errors, path, "must be array type", data, :type)
+  defp validate_type(%Schema{type: :list}, data, path, errors) do
+    add_error(errors, path, "must be list type", data, :type)
   end
 
   defp validate_type(%Schema{type: :struct, fields: fields}, data, path, errors)
@@ -120,7 +142,10 @@ defmodule Raggio.Schema.Validator do
 
         {:error, field_errors} ->
           Enum.reduce(field_errors, acc, fn err, acc2 ->
-            add_error(acc2, path ++ [field_name], err.message, err.value, err.constraint)
+            new_path =
+              if err.path == [], do: path ++ [field_name], else: path ++ [field_name] ++ err.path
+
+            add_error(acc2, new_path, err.message, err.value, err.constraint)
           end)
       end
     end)
@@ -130,19 +155,15 @@ defmodule Raggio.Schema.Validator do
     add_error(errors, path, "must be map type", data, :type)
   end
 
-  defp validate_type(%Schema{type: :enum, constraints: constraints}, data, path, errors) do
-    values = Keyword.get(constraints, :values, [])
-
+  defp validate_type(%Schema{type: :literal, values: values}, data, path, errors) do
     if data in values do
       errors
     else
-      add_error(errors, path, "must be one of #{inspect(values)}", data, :enum)
+      add_error(errors, path, "must be one of #{inspect(values)}", data, :literal)
     end
   end
 
-  defp validate_type(%Schema{type: :union, fields: fields}, data, path, errors) do
-    schemas = Keyword.get(fields, :schemas, [])
-
+  defp validate_type(%Schema{type: :union, types: schemas}, data, path, errors) do
     valid? =
       Enum.any?(schemas, fn schema ->
         case validate(schema, data) do
@@ -158,65 +179,109 @@ defmodule Raggio.Schema.Validator do
     end
   end
 
-  defp validate_type(_schema, _data, _path, errors), do: errors
+  defp validate_type(%Schema{type: :tuple, types: schemas}, data, path, errors)
+       when is_tuple(data) do
+    data_list = Tuple.to_list(data)
 
-  defp validate_constraints(%Schema{constraints: []}, _data, _path, errors), do: errors
+    if length(data_list) != length(schemas) do
+      add_error(errors, path, "tuple must have #{length(schemas)} elements", data, :type)
+    else
+      data_list
+      |> Enum.with_index()
+      |> Enum.zip(schemas)
+      |> Enum.reduce(errors, fn {{item, index}, schema}, acc ->
+        case validate(schema, item) do
+          {:ok, _} ->
+            acc
 
-  defp validate_constraints(%Schema{constraints: constraints}, data, path, errors) do
-    Enum.reduce(constraints, errors, fn constraint, acc ->
-      validate_constraint(constraint, data, path, acc)
+          {:error, item_errors} ->
+            Enum.reduce(item_errors, acc, fn err, acc2 ->
+              add_error(acc2, path ++ [index] ++ err.path, err.message, err.value, err.constraint)
+            end)
+        end
+      end)
+    end
+  end
+
+  defp validate_type(%Schema{type: :tuple}, data, path, errors) do
+    add_error(errors, path, "must be tuple type", data, :type)
+  end
+
+  defp validate_type(%Schema{type: :record, fields: fields}, data, path, errors)
+       when is_map(data) do
+    key_schema = Keyword.get(fields, :key)
+    value_schema = Keyword.get(fields, :value)
+
+    Enum.reduce(data, errors, fn {k, v}, acc ->
+      acc =
+        case validate(key_schema, k) do
+          {:ok, _} ->
+            acc
+
+          {:error, key_errors} ->
+            Enum.reduce(key_errors, acc, fn err, acc2 ->
+              add_error(acc2, path ++ [:key], err.message, k, err.constraint)
+            end)
+        end
+
+      case validate(value_schema, v) do
+        {:ok, _} ->
+          acc
+
+        {:error, val_errors} ->
+          Enum.reduce(val_errors, acc, fn err, acc2 ->
+            add_error(acc2, path ++ [k] ++ err.path, err.message, err.value, err.constraint)
+          end)
+      end
     end)
   end
 
-  defp validate_constraint({:min_length, n}, data, path, errors) when is_binary(data) do
+  defp validate_type(%Schema{type: :record}, data, path, errors) do
+    add_error(errors, path, "must be map type", data, :type)
+  end
+
+  defp validate_type(_schema, _data, _path, errors), do: errors
+
+  defp validate_constraints(%Schema{constraints: []}, _data, _path, errors, _mode), do: errors
+  defp validate_constraints(%Schema{optional: true}, nil, _path, errors, _mode), do: errors
+  defp validate_constraints(%Schema{nullable: true}, nil, _path, errors, _mode), do: errors
+
+  defp validate_constraints(
+         %Schema{constraints: constraints, type: type},
+         data,
+         path,
+         errors,
+         mode
+       ) do
+    Enum.reduce_while(constraints, errors, fn constraint, acc ->
+      result = validate_constraint(constraint, data, path, acc, type)
+
+      if mode == :fail_fast and result != acc do
+        {:halt, result}
+      else
+        {:cont, result}
+      end
+    end)
+  end
+
+  defp validate_constraint({:min, n}, data, path, errors, :string) when is_binary(data) do
     if String.length(data) >= n do
       errors
     else
-      add_error(errors, path, "minimum length is #{n}", data, :min_length)
+      add_error(errors, path, "minimum length is #{n}", data, :min)
     end
   end
 
-  defp validate_constraint({:min_length, n}, data, path, errors) when is_list(data) do
+  defp validate_constraint({:min, n}, data, path, errors, :list) when is_list(data) do
     if length(data) >= n do
       errors
     else
-      add_error(errors, path, "minimum length is #{n}", data, :min_length)
+      add_error(errors, path, "minimum length is #{n}", data, :min)
     end
   end
 
-  defp validate_constraint({:max_length, n}, data, path, errors) when is_binary(data) do
-    if String.length(data) <= n do
-      errors
-    else
-      add_error(errors, path, "maximum length is #{n}", data, :max_length)
-    end
-  end
-
-  defp validate_constraint({:max_length, n}, data, path, errors) when is_list(data) do
-    if length(data) <= n do
-      errors
-    else
-      add_error(errors, path, "maximum length is #{n}", data, :max_length)
-    end
-  end
-
-  defp validate_constraint({:pattern, regex}, data, path, errors) when is_binary(data) do
-    if Regex.match?(regex, data) do
-      errors
-    else
-      add_error(errors, path, "must match pattern #{inspect(regex)}", data, :pattern)
-    end
-  end
-
-  defp validate_constraint({:email, regex}, data, path, errors) when is_binary(data) do
-    if Regex.match?(regex, data) do
-      errors
-    else
-      add_error(errors, path, "must be valid email format", data, :email)
-    end
-  end
-
-  defp validate_constraint({:min, min_val}, data, path, errors) when is_number(data) do
+  defp validate_constraint({:min, min_val}, data, path, errors, type)
+       when type in [:integer, :float, :decimal] and is_number(data) do
     if data >= min_val do
       errors
     else
@@ -224,7 +289,24 @@ defmodule Raggio.Schema.Validator do
     end
   end
 
-  defp validate_constraint({:max, max_val}, data, path, errors) when is_number(data) do
+  defp validate_constraint({:max, n}, data, path, errors, :string) when is_binary(data) do
+    if String.length(data) <= n do
+      errors
+    else
+      add_error(errors, path, "maximum length is #{n}", data, :max)
+    end
+  end
+
+  defp validate_constraint({:max, n}, data, path, errors, :list) when is_list(data) do
+    if length(data) <= n do
+      errors
+    else
+      add_error(errors, path, "maximum length is #{n}", data, :max)
+    end
+  end
+
+  defp validate_constraint({:max, max_val}, data, path, errors, type)
+       when type in [:integer, :float, :decimal] and is_number(data) do
     if data <= max_val do
       errors
     else
@@ -232,25 +314,23 @@ defmodule Raggio.Schema.Validator do
     end
   end
 
-  defp validate_constraint({:positive, true}, data, path, errors) when is_number(data) do
-    if data > 0 do
+  defp validate_constraint({:pattern, regex}, data, path, errors, :string) when is_binary(data) do
+    if Regex.match?(regex, data) do
       errors
     else
-      add_error(errors, path, "must be positive number", data, :positive)
+      add_error(errors, path, "must match pattern #{inspect(regex)}", data, :pattern)
     end
   end
 
-  defp validate_constraint({:range, {min_val, max_val}}, data, path, errors)
-       when is_number(data) do
-    if data >= min_val and data <= max_val do
+  defp validate_constraint({:unique, true}, data, path, errors, :list) when is_list(data) do
+    if length(data) == length(Enum.uniq(data)) do
       errors
     else
-      add_error(errors, path, "must be between #{min_val} and #{max_val}", data, :range)
+      add_error(errors, path, "must have unique items", data, :unique)
     end
   end
 
-  defp validate_constraint({:values, _values}, _data, _path, errors), do: errors
-  defp validate_constraint(_constraint, _data, _path, errors), do: errors
+  defp validate_constraint(_constraint, _data, _path, errors, _type), do: errors
 
   defp add_error(errors, path, message, value, constraint) do
     [

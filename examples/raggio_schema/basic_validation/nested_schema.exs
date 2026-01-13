@@ -1,28 +1,19 @@
-# Example: Nested struct validation
-# Demonstrates validating complex nested data structures
-
-# Setup paths for umbrella project
-Mix.install([], consolidate_protocols: false)
-Code.prepend_path("_build/dev/lib/raggio_schema/ebin")
-
 alias Raggio.Schema
 
-# Define nested schemas - address is embedded in user
 address_schema =
   Schema.struct([
-    {:street, Schema.string() |> Schema.min_length(3)},
-    {:city, Schema.string() |> Schema.min_length(2)},
-    {:zip, Schema.string() |> Schema.pattern(~r/^\d{5}$/)}
+    {:street, Schema.string(min: 3)},
+    {:city, Schema.string(min: 2)},
+    {:zip, Schema.string(pattern: ~r/^\d{5}$/)}
   ])
 
 user_schema =
   Schema.struct([
-    {:name, Schema.string() |> Schema.min_length(3)},
-    {:age, Schema.integer() |> Schema.positive()},
+    {:name, Schema.string(min: 3)},
+    {:age, Schema.integer(min: 1)},
     {:address, address_schema}
   ])
 
-# Valid nested data
 valid_user = %{
   name: "Alice Johnson",
   age: 30,
@@ -33,19 +24,9 @@ valid_user = %{
   }
 }
 
-IO.puts("Validating valid nested user:")
+IO.puts("Valid nested user:")
+IO.inspect(Schema.validate(user_schema, valid_user))
 
-case Schema.validate(user_schema, valid_user) do
-  {:ok, data} ->
-    IO.puts("✓ Validation passed")
-    IO.inspect(data, label: "Valid data")
-
-  {:error, errors} ->
-    IO.puts("✗ Validation failed")
-    IO.inspect(errors, label: "Errors")
-end
-
-# Invalid nested data - bad zip code
 invalid_user = %{
   name: "Bob",
   age: 25,
@@ -56,19 +37,18 @@ invalid_user = %{
   }
 }
 
-IO.puts("\nValidating invalid nested user (bad zip):")
+IO.puts("\nInvalid nested user (bad zip):")
 
 case Schema.validate(user_schema, invalid_user) do
-  {:ok, data} ->
-    IO.puts("✓ Validation passed")
-    IO.inspect(data, label: "Valid data")
+  {:ok, _} ->
+    IO.puts("Passed")
 
   {:error, errors} ->
-    IO.puts("✗ Validation failed (expected)")
-    IO.inspect(errors, label: "Errors")
+    Enum.each(errors, fn err ->
+      IO.puts("  #{Enum.join(err.path, ".")}: #{err.message}")
+    end)
 end
 
-# Deeply nested structure
 contact_schema =
   Schema.struct([
     {:name, Schema.string()},
@@ -99,16 +79,5 @@ deeply_nested = %{
   }
 }
 
-IO.puts("\nValidating deeply nested structure:")
-
-case Schema.validate(contact_schema, deeply_nested) do
-  {:ok, data} ->
-    IO.puts("✓ Validation passed")
-    IO.inspect(data, label: "Valid data")
-
-  {:error, errors} ->
-    IO.puts("✗ Validation failed")
-    IO.inspect(errors, label: "Errors")
-end
-
-IO.puts("\n✓ Example completed successfully")
+IO.puts("\nDeeply nested structure:")
+IO.inspect(Schema.validate(contact_schema, deeply_nested))

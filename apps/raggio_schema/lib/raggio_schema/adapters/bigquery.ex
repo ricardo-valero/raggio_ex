@@ -60,8 +60,8 @@ defmodule Raggio.Schema.Adapters.BigQuery do
   defp map_type(%Raggio.Schema{type: :date}), do: "DATE"
   defp map_type(%Raggio.Schema{type: :atom}), do: "STRING"
 
-  defp map_type(%Raggio.Schema{type: :array, fields: [element: element_schema]}) do
-    "ARRAY<#{map_type(element_schema)}>"
+  defp map_type(%Raggio.Schema{type: :list, inner_type: inner_schema}) do
+    "ARRAY<#{map_type(inner_schema)}>"
   end
 
   defp map_type(%Raggio.Schema{type: :struct, fields: fields}) do

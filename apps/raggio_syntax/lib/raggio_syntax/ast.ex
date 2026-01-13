@@ -1,12 +1,12 @@
 defmodule RaggioSyntax.AST do
   @moduledoc """
-  AST structure representing a complete abstract syntax tree.
+  Syntax tree structure.
   """
 
-  defstruct [:root, :metadata]
+  defstruct [:root, metadata: %{}]
 
   @type t :: %__MODULE__{
-          root: RaggioSyntax.Node.t(),
+          root: RaggioSyntax.Node.Any.t(),
           metadata: map()
         }
 end

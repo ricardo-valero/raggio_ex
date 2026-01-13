@@ -66,97 +66,104 @@ defmodule Raggio.Schema.ValidatorTest do
   end
 
   describe "string constraints" do
-    test "validates min_length constraint" do
-      schema = Schema.string() |> Schema.min_length(5)
+    test "validates min constraint on string" do
+      schema = Schema.string(min: 5)
       assert {:ok, "hello"} = Validator.validate(schema, "hello")
       assert {:ok, "hello world"} = Validator.validate(schema, "hello world")
       assert {:error, errors} = Validator.validate(schema, "hi")
-      assert [%{constraint: :min_length, message: "minimum length is 5"}] = errors
+      assert [%{constraint: :min, message: "minimum length is 5"}] = errors
     end
 
-    test "validates max_length constraint" do
-      schema = Schema.string() |> Schema.max_length(10)
+    test "validates max constraint on string" do
+      schema = Schema.string(max: 10)
       assert {:ok, "hello"} = Validator.validate(schema, "hello")
       assert {:error, errors} = Validator.validate(schema, "hello world!")
-      assert [%{constraint: :max_length}] = errors
+      assert [%{constraint: :max}] = errors
     end
 
     test "validates pattern constraint" do
-      schema = Schema.string() |> Schema.pattern(~r/^[A-Z]+$/)
+      schema = Schema.string(pattern: ~r/^[A-Z]+$/)
       assert {:ok, "ABC"} = Validator.validate(schema, "ABC")
       assert {:error, errors} = Validator.validate(schema, "abc")
       assert [%{constraint: :pattern}] = errors
     end
 
-    test "validates email constraint" do
-      schema = Schema.string() |> Schema.email()
+    test "validates email pattern" do
+      schema = Schema.string(pattern: Schema.email())
       assert {:ok, "test@example.com"} = Validator.validate(schema, "test@example.com")
       assert {:error, errors} = Validator.validate(schema, "not-an-email")
-      assert [%{constraint: :email}] = errors
+      assert [%{constraint: :pattern}] = errors
     end
   end
 
   describe "numeric constraints" do
-    test "validates min constraint" do
-      schema = Schema.integer() |> Schema.min(10)
+    test "validates min constraint on integer" do
+      schema = Schema.integer(min: 10)
       assert {:ok, 10} = Validator.validate(schema, 10)
       assert {:ok, 20} = Validator.validate(schema, 20)
       assert {:error, errors} = Validator.validate(schema, 5)
       assert [%{constraint: :min}] = errors
     end
 
-    test "validates max constraint" do
-      schema = Schema.integer() |> Schema.max(100)
+    test "validates max constraint on integer" do
+      schema = Schema.integer(max: 100)
       assert {:ok, 100} = Validator.validate(schema, 100)
       assert {:ok, 50} = Validator.validate(schema, 50)
       assert {:error, errors} = Validator.validate(schema, 101)
       assert [%{constraint: :max}] = errors
     end
 
-    test "validates positive constraint" do
-      schema = Schema.integer() |> Schema.positive()
+    test "validates min constraint for positive integers" do
+      schema = Schema.integer(min: 1)
       assert {:ok, 1} = Validator.validate(schema, 1)
       assert {:error, errors} = Validator.validate(schema, 0)
-      assert [%{constraint: :positive}] = errors
+      assert [%{constraint: :min}] = errors
       assert {:error, _} = Validator.validate(schema, -5)
     end
 
-    test "validates range constraint" do
-      schema = Schema.integer() |> Schema.range(10, 20)
+    test "validates min and max for range" do
+      schema = Schema.integer(min: 10, max: 20)
       assert {:ok, 10} = Validator.validate(schema, 10)
       assert {:ok, 15} = Validator.validate(schema, 15)
       assert {:ok, 20} = Validator.validate(schema, 20)
       assert {:error, errors} = Validator.validate(schema, 5)
-      assert [%{constraint: :range}] = errors
+      assert [%{constraint: :min}] = errors
       assert {:error, _} = Validator.validate(schema, 25)
     end
   end
 
-  describe "array validation" do
-    test "validates array of primitives" do
-      schema = Schema.array(Schema.string())
+  describe "list validation" do
+    test "validates list of primitives" do
+      schema = Schema.list(Schema.string())
       assert {:ok, ["a", "b", "c"]} = Validator.validate(schema, ["a", "b", "c"])
       assert {:error, errors} = Validator.validate(schema, ["a", 123, "c"])
       assert length(errors) == 1
       assert [%{path: [1], constraint: :type}] = errors
     end
 
-    test "validates array with element constraints" do
-      schema = Schema.array(Schema.integer() |> Schema.positive())
+    test "validates list with element constraints" do
+      schema = Schema.list(Schema.integer(min: 1))
       assert {:ok, [1, 2, 3]} = Validator.validate(schema, [1, 2, 3])
       assert {:error, errors} = Validator.validate(schema, [1, -2, 3])
-      assert [%{path: [1], constraint: :positive}] = errors
+      assert [%{path: [1], constraint: :min}] = errors
     end
 
-    test "validates array with length constraints" do
-      schema = Schema.array(Schema.string()) |> Schema.min_length(2) |> Schema.max_length(5)
+    test "validates list with min/max length constraints" do
+      schema = Schema.list(Schema.string(), min: 2, max: 5)
       assert {:ok, ["a", "b"]} = Validator.validate(schema, ["a", "b"])
       assert {:error, errors} = Validator.validate(schema, ["a"])
-      assert [%{constraint: :min_length}] = errors
+      assert [%{constraint: :min}] = errors
     end
 
-    test "validates nested arrays" do
-      schema = Schema.array(Schema.array(Schema.integer()))
+    test "validates unique constraint on list" do
+      schema = Schema.list(Schema.string(), unique: true)
+      assert {:ok, ["a", "b", "c"]} = Validator.validate(schema, ["a", "b", "c"])
+      assert {:error, errors} = Validator.validate(schema, ["a", "b", "a"])
+      assert [%{constraint: :unique}] = errors
+    end
+
+    test "validates nested lists" do
+      schema = Schema.list(Schema.list(Schema.integer()))
       assert {:ok, [[1, 2], [3, 4]]} = Validator.validate(schema, [[1, 2], [3, 4]])
       assert {:error, _} = Validator.validate(schema, [[1, 2], [3, "four"]])
     end
@@ -204,16 +211,16 @@ defmodule Raggio.Schema.ValidatorTest do
 
       invalid_data = %{name: "Alice", address: %{city: "Portland", zip: 97201}}
       assert {:error, errors} = Validator.validate(person_schema, invalid_data)
-      assert [%{path: [:address], constraint: :type}] = errors
+      assert [%{path: [:address, :zip], constraint: :type}] = errors
     end
   end
 
-  describe "enum validation" do
-    test "validates enum values" do
-      schema = Schema.enum([:red, :green, :blue])
+  describe "literal validation" do
+    test "validates literal values" do
+      schema = Schema.literal(:red, :green, :blue)
       assert {:ok, :red} = Validator.validate(schema, :red)
       assert {:error, errors} = Validator.validate(schema, :yellow)
-      assert [%{constraint: :enum}] = errors
+      assert [%{constraint: :literal}] = errors
     end
   end
 
@@ -227,8 +234,8 @@ defmodule Raggio.Schema.ValidatorTest do
     end
 
     test "validates union with complex types" do
-      schema1 = Schema.struct([{:type, Schema.enum([:a])}, {:value, Schema.string()}])
-      schema2 = Schema.struct([{:type, Schema.enum([:b])}, {:value, Schema.integer()}])
+      schema1 = Schema.struct([{:type, Schema.literal(:a)}, {:value, Schema.string()}])
+      schema2 = Schema.struct([{:type, Schema.literal(:b)}, {:value, Schema.integer()}])
       union_schema = Schema.union([schema1, schema2])
 
       assert {:ok, _} = Validator.validate(union_schema, %{type: :a, value: "test"})
@@ -239,19 +246,19 @@ defmodule Raggio.Schema.ValidatorTest do
 
   describe "optional and default" do
     test "validates optional fields" do
-      schema = Schema.string() |> Schema.optional()
+      schema = Schema.optional(Schema.string())
       assert {:ok, "hello"} = Validator.validate(schema, "hello")
       assert {:ok, nil} = Validator.validate(schema, nil)
     end
 
     test "applies default values" do
-      schema = Schema.integer() |> Schema.default(42)
+      schema = Schema.integer(default: 42)
       assert {:ok, 10} = Validator.validate(schema, 10)
       assert {:ok, 42} = Validator.validate(schema, nil)
     end
 
     test "optional with default" do
-      schema = Schema.string() |> Schema.optional() |> Schema.default("default")
+      schema = Schema.optional(Schema.string(default: "default"))
       assert {:ok, "hello"} = Validator.validate(schema, "hello")
       assert {:ok, "default"} = Validator.validate(schema, nil)
     end
@@ -259,23 +266,18 @@ defmodule Raggio.Schema.ValidatorTest do
 
   describe "multiple errors" do
     test "accumulates multiple constraint errors" do
-      schema =
-        Schema.string()
-        |> Schema.min_length(5)
-        |> Schema.max_length(10)
-        |> Schema.pattern(~r/^[A-Z]+$/)
+      schema = Schema.string(min: 5, max: 10, pattern: ~r/^[A-Z]+$/)
 
-      assert {:error, errors} = Validator.validate(schema, "ab")
-      # Should have min_length and pattern errors
+      assert {:error, errors} = Validator.validate(schema, "ab", mode: :all_errors)
       assert length(errors) == 2
     end
 
     test "accumulates errors across struct fields" do
       schema =
         Schema.struct([
-          {:name, Schema.string() |> Schema.min_length(3)},
-          {:age, Schema.integer() |> Schema.positive()},
-          {:email, Schema.string() |> Schema.email()}
+          {:name, Schema.string(min: 3)},
+          {:age, Schema.integer(min: 1)},
+          {:email, Schema.string(pattern: Schema.email())}
         ])
 
       invalid_data = %{name: "ab", age: -5, email: "not-email"}

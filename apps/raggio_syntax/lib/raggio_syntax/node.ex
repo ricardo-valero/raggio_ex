@@ -1,6 +1,18 @@
-defmodule RaggioSyntax.Node do
+defprotocol RaggioSyntax.Node do
   @moduledoc """
-  Base node protocol for AST nodes.
+  Protocol for syntax tree nodes.
+  """
+
+  @doc "Returns the node type as an atom"
+  def node_type(node)
+
+  @doc "Returns the immediate children of this node"
+  def children(node)
+end
+
+defmodule RaggioSyntax.Node.Any do
+  @moduledoc """
+  Type union for all node types.
   """
 
   @type t ::
