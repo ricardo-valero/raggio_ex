@@ -1,7 +1,8 @@
-# Data Model: Multi-Package Monorepo Restructure
+# Data Model: Single-Package Restructure (Ecto-style)
 
 **Date**: 2026-01-13  
-**Feature**: 001-monorepo-restructure
+**Feature**: 001-monorepo-restructure  
+**Updated**: Reflects single-package structure with submodules (NOT umbrella)
 
 ## Core Entities
 

@@ -24,8 +24,8 @@ Converts a Raggio.Schema to BigQuery Standard SQL DDL.
 **Example**:
 ```elixir
 schema = Schema.struct([
-  id: Schema.integer() |> Schema.positive(),
-  email: Schema.string() |> Schema.email()
+  {:id, Schema.integer(min: 1)},
+  {:email, Schema.string(pattern: Schema.email())}
 ])
 
 BigQuery.to_ddl(schema, "users")
@@ -107,8 +107,8 @@ Imports schema from CSV file.
 IO.puts(code)
 # => """
 # Schema.struct([
-#   email: Schema.string() |> Schema.email() |> Schema.max_length(255),
-#   age: Schema.integer() |> Schema.min(13) |> Schema.max(120) |> Schema.optional()
+#   {:email, Schema.string(pattern: Schema.email(), max: 255)},
+#   {:age, Schema.optional(Schema.integer(min: 13, max: 120))}
 # ])
 # """
 ```

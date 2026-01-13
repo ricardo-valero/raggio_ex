@@ -1,129 +1,103 @@
 # Raggio
 
-A composable Elixir library for data schema definition, validation, and AST manipulation.
+Composable data schema definition, validation, and syntax manipulation for Elixir.
 
 ## Overview
 
-Raggio is an umbrella project containing two independent packages:
+Raggio provides two main submodules:
 
-- **Raggio.Schema**: Composable schema definition and validation library
-- **Raggio.Syntax**: AST manipulation library with composable functions
-
-## Structure
-
-```
-raggio/
-├── apps/
-│   ├── raggio_schema/    # Schema definition and validation package
-│   └── raggio_syntax/    # AST manipulation package
-├── examples/              # Working, compilable examples
-│   ├── raggio_schema/    # Schema examples
-│   └── raggio_syntax/    # Syntax examples
-├── test/                  # Automated example verification tests
-└── config/                # Shared configuration
-```
+- **Raggio.Schema** - Define and validate data schemas
+- **Raggio.Syntax** - Build and manipulate syntax trees (coming soon)
 
 ## Installation
 
-Add the desired package to your `mix.exs`:
+Add Raggio to your `mix.exs`:
 
 ```elixir
 def deps do
-  [
-    {:raggio_schema, "~> 0.1.0"},
-    # and/or
-    {:raggio_syntax, "~> 0.1.0"}
-  ]
+  [{:raggio, "~> 0.1.0"}]
 end
 ```
 
-## Getting Started
-
-### Raggio.Schema
-
-Define schemas and validate data with composable functions:
+## Quick Start
 
 ```elixir
-# Define schema
-user_schema = Raggio.Schema.struct([
-  {:name, Raggio.Schema.string()},
-  {:age, Raggio.Schema.integer() |> Raggio.Schema.positive()}
-])
+alias Raggio.Schema
 
-# Validate data
-case Raggio.Schema.validate(user_schema, %{name: "Alice", age: 30}) do
+user_schema =
+  Schema.struct([
+    {:name, Schema.string(min: 1, max: 100)},
+    {:age, Schema.integer(min: 0)},
+    {:email, Schema.string(pattern: Schema.email())}
+  ])
+
+case Schema.validate(user_schema, %{name: "Alice", age: 30, email: "alice@example.com"}) do
   {:ok, data} -> IO.puts("Valid: #{inspect(data)}")
   {:error, errors} -> IO.puts("Invalid: #{inspect(errors)}")
 end
 ```
 
-### Raggio.Syntax
+## Type Constructors
 
-Build and manipulate ASTs with composable functions:
+### Primitives
 
 ```elixir
-# Create AST
-schema_ast = Raggio.Syntax.schema(:user, [
-  Raggio.Syntax.field(:name, Raggio.Syntax.type(:string)),
-  Raggio.Syntax.field(:age, Raggio.Syntax.type(:integer))
-])
-
-# Traverse AST
-Raggio.Syntax.traverse(schema_ast, fn node ->
-  IO.inspect(node)
-end)
+Schema.string(min: 3, max: 100, pattern: ~r/^[A-Z]/)
+Schema.integer(min: 0, max: 150)
+Schema.float(min: 0.0, max: 100.0)
+Schema.boolean(default: false)
+Schema.decimal(min: Decimal.new("0"))
+Schema.date()
+Schema.datetime()
+Schema.atom()
 ```
 
-## Development
+### Composites
 
-### Setup
-
-```bash
-# Install dependencies
-mix deps.get
-
-# Compile all packages
-mix compile
+```elixir
+Schema.struct([{:name, Schema.string()}, {:age, Schema.integer()}])
+Schema.list(Schema.string(), min: 1, max: 10, unique: true)
+Schema.tuple([Schema.string(), Schema.integer()])
+Schema.union([Schema.string(), Schema.integer()])
+Schema.literal(:active, :inactive, :pending)
+Schema.record(Schema.string(), Schema.integer())
 ```
 
-### Running Tests
+### Field Descriptors
 
-```bash
-# Run all tests (including example verification)
-mix test.all
-
-# Run tests for specific package
-cd apps/raggio_schema && mix test
-cd apps/raggio_syntax && mix test
+```elixir
+Schema.optional(Schema.string())
+Schema.nullable(Schema.integer())
 ```
 
-### Formatting
+## Validation
 
-```bash
-# Format all code
-mix format.all
+```elixir
+Schema.validate(schema, data)
+Schema.validate(schema, data, mode: :all_errors)
+Schema.validate(schema, data, partial: true)
+Schema.validate!(schema, data)
 ```
 
 ## Examples
 
-Working examples are available in the `examples/` directory, organized by package and use case:
+Working examples in `examples/schema/basic_validation/`:
 
 ```bash
-# Run a schema example
-elixir examples/raggio_schema/basic_validation/simple_schema.exs
-
-# Run a syntax example
-elixir examples/raggio_syntax/ast_building/simple_ast.exs
+mix run examples/schema/basic_validation/simple_schema.exs
+mix run examples/schema/basic_validation/nested_structs.exs
+mix run examples/schema/basic_validation/lists_and_records.exs
 ```
 
-## Design Principles
+## Development
 
-- **Function composition over macros**: Use the pipe operator for clean, composable APIs
-- **Example-driven documentation**: Working code examples serve as primary documentation
-- **Module-level docs only**: Minimal inline documentation, prefer examples
-- **Independent packages**: Each package is independently compilable and publishable
-- **No circular dependencies**: Clean, layered architecture
+```bash
+mix deps.get
+mix compile
+mix test
+mix format
+```
 
 ## License
 
-MIT License - see LICENSE file for details
+MIT

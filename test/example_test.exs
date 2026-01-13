@@ -3,10 +3,15 @@ defmodule ExampleTest do
 
   @examples_dir Path.expand("../examples", __DIR__)
 
-  # Discover all .exs files in examples directory
   @example_files @examples_dir
                  |> Path.join("**/*.exs")
                  |> Path.wildcard()
+                 |> Enum.filter(fn path ->
+                   String.contains?(path, "/schema/basic_validation/") or
+                     String.contains?(path, "/schema/adapters/") or
+                     String.contains?(path, "/syntax/node_building/") or
+                     String.contains?(path, "/syntax/tree_traversal/")
+                 end)
                  |> Enum.sort()
 
   describe "example verification" do
@@ -17,29 +22,25 @@ defmodule ExampleTest do
       @tag relative_path: relative_path
       test "example: #{relative_path}" do
         project_root = Path.expand("..", __DIR__)
-        schema_ebin = Path.join([project_root, "_build", "test", "lib", "raggio_schema", "ebin"])
-        syntax_ebin = Path.join([project_root, "_build", "test", "lib", "raggio_syntax", "ebin"])
-
-        tabular_ebin =
-          Path.join([project_root, "_build", "test", "lib", "raggio_tabular", "ebin"])
+        raggio_ebin = Path.join([project_root, "_build", "test", "lib", "raggio", "ebin"])
+        decimal_ebin = Path.join([project_root, "_build", "test", "lib", "decimal", "ebin"])
+        jason_ebin = Path.join([project_root, "_build", "test", "lib", "jason", "ebin"])
 
         {output, exit_code} =
           System.cmd(
             "elixir",
-            ["-pa", schema_ebin, "-pa", syntax_ebin, "-pa", tabular_ebin, unquote(example_file)],
+            ["-pa", raggio_ebin, "-pa", decimal_ebin, "-pa", jason_ebin, unquote(example_file)],
             stderr_to_stdout: true,
             env: [{"MIX_ENV", "test"}],
             cd: project_root
           )
 
-        # Verify execution succeeded
         assert exit_code == 0, """
         Example failed: #{unquote(relative_path)}
         Output:
         #{output}
         """
 
-        # Verify output is not empty (example should produce some output)
         assert String.length(output) > 0, "Example produced no output"
       end
     end

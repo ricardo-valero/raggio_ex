@@ -1,40 +1,63 @@
 defmodule Raggio.MixProject do
   use Mix.Project
 
+  @version "0.1.0"
+  @source_url "https://github.com/your-org/raggio"
+
   def project do
     [
-      apps_path: "apps",
-      version: "0.1.0",
+      app: :raggio,
+      version: @version,
+      elixir: "~> 1.14",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
-      aliases: aliases(),
-      test_paths: ["test"]
+      elixirc_paths: elixirc_paths(Mix.env()),
+
+      # Hex package metadata
+      description:
+        "Composable data schema definition, validation, and syntax manipulation for Elixir",
+      package: package(),
+
+      # Docs
+      name: "Raggio",
+      source_url: @source_url,
+      docs: docs()
     ]
   end
 
-  # Dependencies listed here are available only for this
-  # project and cannot be accessed from applications inside
-  # the apps folder.
-  #
-  # Run "mix help deps" for examples and options.
-  defp deps do
-    []
+  def application do
+    [
+      extra_applications: [:logger]
+    ]
   end
 
-  defp aliases do
+  defp elixirc_paths(:test), do: ["lib", "test/support"]
+  defp elixirc_paths(_), do: ["lib"]
+
+  defp deps do
     [
-      "test.all": [
-        "test",
-        "cmd --app raggio_schema mix test",
-        "cmd --app raggio_syntax mix test",
-        "cmd --app raggio_tabular mix test"
-      ],
-      "format.all": [
-        "format",
-        "cmd --app raggio_schema mix format",
-        "cmd --app raggio_syntax mix format",
-        "cmd --app raggio_tabular mix format"
-      ]
+      {:decimal, "~> 2.0"},
+      {:jason, "~> 1.4"},
+
+      # Dev/Test
+      {:ex_doc, "~> 0.31", only: :dev, runtime: false}
+    ]
+  end
+
+  defp docs do
+    [
+      main: "Raggio",
+      extras: ["README.md"]
+    ]
+  end
+
+  defp package do
+    [
+      maintainers: ["Ricardo Valero"],
+      licenses: ["MIT"],
+      links: %{
+        "GitHub" => @source_url
+      }
     ]
   end
 end

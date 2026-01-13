@@ -4,17 +4,19 @@ Get started with Raggio schema validation in 5 minutes.
 
 ## Installation
 
-Add `raggio_schema` to your `mix.exs`:
+Add `raggio` to your `mix.exs`:
 
 ```elixir
 def deps do
   [
-    {:raggio_schema, "~> 0.2.0"}
+    {:raggio, "~> 0.1.0"}
   ]
 end
 ```
 
 Run `mix deps.get`.
+
+> **Note**: Raggio is a single package with submodules. You get `Raggio.Schema`, `Raggio.Syntax`, and all adapters in one dependency.
 
 ## Basic Usage
 
@@ -147,6 +149,7 @@ Schema.string(pattern: Schema.uuid())    # UUID format
 
 ## Next Steps
 
-- See `examples/raggio_schema/` for more patterns
+- See `examples/schema/` for more patterns
+- See `examples/syntax/` for syntax manipulation examples
 - Check `Raggio.Schema.Adapters.BigQuery` for DDL export
 - Check `Raggio.Schema.Adapters.SheetSchema` for spreadsheet import

@@ -32,6 +32,9 @@
 
 ### Session 2026-01-13
 
+- Q: What project structure should be used? → A: Single package with submodules (like Ecto), NOT umbrella. Core Raggio module with Raggio.Schema, Raggio.Syntax, etc. as submodules in one package
+- Q: What is the API entry point pattern? → A: Submodules are primary entry points (Raggio.Schema.string(), Raggio.Syntax.transform()), root Raggio module is minimal
+- Q: What submodules are in scope for initial restructure? → A: Schema (including BigQuery exporter and SheetSchema importer adapters) and Syntax. Raggio.Tabular deferred to follow-up iteration
 - Q: Which constraint syntax style should Raggio.Schema actually use? → A: Argument composition - constraints as keyword options to type constructors (e.g., Schema.string(min: 3, max: 5), Schema.list(Schema.string(), min: 1))
 - Q: What should be the core constraint set for Raggio.Schema? → A: 4 core constraints only: min (numbers/strings/lists), max (numbers/strings/lists), pattern (strings), unique (lists). All other validations (email, url, uuid, positive, negative, range, min_items, max_items, min_length, max_length) are removed - they can be expressed via these 4 or as helper functions returning pattern()
 - Q: How should optional/nullable/default be expressed? → A: Mixed approach - optional() and nullable() are wrapper functions (field descriptors, not constraints), while default: value is a keyword option on type constructors. Example: Schema.optional(Schema.string(min: 1)), Schema.nullable(Schema.string()), Schema.integer(default: 0)
@@ -50,8 +53,8 @@ A developer working on a data validation project needs to define schemas for the
 
 **Acceptance Scenarios**:
 
-1. **Given** a new Elixir project, **When** developer adds Raggio.Schema as a dependency and runs mix deps.get, **Then** the package installs successfully without errors
-2. **Given** Raggio.Schema is installed, **When** developer imports Raggio.Schema and defines a basic schema using composition functions, **Then** the schema compiles without requiring macro knowledge
+1. **Given** a new Elixir project, **When** developer adds Raggio as a dependency and runs mix deps.get, **Then** the package installs successfully without errors
+2. **Given** Raggio is installed, **When** developer imports Raggio.Schema and defines a basic schema using composition functions, **Then** the schema compiles without requiring macro knowledge
 3. **Given** a defined schema, **When** developer validates valid data against it, **Then** validation succeeds and returns the expected result
 4. **Given** a defined schema, **When** developer validates invalid data against it, **Then** validation fails with clear error messages
 
@@ -137,7 +140,9 @@ A developer working with non-technical stakeholders who define data structures i
 
 ---
 
-### User Story 7 - Developer parses Excel/CSV data with SheetSchema (Priority: P2)
+### User Story 7 - Developer parses Excel/CSV data with SheetSchema (Priority: P2) *(DEFERRED)*
+
+> **Note**: This user story is deferred to a follow-up iteration. Raggio.Tabular will be implemented after Raggio.Schema and Raggio.Syntax are complete.
 
 A developer working with real-world Excel or CSV files from business users needs to parse, validate, and extract structured data. They use Raggio.Tabular with the SheetSchema DSL to declaratively define column mappings, handle header variations, filter row ranges, and apply Excel-specific transforms (currency, IDs). The system tracks row numbers and separates valid from invalid rows for error reporting.
 
@@ -158,22 +163,21 @@ A developer working with real-world Excel or CSV files from business users needs
 ### Edge Cases
 
 - When a developer tries to compose incompatible schema type, the system returns a descriptive error with type mismatch detail at composition time (before validation is attempted)
-- Circular dependency between package are prevented through layered architecture - Raggio.Syntax may depend on Raggio.Schema, but not vice versa
-- What happens when a developer tries to import both old DataSchema and new Raggio.Schema in the same project?
-- How are version conflicts handled when different packages have different dependency requirements?
-- What happens when examples reference features that are not yet implemented or have changed?
+- Circular dependency between submodules are prevented through layered architecture - Raggio.Syntax may depend on Raggio.Schema, but not vice versa
+- Old DataSchema and new Raggio coexistence: Not supported - FR-013 specifies clean break with no backward compatibility
+- Example accuracy: Automated test suite (FR-009) ensures examples compile and run correctly; broken examples fail CI
 
 ## Requirements *(mandatory)*
 
 ### Functional Requirements
 
-- **FR-001**: Repository MUST be structured as a monorepo containing multiple independent packages in the style of Ecto and Phoenix
+- **FR-001**: Repository MUST be structured as a single package with submodules in the style of Ecto (NOT an umbrella project). Initial scope includes Raggio.Schema and Raggio.Syntax submodules. Submodules are the primary API entry points (e.g., `Raggio.Schema.string()`, `Raggio.Syntax.transform()`); the root `Raggio` module is minimal
 - **FR-002**: Repository MUST contain a package named Raggio.Schema (migrated from old_code/data_schema)
 - **FR-003**: Repository MUST contain a package named Raggio.Syntax (migrated from syntax manipulation components in old_code/data_schema/ast)
-- **FR-003a**: Repository MUST contain a package named Raggio.Tabular for Excel/CSV/tabular data parsing (migrated from old_code/data_schema SheetSchema, ExcelSchema, Tabular adapter, and Excel transform modules)
-- **FR-004**: Each package MUST be independently compilable and publishable with no circular dependency - packages follow layered architecture where Raggio.Syntax may depend on Raggio.Schema, Raggio.Tabular may depend on Raggio.Schema, but Raggio.Schema must not depend on other Raggio packages
+- **FR-003a**: *(DEFERRED)* Raggio.Tabular submodule for Excel/CSV/tabular data parsing will be added in a follow-up iteration (migrated from old_code/data_schema SheetSchema, ExcelSchema, Tabular adapter, and Excel transform modules)
+- **FR-004**: Submodules MUST follow layered architecture with no circular dependencies - Raggio.Syntax may depend on Raggio.Schema, but Raggio.Schema must not depend on other Raggio submodules. The entire Raggio package is published as a single unit
 - **FR-005**: Each package MUST have minimal inline code documentation limited to module-level purpose only (no function doc), preferring working example over comment
-- **FR-006**: Repository MUST include a collection of working, compilable example organized in a two-level hierarchy (examples/[package]/[use_case])
+- **FR-006**: Repository MUST include a collection of working, compilable example organized in a two-level hierarchy (examples/[submodule]/[use_case], e.g., examples/schema/basic_validation, examples/syntax/ast_building)
 - **FR-007**: Package APIs MUST favor function composition over macro-based DSLs
 - **FR-008**: Package APIs MUST prioritize composability, allowing developer to combine small function into larger behavior with composition-time error for incompatible type
 - **FR-014**: Raggio.Schema API MUST use argument composition syntax where constraints are keyword options to type constructors (e.g., Schema.string(min: 3, max: 5), Schema.list(Schema.string(), min: 1)). Type constructors accept the element/field schema as first argument and optional constraint keywords. This provides a concise, declarative API without requiring pipe chains
@@ -188,9 +192,9 @@ A developer working with real-world Excel or CSV files from business users needs
 - **FR-018**: Raggio.Schema MUST provide a BigQuery exporter adapter that converts schema definitions to valid BigQuery standard SQL DDL, including appropriate column types, constraints, and nested STRUCT/RECORD types for composite schemas
 - **FR-019**: Raggio.Schema MUST provide a SheetSchema importer adapter that parses Google Sheets with columns [field_name, type, required, constraints] and converts them into valid Raggio.Schema code, including type mappings and constraint conversions
 - **FR-020**: Implementation MUST include an explicit feature parity checklist comparing old_code/data_schema capabilities against new package specifications, with each feature marked as "migrate" (included in new implementation), "defer" (postponed to future iteration), or "drop" (intentionally excluded) with documented rationale for verification before old_code deletion
-- **FR-021**: Raggio.Tabular MUST provide SheetSchema DSL for declarative tabular data parsing with column definitions, header detection supporting multiple variants, row range filtering, and union schemas for format variance
-- **FR-022**: Raggio.Tabular MUST provide Tabular adapter for batch row parsing with row number tracking, separating valid and invalid rows with detailed error reporting per row
-- **FR-023**: Raggio.Tabular MUST provide Excel-specific transform functions for common data cleaning patterns (currency formatting, float-to-integer IDs, decimal absolutes/negatives, whitespace trimming)
+- **FR-021**: *(DEFERRED)* Raggio.Tabular MUST provide SheetSchema DSL for declarative tabular data parsing with column definitions, header detection supporting multiple variants, row range filtering, and union schemas for format variance
+- **FR-022**: *(DEFERRED)* Raggio.Tabular MUST provide Tabular adapter for batch row parsing with row number tracking, separating valid and invalid rows with detailed error reporting per row
+- **FR-023**: *(DEFERRED)* Raggio.Tabular MUST provide Excel-specific transform functions for common data cleaning patterns (currency formatting, float-to-integer IDs, decimal absolutes/negatives, whitespace trimming)
 - **FR-024**: Raggio.Schema MUST provide explicit coercion builders that convert types before validation (e.g., Schema.coerce(Schema.to_decimal(), Schema.decimal(Schema.min(0)))), supporting conversions: any → string, any → integer, any → float, any → decimal, handling common formats like currency strings and float-represented integers
 - **FR-025**: Raggio.Schema MUST support bidirectional transforms with decode operations (applied during parsing/validation) and encode operations (applied during serialization), allowing round-trip data transformation for use cases like API clients, database adapters, and data pipelines
 - **FR-026**: Raggio.Schema MUST provide transform composition capabilities (e.g., abs(), negate() for numeric types) that work with the bidirectional transform system
@@ -205,9 +209,9 @@ A developer working with real-world Excel or CSV files from business users needs
 - **BigQuery Exporter**: An adapter that converts Raggio.Schema definitions to BigQuery standard SQL DDL, mapping schema types to BigQuery column types, constraints to column constraints, and nested structures to STRUCT/RECORD types.
 - **SheetSchema Importer**: An adapter that parses Google Sheets with columns [field_name, type, required, constraints] and generates valid Raggio.Schema code, including type mappings and constraint conversions.
 - **Raggio.Syntax Package**: A library for working with syntax structures through composable functions. Contains syntax node builders, traversal functions, and transformation utilities migrated from the syntax manipulation components.
-- **Raggio.Tabular Package**: A library for parsing and validating Excel/CSV/tabular data with composable schema definitions. Contains SheetSchema DSL for declarative column mapping, Tabular adapter for batch row parsing with error tracking, header detection with multiple variant support, row range filtering, and Excel-specific transforms (currency, IDs, decimals). Depends on Raggio.Schema for type definitions and validation. Migrated from old_code SheetSchema, ExcelSchema, Tabular adapter, and Excel transform modules.
+- **Raggio.Tabular Submodule** *(DEFERRED)*: A submodule for parsing and validating Excel/CSV/tabular data with composable schema definitions. Contains SheetSchema DSL for declarative column mapping, Tabular adapter for batch row parsing with error tracking, header detection with multiple variant support, row range filtering, and Excel-specific transforms (currency, IDs, decimals). Depends on Raggio.Schema for type definitions and validation. Migrated from old_code SheetSchema, ExcelSchema, Tabular adapter, and Excel transform modules. Will be implemented in follow-up iteration.
 - **Example Projects**: Self-contained, executable code examples that demonstrate package usage patterns. Each example focuses on one specific use case and is independently runnable.
-- **Monorepo Structure**: The organizational pattern that contains multiple packages, shared tooling, and cross-package development workflows similar to Elixir's Ecto and Phoenix projects.
+- **Package Structure**: A single Elixir package containing submodules (Raggio.Schema, Raggio.Syntax, Raggio.Tabular, etc.) following Ecto's single-package architecture, not an umbrella project structure.
 
 ## Success Criteria *(mandatory)*
 
@@ -215,9 +219,9 @@ A developer working with real-world Excel or CSV files from business users needs
 
 - **SC-001**: A developer can clone the repository and successfully compile all packages within 5 minutes on a machine with Elixir installed
 - **SC-002**: A developer can run any example in the examples directory and see working output within 30 seconds
-- **SC-003**: Each package can be added as a dependency to a new project and used independently without requiring the other packages
+- **SC-003**: The Raggio package can be added as a dependency and submodules (Raggio.Schema, Raggio.Syntax, Raggio.Tabular) can be used independently of each other within the same package
 - **SC-004**: 90% of common use cases for schema definition and syntax manipulation can be accomplished through function composition without writing custom macros
-- **SC-005**: The repository structure matches the organizational patterns of established Elixir monorepos (Ecto/Phoenix style) as verified by presence of package-specific mix.exs files and umbrella project structure
+- **SC-005**: The repository structure matches the organizational pattern of Ecto as a single package with submodules (lib/raggio.ex, lib/raggio/schema.ex, lib/raggio/syntax.ex, etc.), NOT an umbrella project structure
 - **SC-006**: Developers can understand basic usage of either package by reading and running examples without consulting extensive API documentation
 
 ## Assumptions & Constraints
@@ -230,7 +234,7 @@ A developer working with real-world Excel or CSV files from business users needs
 - The existing functionality in DataSchema and syntax manipulation is valuable and should be preserved in the new packages
 - Effect-TS/Schema's approach to composability and API design is compatible with Elixir's functional programming paradigm
 - Developers using this library are familiar with functional composition concepts
-- The monorepo will be managed using standard Elixir umbrella project conventions
+- The package will be structured as a single Elixir package with submodules (like Ecto), not an umbrella project
 
 ### Constraints
 
