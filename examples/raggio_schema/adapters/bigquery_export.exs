@@ -2,10 +2,6 @@
 #
 # This example demonstrates how to export Raggio.Schema definitions to BigQuery DDL
 
-# Setup paths for umbrella project
-Mix.install([], consolidate_protocols: false)
-Code.prepend_path("_build/dev/lib/raggio_schema/ebin")
-
 alias Raggio.Schema
 alias Raggio.Schema.Adapters.BigQuery
 
@@ -31,10 +27,10 @@ product_schema =
   Schema.struct([
     {:id, Schema.integer()},
     {:name, Schema.string()},
-    {:description, Schema.string() |> Schema.optional()},
-    {:status, Schema.string() |> Schema.default("active")},
+    {:description, Schema.optional(Schema.string())},
+    {:status, Schema.string(default: "active")},
     {:price, Schema.decimal()},
-    {:quantity, Schema.integer() |> Schema.default(0)}
+    {:quantity, Schema.integer(default: 0)}
   ])
 
 ddl = BigQuery.to_ddl(product_schema, "products")
@@ -47,8 +43,8 @@ article_schema =
   Schema.struct([
     {:id, Schema.integer()},
     {:title, Schema.string()},
-    {:tags, Schema.array(Schema.string())},
-    {:ratings, Schema.array(Schema.integer()) |> Schema.optional()}
+    {:tags, Schema.list(Schema.string())},
+    {:ratings, Schema.optional(Schema.list(Schema.integer()))}
   ])
 
 ddl = BigQuery.to_ddl(article_schema, "articles")
@@ -61,7 +57,7 @@ address_schema =
   Schema.struct([
     {:street, Schema.string()},
     {:city, Schema.string()},
-    {:zip_code, Schema.string() |> Schema.optional()},
+    {:zip_code, Schema.optional(Schema.string())},
     {:country, Schema.string()}
   ])
 
@@ -85,7 +81,7 @@ event_schema =
     {:user_id, Schema.integer()},
     {:event_type, Schema.string()},
     {:event_timestamp, Schema.datetime()},
-    {:properties, Schema.string() |> Schema.optional()}
+    {:properties, Schema.optional(Schema.string())}
   ])
 
 ddl = BigQuery.to_ddl(event_schema, "events", partition_by: "DATE(event_timestamp)")

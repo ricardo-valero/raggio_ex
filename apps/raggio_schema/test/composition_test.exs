@@ -3,70 +3,49 @@ defmodule Raggio.Schema.CompositionTest do
 
   alias Raggio.Schema
 
-  describe "pipe operator composition" do
-    test "chains string constraints with pipe" do
-      schema =
-        Schema.string()
-        |> Schema.min_length(3)
-        |> Schema.max_length(10)
+  describe "keyword argument composition" do
+    test "string with multiple constraints" do
+      schema = Schema.string(min: 3, max: 10)
 
       assert {:ok, "hello"} = Schema.validate(schema, "hello")
       assert {:error, _} = Schema.validate(schema, "hi")
       assert {:error, _} = Schema.validate(schema, "hello world!")
     end
 
-    test "chains numeric constraints with pipe" do
-      schema =
-        Schema.integer()
-        |> Schema.positive()
-        |> Schema.max(100)
+    test "integer with min and max" do
+      schema = Schema.integer(min: 1, max: 100)
 
       assert {:ok, 50} = Schema.validate(schema, 50)
       assert {:error, _} = Schema.validate(schema, -5)
       assert {:error, _} = Schema.validate(schema, 150)
     end
 
-    test "chains optional and default" do
-      schema =
-        Schema.string()
-        |> Schema.optional()
-        |> Schema.default("N/A")
+    test "optional with default" do
+      schema = Schema.optional(Schema.string(default: "N/A"))
 
       assert {:ok, "hello"} = Schema.validate(schema, "hello")
       assert {:ok, "N/A"} = Schema.validate(schema, nil)
     end
 
-    test "chains multiple string constraints" do
-      schema =
-        Schema.string()
-        |> Schema.min_length(5)
-        |> Schema.max_length(20)
-        |> Schema.pattern(~r/^[a-zA-Z0-9_]+$/)
+    test "string with pattern constraint" do
+      schema = Schema.string(min: 5, max: 20, pattern: ~r/^[a-zA-Z0-9_]+$/)
 
       assert {:ok, "valid_user123"} = Schema.validate(schema, "valid_user123")
       assert {:error, _} = Schema.validate(schema, "ab")
-      # too short
       assert {:error, _} = Schema.validate(schema, "invalid-user!")
-      # bad pattern
     end
   end
 
   describe "composition with structs" do
     test "composes schemas in struct fields" do
-      username_schema =
-        Schema.string()
-        |> Schema.min_length(3)
-        |> Schema.max_length(20)
-
-      email_schema =
-        Schema.string()
-        |> Schema.email()
+      username_schema = Schema.string(min: 3, max: 20)
+      email_schema = Schema.string(pattern: Schema.email())
 
       user_schema =
         Schema.struct([
           {:username, username_schema},
           {:email, email_schema},
-          {:age, Schema.integer() |> Schema.range(18, 120)}
+          {:age, Schema.integer(min: 18, max: 120)}
         ])
 
       valid_user = %{username: "alice", email: "alice@example.com", age: 25}
@@ -80,13 +59,13 @@ defmodule Raggio.Schema.CompositionTest do
     test "composes nested struct schemas" do
       address_schema =
         Schema.struct([
-          {:city, Schema.string() |> Schema.min_length(2)},
-          {:zip, Schema.string() |> Schema.pattern(~r/^\d{5}$/)}
+          {:city, Schema.string(min: 2)},
+          {:zip, Schema.string(pattern: ~r/^\d{5}$/)}
         ])
 
       person_schema =
         Schema.struct([
-          {:name, Schema.string() |> Schema.min_length(2)},
+          {:name, Schema.string(min: 2)},
           {:address, address_schema}
         ])
 
@@ -103,15 +82,14 @@ defmodule Raggio.Schema.CompositionTest do
       }
 
       assert {:error, errors} = Schema.validate(person_schema, invalid_person)
-      # name too short, city too short, zip invalid pattern
       assert length(errors) == 3
     end
   end
 
-  describe "composition with arrays" do
-    test "composes array element schemas" do
-      email_schema = Schema.string() |> Schema.email()
-      emails_schema = Schema.array(email_schema)
+  describe "composition with lists" do
+    test "composes list element schemas" do
+      email_schema = Schema.string(pattern: Schema.email())
+      emails_schema = Schema.list(email_schema)
 
       valid_emails = ["alice@test.com", "bob@test.com"]
       assert {:ok, _} = Schema.validate(emails_schema, valid_emails)
@@ -121,27 +99,22 @@ defmodule Raggio.Schema.CompositionTest do
       assert [%{path: [1]}] = errors
     end
 
-    test "composes array with length constraints" do
-      schema =
-        Schema.array(Schema.integer() |> Schema.positive())
-        |> Schema.min_length(2)
-        |> Schema.max_length(5)
+    test "composes list with length constraints" do
+      schema = Schema.list(Schema.integer(min: 1), min: 2, max: 5)
 
       assert {:ok, [1, 2, 3]} = Schema.validate(schema, [1, 2, 3])
       assert {:error, _} = Schema.validate(schema, [1])
-      # too short
       assert {:error, _} = Schema.validate(schema, [1, 2, 3, 4, 5, 6])
-      # too long
     end
 
-    test "composes array of complex structs" do
+    test "composes list of complex structs" do
       item_schema =
         Schema.struct([
-          {:name, Schema.string() |> Schema.min_length(1)},
-          {:price, Schema.float() |> Schema.positive()}
+          {:name, Schema.string(min: 1)},
+          {:price, Schema.float(min: 0.01)}
         ])
 
-      cart_schema = Schema.array(item_schema)
+      cart_schema = Schema.list(item_schema)
 
       valid_cart = [
         %{name: "Item 1", price: 9.99},
@@ -160,12 +133,12 @@ defmodule Raggio.Schema.CompositionTest do
     end
   end
 
-  describe "composition with union and enum" do
-    test "composes enum in struct" do
+  describe "composition with union and literal" do
+    test "composes literal in struct" do
       order_schema =
         Schema.struct([
           {:id, Schema.string()},
-          {:status, Schema.enum([:pending, :shipped, :delivered])}
+          {:status, Schema.literal(:pending, :shipped, :delivered)}
         ])
 
       assert {:ok, _} = Schema.validate(order_schema, %{id: "ORD-1", status: :pending})
@@ -173,8 +146,8 @@ defmodule Raggio.Schema.CompositionTest do
     end
 
     test "composes union with constrained types" do
-      string_id = Schema.string() |> Schema.pattern(~r/^[A-Z]{3}-\d{3}$/)
-      integer_id = Schema.integer() |> Schema.positive()
+      string_id = Schema.string(pattern: ~r/^[A-Z]{3}-\d{3}$/)
+      integer_id = Schema.integer(min: 1)
       id_schema = Schema.union([string_id, integer_id])
 
       assert {:ok, "ABC-123"} = Schema.validate(id_schema, "ABC-123")
@@ -186,10 +159,9 @@ defmodule Raggio.Schema.CompositionTest do
 
   describe "reusable schema composition" do
     setup do
-      # Define reusable schemas
-      username = Schema.string() |> Schema.min_length(3) |> Schema.max_length(20)
-      email = Schema.string() |> Schema.email()
-      password = Schema.string() |> Schema.min_length(8)
+      username = Schema.string(min: 3, max: 20)
+      email = Schema.string(pattern: Schema.email())
+      password = Schema.string(min: 8)
 
       {:ok, username: username, email: email, password: password}
     end
@@ -218,7 +190,6 @@ defmodule Raggio.Schema.CompositionTest do
           {:email, email}
         ])
 
-      # All should validate consistently
       valid_data = %{
         username: "alice",
         email: "alice@example.com",
@@ -229,7 +200,6 @@ defmodule Raggio.Schema.CompositionTest do
       assert {:ok, _} = Schema.validate(login_schema, Map.drop(valid_data, [:email]))
       assert {:ok, _} = Schema.validate(profile_schema, Map.drop(valid_data, [:password]))
 
-      # All should reject bad username consistently
       invalid_username = %{valid_data | username: "ab"}
       assert {:error, _} = Schema.validate(registration_schema, invalid_username)
       assert {:error, _} = Schema.validate(login_schema, Map.drop(invalid_username, [:email]))
@@ -243,20 +213,20 @@ defmodule Raggio.Schema.CompositionTest do
     test "deeply nested composition" do
       coordinates_schema =
         Schema.struct([
-          {:lat, Schema.float() |> Schema.range(-90.0, 90.0)},
-          {:lng, Schema.float() |> Schema.range(-180.0, 180.0)}
+          {:lat, Schema.float(min: -90.0, max: 90.0)},
+          {:lng, Schema.float(min: -180.0, max: 180.0)}
         ])
 
       address_schema =
         Schema.struct([
-          {:street, Schema.string() |> Schema.min_length(1)},
-          {:city, Schema.string() |> Schema.min_length(1)},
-          {:coordinates, coordinates_schema |> Schema.optional()}
+          {:street, Schema.string(min: 1)},
+          {:city, Schema.string(min: 1)},
+          {:coordinates, Schema.optional(coordinates_schema)}
         ])
 
       venue_schema =
         Schema.struct([
-          {:name, Schema.string() |> Schema.min_length(1)},
+          {:name, Schema.string(min: 1)},
           {:address, address_schema}
         ])
 
@@ -271,7 +241,6 @@ defmodule Raggio.Schema.CompositionTest do
 
       assert {:ok, _} = Schema.validate(venue_schema, valid_venue)
 
-      # Invalid coordinates should be caught
       invalid_venue = %{
         name: "Conference Center",
         address: %{
@@ -286,39 +255,10 @@ defmodule Raggio.Schema.CompositionTest do
     end
 
     test "composition with multiple constraint violations" do
-      schema =
-        Schema.string()
-        |> Schema.min_length(5)
-        |> Schema.max_length(10)
-        |> Schema.pattern(~r/^[A-Z]+$/)
+      schema = Schema.string(min: 5, max: 10, pattern: ~r/^[A-Z]+$/)
 
-      # Should fail multiple constraints
       assert {:error, errors} = Schema.validate(schema, "ab")
-      # Too short + wrong pattern
       assert length(errors) >= 1
-    end
-  end
-
-  describe "composition error prevention" do
-    test "raises error when composing incompatible types" do
-      assert_raise Raggio.Schema.CompositionError, fn ->
-        Schema.integer() |> Schema.email()
-      end
-
-      assert_raise Raggio.Schema.CompositionError, fn ->
-        Schema.string() |> Schema.positive()
-      end
-
-      assert_raise Raggio.Schema.CompositionError, fn ->
-        Schema.boolean() |> Schema.min_length(5)
-      end
-    end
-
-    test "allows composition of compatible constraints" do
-      # These should not raise
-      assert %Schema{} = Schema.string() |> Schema.min_length(5) |> Schema.max_length(10)
-      assert %Schema{} = Schema.integer() |> Schema.min(10) |> Schema.max(100)
-      assert %Schema{} = Schema.float() |> Schema.positive() |> Schema.max(100.0)
     end
   end
 end

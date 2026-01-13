@@ -9,7 +9,7 @@ defmodule Raggio.Schema.Adapters.BigQueryTest do
       schema =
         S.struct([
           {:id, S.integer()},
-          {:email, S.string() |> S.optional()}
+          {:email, S.optional(S.string())}
         ])
 
       ddl = BigQuery.to_ddl(schema, "users")
@@ -40,10 +40,10 @@ defmodule Raggio.Schema.Adapters.BigQueryTest do
       assert ddl =~ "datetime_field DATETIME NOT NULL"
     end
 
-    test "handles array types" do
+    test "handles list types" do
       schema =
         S.struct([
-          {:tags, S.array(S.string())}
+          {:tags, S.list(S.string())}
         ])
 
       ddl = BigQuery.to_ddl(schema, "with_arrays")
@@ -54,7 +54,7 @@ defmodule Raggio.Schema.Adapters.BigQueryTest do
     test "handles nested struct types" do
       address_schema =
         S.struct([
-          {:street, S.string() |> S.optional()},
+          {:street, S.optional(S.string())},
           {:city, S.string()}
         ])
 
@@ -72,8 +72,8 @@ defmodule Raggio.Schema.Adapters.BigQueryTest do
     test "handles default values" do
       schema =
         S.struct([
-          {:status, S.string() |> S.default("active")},
-          {:count, S.integer() |> S.default(0)}
+          {:status, S.string(default: "active")},
+          {:count, S.integer(default: 0)}
         ])
 
       ddl = BigQuery.to_ddl(schema, "with_defaults")

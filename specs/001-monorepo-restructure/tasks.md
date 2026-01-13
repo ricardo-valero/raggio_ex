@@ -36,15 +36,15 @@
 
 **Purpose**: Project initialization and verify existing structure
 
-- [ ] T001 Verify umbrella project structure at mix.exs
-- [ ] T002 [P] Add Decimal dependency to apps/raggio_schema/mix.exs
-- [ ] T003 [P] Add Jason dependency to apps/raggio_schema/mix.exs for BigQuery JSON export
-- [ ] T004 [P] Create config/config.exs with shared configuration
-- [ ] T005 [P] Create config/test.exs for test environment configuration
-- [ ] T006 [P] Verify .gitignore with Elixir patterns (_build/, deps/, *.beam, etc.)
-- [ ] T007 [P] Verify .formatter.exs for umbrella-wide code formatting
-- [ ] T008 [P] Verify apps/raggio_schema/test/test_helper.exs exists
-- [ ] T009 [P] Verify apps/raggio_syntax/test/test_helper.exs exists
+- [X] T001 Verify umbrella project structure at mix.exs
+- [X] T002 [P] Add Decimal dependency to apps/raggio_schema/mix.exs
+- [X] T003 [P] Add Jason dependency to apps/raggio_schema/mix.exs for BigQuery JSON export
+- [X] T004 [P] Create config/config.exs with shared configuration
+- [X] T005 [P] Create config/test.exs for test environment configuration
+- [X] T006 [P] Verify .gitignore with Elixir patterns (_build/, deps/, *.beam, etc.)
+- [X] T007 [P] Verify .formatter.exs for umbrella-wide code formatting
+- [X] T008 [P] Verify apps/raggio_schema/test/test_helper.exs exists
+- [X] T009 [P] Verify apps/raggio_syntax/test/test_helper.exs exists
 
 ---
 
@@ -54,12 +54,12 @@
 
 **CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T010 Update Schema struct with new fields (type, encoded, constraints, fields, inner_type, types, values, optional, nullable, default, annotations) in apps/raggio_schema/lib/raggio_schema.ex
-- [ ] T011 [P] Create ValidationError struct in apps/raggio_schema/lib/raggio_schema/error.ex with path, message, value, constraint fields
-- [ ] T012 [P] Create CompositionError exception in apps/raggio_schema/lib/raggio_schema/error.ex for incompatible type composition
-- [ ] T013 Create base Node protocol in apps/raggio_syntax/lib/raggio_syntax/node.ex with node_type/1 and children/1
-- [ ] T014 [P] Define SyntaxTree struct in apps/raggio_syntax/lib/raggio_syntax/ast.ex with root and metadata fields
-- [ ] T015 Run mix compile to verify foundational structures compile
+- [X] T010 Update Schema struct with new fields (type, encoded, constraints, fields, inner_type, types, values, optional, nullable, default, annotations) in apps/raggio_schema/lib/raggio_schema.ex
+- [X] T011 [P] Create ValidationError struct in apps/raggio_schema/lib/raggio_schema/error.ex with path, message, value, constraint fields
+- [X] T012 [P] Create CompositionError exception in apps/raggio_schema/lib/raggio_schema/error.ex for incompatible type composition
+- [X] T013 Create base Node protocol in apps/raggio_syntax/lib/raggio_syntax/node.ex with node_type/1 and children/1
+- [X] T014 [P] Define SyntaxTree struct in apps/raggio_syntax/lib/raggio_syntax/ast.ex with root and metadata fields
+- [X] T015 Run mix compile to verify foundational structures compile
 
 **Checkpoint**: Foundation ready - user story implementation can now begin
 
@@ -75,53 +75,53 @@
 
 #### Primitive Type Constructors (apps/raggio_schema/lib/raggio_schema.ex)
 
-- [ ] T016 [P] [US1] Implement string/1 type constructor with opts (min, max, pattern, default)
-- [ ] T017 [P] [US1] Implement integer/1 type constructor with opts (min, max, default)
-- [ ] T018 [P] [US1] Implement float/1 type constructor with opts (min, max, default)
-- [ ] T019 [P] [US1] Implement boolean/1 type constructor with opts (default)
-- [ ] T020 [P] [US1] Implement date/1 type constructor with opts (default)
-- [ ] T021 [P] [US1] Implement datetime/1 type constructor with opts (default)
-- [ ] T022 [P] [US1] Implement decimal/1 type constructor with opts (min, max, default)
-- [ ] T023 [P] [US1] Implement atom/1 type constructor with opts (default)
+- [X] T016 [P] [US1] Implement string/1 type constructor with opts (min, max, pattern, default)
+- [X] T017 [P] [US1] Implement integer/1 type constructor with opts (min, max, default)
+- [X] T018 [P] [US1] Implement float/1 type constructor with opts (min, max, default)
+- [X] T019 [P] [US1] Implement boolean/1 type constructor with opts (default)
+- [X] T020 [P] [US1] Implement date/1 type constructor with opts (default)
+- [X] T021 [P] [US1] Implement datetime/1 type constructor with opts (default)
+- [X] T022 [P] [US1] Implement decimal/1 type constructor with opts (min, max, default)
+- [X] T023 [P] [US1] Implement atom/1 type constructor with opts (default)
 
 #### Composite Type Constructors
 
-- [ ] T024 [P] [US1] Implement struct/1 for struct type with keyword list of tuples in apps/raggio_schema/lib/raggio_schema.ex
-- [ ] T025 [P] [US1] Implement list/2 for list type with inner schema and opts (min, max, unique, default) in apps/raggio_schema/lib/raggio_schema.ex
-- [ ] T026 [P] [US1] Implement tuple/1 for tuple type with list of schemas in apps/raggio_schema/lib/raggio_schema.ex
-- [ ] T027 [P] [US1] Implement union/1 for union type (multiple alternatives) in apps/raggio_schema/lib/raggio_schema.ex
-- [ ] T028 [P] [US1] Implement literal/1 for literal type with variadic values in apps/raggio_schema/lib/raggio_schema.ex
-- [ ] T029 [P] [US1] Implement record/2 for typed maps with dynamic keys in apps/raggio_schema/lib/raggio_schema.ex
+- [X] T024 [P] [US1] Implement struct/1 for struct type with keyword list of tuples in apps/raggio_schema/lib/raggio_schema.ex
+- [X] T025 [P] [US1] Implement list/2 for list type with inner schema and opts (min, max, unique, default) in apps/raggio_schema/lib/raggio_schema.ex
+- [X] T026 [P] [US1] Implement tuple/1 for tuple type with list of schemas in apps/raggio_schema/lib/raggio_schema.ex
+- [X] T027 [P] [US1] Implement union/1 for union type (multiple alternatives) in apps/raggio_schema/lib/raggio_schema.ex
+- [X] T028 [P] [US1] Implement literal/1 for literal type with variadic values in apps/raggio_schema/lib/raggio_schema.ex
+- [X] T029 [P] [US1] Implement record/2 for typed maps with dynamic keys in apps/raggio_schema/lib/raggio_schema.ex
 
 #### Field Descriptors
 
-- [ ] T030 [P] [US1] Implement optional/1 wrapper function to mark field as optional in apps/raggio_schema/lib/raggio_schema.ex
-- [ ] T031 [P] [US1] Implement nullable/1 wrapper function to allow nil values in apps/raggio_schema/lib/raggio_schema.ex
+- [X] T030 [P] [US1] Implement optional/1 wrapper function to mark field as optional in apps/raggio_schema/lib/raggio_schema.ex
+- [X] T031 [P] [US1] Implement nullable/1 wrapper function to allow nil values in apps/raggio_schema/lib/raggio_schema.ex
 
 #### Convenience Helpers
 
-- [ ] T032 [P] [US1] Implement email/0 returning email regex pattern in apps/raggio_schema/lib/raggio_schema.ex
-- [ ] T033 [P] [US1] Implement url/0 returning URL regex pattern in apps/raggio_schema/lib/raggio_schema.ex
-- [ ] T034 [P] [US1] Implement uuid/0 returning UUID regex pattern in apps/raggio_schema/lib/raggio_schema.ex
+- [X] T032 [P] [US1] Implement email/0 returning email regex pattern in apps/raggio_schema/lib/raggio_schema.ex
+- [X] T033 [P] [US1] Implement url/0 returning URL regex pattern in apps/raggio_schema/lib/raggio_schema.ex
+- [X] T034 [P] [US1] Implement uuid/0 returning UUID regex pattern in apps/raggio_schema/lib/raggio_schema.ex
 
 #### Validation Engine
 
-- [ ] T035 [US1] Implement validate/2 returning {:ok, data} | {:error, errors} in apps/raggio_schema/lib/raggio_schema/validator.ex
-- [ ] T036 [US1] Implement validate/3 with options (mode: :fail_fast | :all_errors, partial: boolean) in apps/raggio_schema/lib/raggio_schema/validator.ex
-- [ ] T037 [US1] Implement validate!/2 that raises on error in apps/raggio_schema/lib/raggio_schema.ex
-- [ ] T038 [US1] Implement type validation for all primitive types in apps/raggio_schema/lib/raggio_schema/validator.ex
-- [ ] T039 [US1] Implement polymorphic min constraint validation (numbers, strings, lists) in apps/raggio_schema/lib/raggio_schema/validator.ex
-- [ ] T040 [US1] Implement polymorphic max constraint validation (numbers, strings, lists) in apps/raggio_schema/lib/raggio_schema/validator.ex
-- [ ] T041 [US1] Implement pattern constraint validation for strings in apps/raggio_schema/lib/raggio_schema/validator.ex
-- [ ] T042 [US1] Implement unique constraint validation for lists in apps/raggio_schema/lib/raggio_schema/validator.ex
-- [ ] T043 [US1] Implement nested struct validation with path accumulation in apps/raggio_schema/lib/raggio_schema/validator.ex
-- [ ] T044 [US1] Implement list validation with index-based error paths in apps/raggio_schema/lib/raggio_schema/validator.ex
-- [ ] T045 [US1] Implement union type validation (try each alternative) in apps/raggio_schema/lib/raggio_schema/validator.ex
-- [ ] T046 [US1] Implement literal type validation in apps/raggio_schema/lib/raggio_schema/validator.ex
-- [ ] T047 [US1] Implement record type validation in apps/raggio_schema/lib/raggio_schema/validator.ex
-- [ ] T048 [US1] Implement optional field handling in struct validation in apps/raggio_schema/lib/raggio_schema/validator.ex
-- [ ] T049 [US1] Implement nullable field handling in validation in apps/raggio_schema/lib/raggio_schema/validator.ex
-- [ ] T050 [US1] Implement default value application in validation in apps/raggio_schema/lib/raggio_schema/validator.ex
+- [X] T035 [US1] Implement validate/2 returning {:ok, data} | {:error, errors} in apps/raggio_schema/lib/raggio_schema/validator.ex
+- [X] T036 [US1] Implement validate/3 with options (mode: :fail_fast | :all_errors, partial: boolean) in apps/raggio_schema/lib/raggio_schema/validator.ex
+- [X] T037 [US1] Implement validate!/2 that raises on error in apps/raggio_schema/lib/raggio_schema.ex
+- [X] T038 [US1] Implement type validation for all primitive types in apps/raggio_schema/lib/raggio_schema/validator.ex
+- [X] T039 [US1] Implement polymorphic min constraint validation (numbers, strings, lists) in apps/raggio_schema/lib/raggio_schema/validator.ex
+- [X] T040 [US1] Implement polymorphic max constraint validation (numbers, strings, lists) in apps/raggio_schema/lib/raggio_schema/validator.ex
+- [X] T041 [US1] Implement pattern constraint validation for strings in apps/raggio_schema/lib/raggio_schema/validator.ex
+- [X] T042 [US1] Implement unique constraint validation for lists in apps/raggio_schema/lib/raggio_schema/validator.ex
+- [X] T043 [US1] Implement nested struct validation with path accumulation in apps/raggio_schema/lib/raggio_schema/validator.ex
+- [X] T044 [US1] Implement list validation with index-based error paths in apps/raggio_schema/lib/raggio_schema/validator.ex
+- [X] T045 [US1] Implement union type validation (try each alternative) in apps/raggio_schema/lib/raggio_schema/validator.ex
+- [X] T046 [US1] Implement literal type validation in apps/raggio_schema/lib/raggio_schema/validator.ex
+- [X] T047 [US1] Implement record type validation in apps/raggio_schema/lib/raggio_schema/validator.ex
+- [X] T048 [US1] Implement optional field handling in struct validation in apps/raggio_schema/lib/raggio_schema/validator.ex
+- [X] T049 [US1] Implement nullable field handling in validation in apps/raggio_schema/lib/raggio_schema/validator.ex
+- [X] T050 [US1] Implement default value application in validation in apps/raggio_schema/lib/raggio_schema/validator.ex
 
 **Checkpoint**: User Story 1 complete - schema definition and validation functional
 
@@ -137,19 +137,19 @@
 
 #### Raggio.Schema Examples
 
-- [ ] T051 [P] [US3] Update examples/raggio_schema/basic_validation/simple_schema.exs with new API syntax
-- [ ] T052 [P] [US3] Update examples/raggio_schema/basic_validation/validation_error.exs with new API syntax
-- [ ] T053 [P] [US3] Update examples/raggio_schema/basic_validation/nested_schema.exs with new API syntax
-- [ ] T054 [P] [US3] Update examples/raggio_schema/basic_validation/array_validation.exs with new API syntax (use list())
-- [ ] T055 [P] [US3] Update examples/raggio_schema/basic_validation/enum_union.exs with new API syntax (use literal())
-- [ ] T056 [P] [US3] Update examples/raggio_schema/basic_validation/optional_default.exs with new API syntax
-- [ ] T057 [P] [US3] Update examples/raggio_schema/composition/reusable_schema.exs with new API syntax
-- [ ] T058 [P] [US3] Update examples/raggio_schema/composition/custom_type.exs with new API syntax
-- [ ] T059 [P] [US3] Update examples/raggio_schema/composition/combine_validator.exs with new API syntax
+- [X] T051 [P] [US3] Update examples/raggio_schema/basic_validation/simple_schema.exs with new API syntax
+- [X] T052 [P] [US3] Update examples/raggio_schema/basic_validation/validation_error.exs with new API syntax
+- [X] T053 [P] [US3] Update examples/raggio_schema/basic_validation/nested_schema.exs with new API syntax
+- [X] T054 [P] [US3] Update examples/raggio_schema/basic_validation/array_validation.exs with new API syntax (use list())
+- [X] T055 [P] [US3] Update examples/raggio_schema/basic_validation/enum_union.exs with new API syntax (use literal())
+- [X] T056 [P] [US3] Update examples/raggio_schema/basic_validation/optional_default.exs with new API syntax
+- [X] T057 [P] [US3] Update examples/raggio_schema/composition/reusable_schema.exs with new API syntax
+- [X] T058 [P] [US3] Update examples/raggio_schema/composition/custom_type.exs with new API syntax
+- [X] T059 [P] [US3] Update examples/raggio_schema/composition/combine_validator.exs with new API syntax
 
 #### Example Test Suite
 
-- [ ] T060 [US3] Update test/example_test.exs to verify all examples compile and run
+- [X] T060 [US3] Update test/example_test.exs to verify all examples compile and run
 
 **Checkpoint**: MVP complete - User Stories 1 and 3 deliver core value
 
