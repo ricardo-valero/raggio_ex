@@ -1,0 +1,1161 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="ExDoc v0.39.3">
+    <meta name="project" content="RaggioSchema v0.1.0">
+
+
+    <title>Raggio.Schema — RaggioSchema v0.1.0</title>
+
+    <link rel="stylesheet" href="dist/html-elixir-VYWJUHZE.css" />
+
+    <script defer src="dist/sidebar_items-E81E3882.js"></script>
+    <script defer src="docs_config.js"></script>
+    <script defer src="dist/html-XBCM4BHM.js"></script>
+
+  </head>
+  <body>
+    <script>(()=>{var t="ex_doc:settings",e="dark";var o="dark",s="light";var E="sidebar_state",n="closed";var r="sidebar_width";var a="sidebar-open";var i=new URLSearchParams(window.location.search),S=i.get("theme")||JSON.parse(localStorage.getItem(t)||"{}").theme;(S===o||S!==s&&window.matchMedia("(prefers-color-scheme: dark)").matches)&&document.body.classList.add(e);var d=sessionStorage.getItem(E),A=d!==n&&!window.matchMedia(`screen and (max-width: ${768}px)`).matches;document.body.classList.toggle(a,A);var c=sessionStorage.getItem(r);c&&document.body.style.setProperty("--sidebarWidth",`${c}px`);var p=/(Macintosh|iPhone|iPad|iPod)/.test(window.navigator.userAgent);document.documentElement.classList.toggle("apple-os",p);})();
+</script>
+
+<div class="body-wrapper">
+
+<button id="sidebar-menu" class="sidebar-button sidebar-toggle" aria-label="toggle sidebar" aria-controls="sidebar">
+  <i class="ri-menu-line ri-lg" title="Collapse/expand sidebar"></i>
+</button>
+
+<nav id="sidebar" class="sidebar">
+
+  <div class="sidebar-header">
+    <div class="sidebar-projectInfo">
+
+      <div>
+        <a href="readme.html" class="sidebar-projectName" translate="no">
+RaggioSchema
+        </a>
+        <div class="sidebar-projectVersion" translate="no">
+          v0.1.0
+        </div>
+      </div>
+    </div>
+    <ul id="sidebar-list-nav" class="sidebar-list-nav" role="tablist" data-extras=""></ul>
+  </div>
+</nav>
+
+<output role="status" id="toast"></output>
+
+<main class="content page-module" id="main" data-type="modules">
+  <div id="content" class="content-inner">
+    <div class="top-search">
+      <div class="search-settings">
+        <form class="search-bar" action="search.html">
+          <label class="search-label">
+            <span class="sr-only">Search documentation of RaggioSchema</span>
+            <div class="search-input-wrapper">
+              <input name="q" type="text" class="search-input" placeholder="Press / to search" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
+              <button type="button" tabindex="-1" class="search-close-button" aria-hidden="true">
+                <i class="ri-close-line ri-lg" title="Cancel search"></i>
+              </button>
+            </div>
+          </label>
+        </form>
+        <div class="autocomplete">
+        </div>
+        <div class="engine-selector" data-multiple="false">
+          <button type="button" class="engine-button" aria-label="Select search engine" aria-haspopup="true" aria-expanded="false">
+            <i class="ri-search-2-line" aria-hidden="true"></i>
+            <span class="engine-name">Default</span>
+            <i class="ri-arrow-down-s-line" aria-hidden="true"></i>
+          </button>
+          <div class="engine-dropdown" hidden role="menu">
+
+              <button type="button"
+                      class="engine-option"
+                      data-engine-url="search.html?q="
+                      role="menuitemradio"
+                      aria-checked="true">
+                <span class="name">Default</span>
+                <span class="help">In-browser search</span>
+              </button>
+
+          </div>
+        </div>
+        <button class="icon-settings display-settings">
+          <i class="ri-settings-3-line"></i>
+          <span class="sr-only">Settings</span>
+        </button>
+      </div>
+    </div>
+
+<div id="top-content">
+  <div class="heading-with-actions top-heading">
+    <h1>
+      <span translate="no">Raggio.Schema</span> 
+      <small class="app-vsn" translate="no">(RaggioSchema v0.1.0)</small>
+
+    </h1>
+
+      <a href="https://github.com/ricardo-valero/raggio_ex/blob/v0.1.0/lib/raggio_schema.ex#L1" title="View Source" class="icon-action" rel="help">
+        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
+        <span class="sr-only">View Source</span>
+      </a>
+
+  </div>
+
+
+    <section id="moduledoc">
+<p>Composable schema definition and validation library.</p><p>Raggio.Schema provides a function-based API for defining data schemas and validating data.
+Type constructors accept keyword options for constraints:</p><pre><code class="makeup elixir" translate="no"><span class="nc">Schema</span><span class="o">.</span><span class="n">string</span><span class="p" data-group-id="0979245057-1">(</span><span class="ss">min</span><span class="p">:</span><span class="w"> </span><span class="mi">3</span><span class="p">,</span><span class="w"> </span><span class="ss">max</span><span class="p">:</span><span class="w"> </span><span class="mi">20</span><span class="p" data-group-id="0979245057-1">)</span><span class="w">
+</span><span class="nc">Schema</span><span class="o">.</span><span class="n">integer</span><span class="p" data-group-id="0979245057-2">(</span><span class="ss">min</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="ss">max</span><span class="p">:</span><span class="w"> </span><span class="mi">100</span><span class="p" data-group-id="0979245057-2">)</span><span class="w">
+</span><span class="nc">Schema</span><span class="o">.</span><span class="n">list</span><span class="p" data-group-id="0979245057-3">(</span><span class="nc">Schema</span><span class="o">.</span><span class="n">string</span><span class="p" data-group-id="0979245057-4">(</span><span class="p" data-group-id="0979245057-4">)</span><span class="p">,</span><span class="w"> </span><span class="ss">min</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="ss">unique</span><span class="p">:</span><span class="w"> </span><span class="no">true</span><span class="p" data-group-id="0979245057-3">)</span><span class="w">
+
+</span><span class="nc">Schema</span><span class="o">.</span><span class="n">struct</span><span class="p" data-group-id="0979245057-5">(</span><span class="p" data-group-id="0979245057-6">[</span><span class="w">
+  </span><span class="p" data-group-id="0979245057-7">{</span><span class="ss">:name</span><span class="p">,</span><span class="w"> </span><span class="nc">Schema</span><span class="o">.</span><span class="n">string</span><span class="p" data-group-id="0979245057-8">(</span><span class="ss">min</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p" data-group-id="0979245057-8">)</span><span class="p" data-group-id="0979245057-7">}</span><span class="p">,</span><span class="w">
+  </span><span class="p" data-group-id="0979245057-9">{</span><span class="ss">:age</span><span class="p">,</span><span class="w"> </span><span class="nc">Schema</span><span class="o">.</span><span class="n">integer</span><span class="p" data-group-id="0979245057-10">(</span><span class="ss">min</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p" data-group-id="0979245057-10">)</span><span class="p" data-group-id="0979245057-9">}</span><span class="p">,</span><span class="w">
+  </span><span class="p" data-group-id="0979245057-11">{</span><span class="ss">:email</span><span class="p">,</span><span class="w"> </span><span class="nc">Schema</span><span class="o">.</span><span class="n">optional</span><span class="p" data-group-id="0979245057-12">(</span><span class="nc">Schema</span><span class="o">.</span><span class="n">string</span><span class="p" data-group-id="0979245057-13">(</span><span class="ss">pattern</span><span class="p">:</span><span class="w"> </span><span class="nc">Schema</span><span class="o">.</span><span class="n">email</span><span class="p" data-group-id="0979245057-14">(</span><span class="p" data-group-id="0979245057-14">)</span><span class="p" data-group-id="0979245057-13">)</span><span class="p" data-group-id="0979245057-12">)</span><span class="p" data-group-id="0979245057-11">}</span><span class="w">
+</span><span class="p" data-group-id="0979245057-6">]</span><span class="p" data-group-id="0979245057-5">)</span></code></pre><p>Core Constraints: min, max, pattern, unique
+Field Descriptors: optional/1, nullable/1, default: keyword option</p>
+    </section>
+
+</div>
+
+  <section id="summary" class="details-list">
+    <h1 class="section-heading">
+      <a class="hover-link" href="#summary">
+        <i class="ri-link-m" aria-hidden="true"></i>
+      </a>
+      <span class="text">Summary</span>
+    </h1>
+<div class="summary-types summary">
+  <h2>
+    <a href="#types">Types</a>
+  </h2>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#t:t/0" data-no-tooltip="" translate="no">t()</a>
+
+      </div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#t:validation_error/0" data-no-tooltip="" translate="no">validation_error()</a>
+
+      </div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#t:validation_result/0" data-no-tooltip="" translate="no">validation_result()</a>
+
+      </div>
+
+    </div>
+
+</div>
+<div class="summary-functions summary">
+  <h2>
+    <a href="#functions">Functions</a>
+  </h2>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#annotate/2" data-no-tooltip="" translate="no">annotate(schema, annotations)</a>
+
+      </div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#atom/1" data-no-tooltip="" translate="no">atom(opts \\ [])</a>
+
+      </div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#boolean/1" data-no-tooltip="" translate="no">boolean(opts \\ [])</a>
+
+      </div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#date/1" data-no-tooltip="" translate="no">date(opts \\ [])</a>
+
+      </div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#datetime/1" data-no-tooltip="" translate="no">datetime(opts \\ [])</a>
+
+      </div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#decimal/1" data-no-tooltip="" translate="no">decimal(opts \\ [])</a>
+
+      </div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#email/0" data-no-tooltip="" translate="no">email()</a>
+
+      </div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#float/1" data-no-tooltip="" translate="no">float(opts \\ [])</a>
+
+      </div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#integer/1" data-no-tooltip="" translate="no">integer(opts \\ [])</a>
+
+      </div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#list/2" data-no-tooltip="" translate="no">list(inner_schema, opts \\ [])</a>
+
+      </div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#literal/1" data-no-tooltip="" translate="no">literal(value)</a>
+
+      </div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#literal/2" data-no-tooltip="" translate="no">literal(value1, value2)</a>
+
+      </div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#literal/3" data-no-tooltip="" translate="no">literal(value1, value2, value3)</a>
+
+      </div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#literal/4" data-no-tooltip="" translate="no">literal(value1, value2, value3, value4)</a>
+
+      </div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#literal/5" data-no-tooltip="" translate="no">literal(value1, value2, value3, value4, value5)</a>
+
+      </div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#nullable/1" data-no-tooltip="" translate="no">nullable(schema)</a>
+
+      </div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#optional/1" data-no-tooltip="" translate="no">optional(schema)</a>
+
+      </div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#record/2" data-no-tooltip="" translate="no">record(key_schema, value_schema)</a>
+
+      </div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#string/1" data-no-tooltip="" translate="no">string(opts \\ [])</a>
+
+      </div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#struct/1" data-no-tooltip="" translate="no">struct(fields)</a>
+
+      </div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#tuple/1" data-no-tooltip="" translate="no">tuple(schemas)</a>
+
+      </div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#union/1" data-no-tooltip="" translate="no">union(schemas)</a>
+
+      </div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#url/0" data-no-tooltip="" translate="no">url()</a>
+
+      </div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#uuid/0" data-no-tooltip="" translate="no">uuid()</a>
+
+      </div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#validate/2" data-no-tooltip="" translate="no">validate(schema, data)</a>
+
+      </div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#validate/3" data-no-tooltip="" translate="no">validate(schema, data, opts)</a>
+
+      </div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#validate!/2" data-no-tooltip="" translate="no">validate!(schema, data)</a>
+
+      </div>
+
+    </div>
+
+</div>
+
+  </section>
+
+
+  <section id="types" class="details-list">
+    <h1 class="section-heading">
+      <a class="hover-link" href="#types">
+        <i class="ri-link-m" aria-hidden="true"></i>
+      </a>
+      <span class="text">Types</span>
+    </h1>
+
+    <div class="types-list">
+<section class="detail" id="t:t/0">
+
+  <div class="detail-header">
+    <a href="#t:t/0" class="detail-link" data-no-tooltip="" aria-label="Link to this type">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">t()</h1>
+
+
+        <a href="https://github.com/ricardo-valero/raggio_ex/blob/v0.1.0/lib/raggio_schema.ex#L36" class="icon-action" rel="help" aria-label="View Source">
+          <i class="ri-code-s-slash-line" aria-hidden="true"></i>
+        </a>
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+      <div class="specs">
+
+          <pre translate="no"><span class="attribute">@type</span> t() :: %Raggio.Schema{
+  annotations: <a href="https://hexdocs.pm/elixir/typespecs.html#basic-types">map</a>(),
+  constraints: <a href="https://hexdocs.pm/elixir/typespecs.html#built-in-types">keyword</a>(),
+  default: <a href="https://hexdocs.pm/elixir/typespecs.html#basic-types">any</a>(),
+  encoded: <a href="https://hexdocs.pm/elixir/typespecs.html#basic-types">atom</a>() | nil,
+  fields: [{<a href="https://hexdocs.pm/elixir/typespecs.html#basic-types">atom</a>(), <a href="#t:t/0">t</a>()}] | nil,
+  inner_type: <a href="#t:t/0">t</a>() | nil,
+  nullable: <a href="https://hexdocs.pm/elixir/typespecs.html#built-in-types">boolean</a>(),
+  optional: <a href="https://hexdocs.pm/elixir/typespecs.html#built-in-types">boolean</a>(),
+  type: <a href="https://hexdocs.pm/elixir/typespecs.html#basic-types">atom</a>(),
+  types: [<a href="#t:t/0">t</a>()] | nil,
+  values: [<a href="https://hexdocs.pm/elixir/typespecs.html#basic-types">any</a>()] | nil
+}</pre>
+
+      </div>
+
+
+  </section>
+</section>
+<section class="detail" id="t:validation_error/0">
+
+  <div class="detail-header">
+    <a href="#t:validation_error/0" class="detail-link" data-no-tooltip="" aria-label="Link to this type">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">validation_error()</h1>
+
+
+        <a href="https://github.com/ricardo-valero/raggio_ex/blob/v0.1.0/lib/raggio_schema.ex#L52" class="icon-action" rel="help" aria-label="View Source">
+          <i class="ri-code-s-slash-line" aria-hidden="true"></i>
+        </a>
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+      <div class="specs">
+
+          <pre translate="no"><span class="attribute">@type</span> validation_error() :: %{
+  path: [<a href="https://hexdocs.pm/elixir/typespecs.html#basic-types">atom</a>() | <a href="https://hexdocs.pm/elixir/typespecs.html#basic-types">integer</a>()],
+  message: <a href="https://hexdocs.pm/elixir/String.html#t:t/0">String.t</a>(),
+  value: <a href="https://hexdocs.pm/elixir/typespecs.html#basic-types">any</a>(),
+  constraint: <a href="https://hexdocs.pm/elixir/typespecs.html#basic-types">atom</a>() | nil
+}</pre>
+
+      </div>
+
+
+  </section>
+</section>
+<section class="detail" id="t:validation_result/0">
+
+  <div class="detail-header">
+    <a href="#t:validation_result/0" class="detail-link" data-no-tooltip="" aria-label="Link to this type">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">validation_result()</h1>
+
+
+        <a href="https://github.com/ricardo-valero/raggio_ex/blob/v0.1.0/lib/raggio_schema.ex#L50" class="icon-action" rel="help" aria-label="View Source">
+          <i class="ri-code-s-slash-line" aria-hidden="true"></i>
+        </a>
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+      <div class="specs">
+
+          <pre translate="no"><span class="attribute">@type</span> validation_result() :: {:ok, <a href="https://hexdocs.pm/elixir/typespecs.html#basic-types">any</a>()} | {:error, [<a href="#t:validation_error/0">validation_error</a>()]}</pre>
+
+      </div>
+
+
+  </section>
+</section>
+
+    </div>
+  </section>
+
+  <section id="functions" class="details-list">
+    <h1 class="section-heading">
+      <a class="hover-link" href="#functions">
+        <i class="ri-link-m" aria-hidden="true"></i>
+      </a>
+      <span class="text">Functions</span>
+    </h1>
+
+    <div class="functions-list">
+<section class="detail" id="annotate/2">
+
+  <div class="detail-header">
+    <a href="#annotate/2" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">annotate(schema, annotations)</h1>
+
+
+        <a href="https://github.com/ricardo-valero/raggio_ex/blob/v0.1.0/lib/raggio_schema.ex#L242" class="icon-action" rel="help" aria-label="View Source">
+          <i class="ri-code-s-slash-line" aria-hidden="true"></i>
+        </a>
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+
+  </section>
+</section>
+<section class="detail" id="atom/1">
+
+    <span id="atom/0"></span>
+
+  <div class="detail-header">
+    <a href="#atom/1" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">atom(opts \\ [])</h1>
+
+
+        <a href="https://github.com/ricardo-valero/raggio_ex/blob/v0.1.0/lib/raggio_schema.ex#L127" class="icon-action" rel="help" aria-label="View Source">
+          <i class="ri-code-s-slash-line" aria-hidden="true"></i>
+        </a>
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+
+  </section>
+</section>
+<section class="detail" id="boolean/1">
+
+    <span id="boolean/0"></span>
+
+  <div class="detail-header">
+    <a href="#boolean/1" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">boolean(opts \\ [])</h1>
+
+
+        <a href="https://github.com/ricardo-valero/raggio_ex/blob/v0.1.0/lib/raggio_schema.ex#L92" class="icon-action" rel="help" aria-label="View Source">
+          <i class="ri-code-s-slash-line" aria-hidden="true"></i>
+        </a>
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+
+  </section>
+</section>
+<section class="detail" id="date/1">
+
+    <span id="date/0"></span>
+
+  <div class="detail-header">
+    <a href="#date/1" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">date(opts \\ [])</h1>
+
+
+        <a href="https://github.com/ricardo-valero/raggio_ex/blob/v0.1.0/lib/raggio_schema.ex#L100" class="icon-action" rel="help" aria-label="View Source">
+          <i class="ri-code-s-slash-line" aria-hidden="true"></i>
+        </a>
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+
+  </section>
+</section>
+<section class="detail" id="datetime/1">
+
+    <span id="datetime/0"></span>
+
+  <div class="detail-header">
+    <a href="#datetime/1" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">datetime(opts \\ [])</h1>
+
+
+        <a href="https://github.com/ricardo-valero/raggio_ex/blob/v0.1.0/lib/raggio_schema.ex#L108" class="icon-action" rel="help" aria-label="View Source">
+          <i class="ri-code-s-slash-line" aria-hidden="true"></i>
+        </a>
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+
+  </section>
+</section>
+<section class="detail" id="decimal/1">
+
+    <span id="decimal/0"></span>
+
+  <div class="detail-header">
+    <a href="#decimal/1" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">decimal(opts \\ [])</h1>
+
+
+        <a href="https://github.com/ricardo-valero/raggio_ex/blob/v0.1.0/lib/raggio_schema.ex#L116" class="icon-action" rel="help" aria-label="View Source">
+          <i class="ri-code-s-slash-line" aria-hidden="true"></i>
+        </a>
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+
+  </section>
+</section>
+<section class="detail" id="email/0">
+
+  <div class="detail-header">
+    <a href="#email/0" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">email()</h1>
+
+
+        <a href="https://github.com/ricardo-valero/raggio_ex/blob/v0.1.0/lib/raggio_schema.ex#L230" class="icon-action" rel="help" aria-label="View Source">
+          <i class="ri-code-s-slash-line" aria-hidden="true"></i>
+        </a>
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+
+  </section>
+</section>
+<section class="detail" id="float/1">
+
+    <span id="float/0"></span>
+
+  <div class="detail-header">
+    <a href="#float/1" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">float(opts \\ [])</h1>
+
+
+        <a href="https://github.com/ricardo-valero/raggio_ex/blob/v0.1.0/lib/raggio_schema.ex#L81" class="icon-action" rel="help" aria-label="View Source">
+          <i class="ri-code-s-slash-line" aria-hidden="true"></i>
+        </a>
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+
+  </section>
+</section>
+<section class="detail" id="integer/1">
+
+    <span id="integer/0"></span>
+
+  <div class="detail-header">
+    <a href="#integer/1" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">integer(opts \\ [])</h1>
+
+
+        <a href="https://github.com/ricardo-valero/raggio_ex/blob/v0.1.0/lib/raggio_schema.ex#L70" class="icon-action" rel="help" aria-label="View Source">
+          <i class="ri-code-s-slash-line" aria-hidden="true"></i>
+        </a>
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+
+  </section>
+</section>
+<section class="detail" id="list/2">
+
+    <span id="list/1"></span>
+
+  <div class="detail-header">
+    <a href="#list/2" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">list(inner_schema, opts \\ [])</h1>
+
+
+        <a href="https://github.com/ricardo-valero/raggio_ex/blob/v0.1.0/lib/raggio_schema.ex#L143" class="icon-action" rel="help" aria-label="View Source">
+          <i class="ri-code-s-slash-line" aria-hidden="true"></i>
+        </a>
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+
+  </section>
+</section>
+<section class="detail" id="literal/1">
+
+  <div class="detail-header">
+    <a href="#literal/1" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">literal(value)</h1>
+
+
+        <a href="https://github.com/ricardo-valero/raggio_ex/blob/v0.1.0/lib/raggio_schema.ex#L173" class="icon-action" rel="help" aria-label="View Source">
+          <i class="ri-code-s-slash-line" aria-hidden="true"></i>
+        </a>
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+
+  </section>
+</section>
+<section class="detail" id="literal/2">
+
+  <div class="detail-header">
+    <a href="#literal/2" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">literal(value1, value2)</h1>
+
+
+        <a href="https://github.com/ricardo-valero/raggio_ex/blob/v0.1.0/lib/raggio_schema.ex#L181" class="icon-action" rel="help" aria-label="View Source">
+          <i class="ri-code-s-slash-line" aria-hidden="true"></i>
+        </a>
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+
+  </section>
+</section>
+<section class="detail" id="literal/3">
+
+  <div class="detail-header">
+    <a href="#literal/3" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">literal(value1, value2, value3)</h1>
+
+
+        <a href="https://github.com/ricardo-valero/raggio_ex/blob/v0.1.0/lib/raggio_schema.ex#L189" class="icon-action" rel="help" aria-label="View Source">
+          <i class="ri-code-s-slash-line" aria-hidden="true"></i>
+        </a>
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+
+  </section>
+</section>
+<section class="detail" id="literal/4">
+
+  <div class="detail-header">
+    <a href="#literal/4" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">literal(value1, value2, value3, value4)</h1>
+
+
+        <a href="https://github.com/ricardo-valero/raggio_ex/blob/v0.1.0/lib/raggio_schema.ex#L197" class="icon-action" rel="help" aria-label="View Source">
+          <i class="ri-code-s-slash-line" aria-hidden="true"></i>
+        </a>
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+
+  </section>
+</section>
+<section class="detail" id="literal/5">
+
+  <div class="detail-header">
+    <a href="#literal/5" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">literal(value1, value2, value3, value4, value5)</h1>
+
+
+        <a href="https://github.com/ricardo-valero/raggio_ex/blob/v0.1.0/lib/raggio_schema.ex#L205" class="icon-action" rel="help" aria-label="View Source">
+          <i class="ri-code-s-slash-line" aria-hidden="true"></i>
+        </a>
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+
+  </section>
+</section>
+<section class="detail" id="nullable/1">
+
+  <div class="detail-header">
+    <a href="#nullable/1" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">nullable(schema)</h1>
+
+
+        <a href="https://github.com/ricardo-valero/raggio_ex/blob/v0.1.0/lib/raggio_schema.ex#L226" class="icon-action" rel="help" aria-label="View Source">
+          <i class="ri-code-s-slash-line" aria-hidden="true"></i>
+        </a>
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+
+  </section>
+</section>
+<section class="detail" id="optional/1">
+
+  <div class="detail-header">
+    <a href="#optional/1" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">optional(schema)</h1>
+
+
+        <a href="https://github.com/ricardo-valero/raggio_ex/blob/v0.1.0/lib/raggio_schema.ex#L222" class="icon-action" rel="help" aria-label="View Source">
+          <i class="ri-code-s-slash-line" aria-hidden="true"></i>
+        </a>
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+
+  </section>
+</section>
+<section class="detail" id="record/2">
+
+  <div class="detail-header">
+    <a href="#record/2" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">record(key_schema, value_schema)</h1>
+
+
+        <a href="https://github.com/ricardo-valero/raggio_ex/blob/v0.1.0/lib/raggio_schema.ex#L213" class="icon-action" rel="help" aria-label="View Source">
+          <i class="ri-code-s-slash-line" aria-hidden="true"></i>
+        </a>
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+
+  </section>
+</section>
+<section class="detail" id="string/1">
+
+    <span id="string/0"></span>
+
+  <div class="detail-header">
+    <a href="#string/1" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">string(opts \\ [])</h1>
+
+
+        <a href="https://github.com/ricardo-valero/raggio_ex/blob/v0.1.0/lib/raggio_schema.ex#L59" class="icon-action" rel="help" aria-label="View Source">
+          <i class="ri-code-s-slash-line" aria-hidden="true"></i>
+        </a>
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+
+  </section>
+</section>
+<section class="detail" id="struct/1">
+
+  <div class="detail-header">
+    <a href="#struct/1" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">struct(fields)</h1>
+
+
+        <a href="https://github.com/ricardo-valero/raggio_ex/blob/v0.1.0/lib/raggio_schema.ex#L135" class="icon-action" rel="help" aria-label="View Source">
+          <i class="ri-code-s-slash-line" aria-hidden="true"></i>
+        </a>
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+
+  </section>
+</section>
+<section class="detail" id="tuple/1">
+
+  <div class="detail-header">
+    <a href="#tuple/1" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">tuple(schemas)</h1>
+
+
+        <a href="https://github.com/ricardo-valero/raggio_ex/blob/v0.1.0/lib/raggio_schema.ex#L157" class="icon-action" rel="help" aria-label="View Source">
+          <i class="ri-code-s-slash-line" aria-hidden="true"></i>
+        </a>
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+
+  </section>
+</section>
+<section class="detail" id="union/1">
+
+  <div class="detail-header">
+    <a href="#union/1" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">union(schemas)</h1>
+
+
+        <a href="https://github.com/ricardo-valero/raggio_ex/blob/v0.1.0/lib/raggio_schema.ex#L165" class="icon-action" rel="help" aria-label="View Source">
+          <i class="ri-code-s-slash-line" aria-hidden="true"></i>
+        </a>
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+
+  </section>
+</section>
+<section class="detail" id="url/0">
+
+  <div class="detail-header">
+    <a href="#url/0" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">url()</h1>
+
+
+        <a href="https://github.com/ricardo-valero/raggio_ex/blob/v0.1.0/lib/raggio_schema.ex#L234" class="icon-action" rel="help" aria-label="View Source">
+          <i class="ri-code-s-slash-line" aria-hidden="true"></i>
+        </a>
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+
+  </section>
+</section>
+<section class="detail" id="uuid/0">
+
+  <div class="detail-header">
+    <a href="#uuid/0" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">uuid()</h1>
+
+
+        <a href="https://github.com/ricardo-valero/raggio_ex/blob/v0.1.0/lib/raggio_schema.ex#L238" class="icon-action" rel="help" aria-label="View Source">
+          <i class="ri-code-s-slash-line" aria-hidden="true"></i>
+        </a>
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+
+  </section>
+</section>
+<section class="detail" id="validate/2">
+
+  <div class="detail-header">
+    <a href="#validate/2" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">validate(schema, data)</h1>
+
+
+        <a href="https://github.com/ricardo-valero/raggio_ex/blob/v0.1.0/lib/raggio_schema.ex#L246" class="icon-action" rel="help" aria-label="View Source">
+          <i class="ri-code-s-slash-line" aria-hidden="true"></i>
+        </a>
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+
+  </section>
+</section>
+<section class="detail" id="validate/3">
+
+  <div class="detail-header">
+    <a href="#validate/3" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">validate(schema, data, opts)</h1>
+
+
+        <a href="https://github.com/ricardo-valero/raggio_ex/blob/v0.1.0/lib/raggio_schema.ex#L250" class="icon-action" rel="help" aria-label="View Source">
+          <i class="ri-code-s-slash-line" aria-hidden="true"></i>
+        </a>
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+
+  </section>
+</section>
+<section class="detail" id="validate!/2">
+
+  <div class="detail-header">
+    <a href="#validate!/2" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">validate!(schema, data)</h1>
+
+
+        <a href="https://github.com/ricardo-valero/raggio_ex/blob/v0.1.0/lib/raggio_schema.ex#L254" class="icon-action" rel="help" aria-label="View Source">
+          <i class="ri-code-s-slash-line" aria-hidden="true"></i>
+        </a>
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+
+  </section>
+</section>
+
+    </div>
+  </section>
+
+    <footer class="footer">
+
+        <p>
+
+            <span class="line">
+              <a href="https://hex.pm/packages/raggio_schema/0.1.0" class="footer-hex-package">Hex Package</a>
+
+              <a href="https://preview.hex.pm/preview/raggio_schema/0.1.0">Hex Preview</a>
+
+            </span>
+
+          <span class="line">
+            <button class="a-main footer-button display-quick-switch" title="Go to package docs">
+              Go to package docs
+            </button>
+
+          </span>
+        </p>
+
+        <p class="built-using">
+          Built using
+          <a href="https://github.com/elixir-lang/ex_doc" title="ExDoc" target="_blank" rel="help noopener" translate="no">ExDoc</a> (v0.39.3) for the
+
+            <a href="https://elixir-lang.org" title="Elixir" target="_blank" translate="no">Elixir programming language</a>
+
+        </p>
+
+
+    </footer>
+  </div>
+</main>
+</div>
+
+  </body>
+</html>

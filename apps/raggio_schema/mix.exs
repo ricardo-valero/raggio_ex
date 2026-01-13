@@ -1,10 +1,13 @@
 defmodule RaggioSchema.MixProject do
   use Mix.Project
 
+  @version "0.1.0"
+  @source_url "https://github.com/ricardo-valero/raggio_ex"
+
   def project do
     [
       app: :raggio_schema,
-      version: "0.1.0",
+      version: @version,
       build_path: "../../_build",
       config_path: "../../config/config.exs",
       deps_path: "../../deps",
@@ -12,36 +15,47 @@ defmodule RaggioSchema.MixProject do
       elixir: "~> 1.14",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
-
-      # Publishing configuration
-      description: "Composable schema definition and validation library",
+      description: "Composable schema definition and validation library for Elixir",
       package: package(),
-      name: "Raggio.Schema",
-      source_url: "https://github.com/your_org/raggio"
+      name: "RaggioSchema",
+      source_url: @source_url,
+      docs: docs()
     ]
   end
 
-  # Run "mix help compile.app" to learn about applications.
   def application do
     [
       extra_applications: [:logger]
     ]
   end
 
-  # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
       {:decimal, "~> 2.0"},
-      {:jason, "~> 1.4"}
+      {:jason, "~> 1.4"},
+      {:ex_doc, "~> 0.31", only: :dev, runtime: false}
     ]
   end
 
   defp package do
     [
-      maintainers: ["Raggio Contributors"],
+      maintainers: ["Ricardo Valero"],
       licenses: ["MIT"],
-      links: %{"GitHub" => "https://github.com/your_org/raggio"},
+      links: %{
+        "GitHub" => @source_url,
+        "Changelog" => "#{@source_url}/blob/main/apps/raggio_schema/CHANGELOG.md"
+      },
       files: ~w(lib mix.exs README.md LICENSE CHANGELOG.md)
+    ]
+  end
+
+  defp docs do
+    [
+      main: "readme",
+      source_url: @source_url,
+      source_ref: "v#{@version}",
+      extras: ["README.md", "CHANGELOG.md"],
+      formatters: ["html"]
     ]
   end
 end

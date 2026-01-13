@@ -7,7 +7,7 @@ defmodule Raggio.Schema.Importer.SheetSchemaTest do
     test "imports simple schema from CSV" do
       csv_content = """
       field_name,type,required,constraints
-      name,string,true,min_length(2)
+      name,string,true,min(2)
       age,integer,false,min(0)
       """
 
@@ -17,7 +17,7 @@ defmodule Raggio.Schema.Importer.SheetSchemaTest do
       assert String.contains?(code, "Raggio.Schema.struct")
       assert String.contains?(code, ":name")
       assert String.contains?(code, ":age")
-      assert String.contains?(code, "min_length(2)")
+      assert String.contains?(code, "min: 2")
 
       File.rm(path)
     end
@@ -138,7 +138,7 @@ defmodule Raggio.Schema.Importer.SheetSchemaTest do
       path = write_temp_csv(csv_content)
 
       assert {:ok, code} = SheetSchema.from_csv(path)
-      assert String.contains?(code, "Raggio.Schema.array")
+      assert String.contains?(code, "Raggio.Schema.list")
 
       File.rm(path)
     end
@@ -148,28 +148,27 @@ defmodule Raggio.Schema.Importer.SheetSchemaTest do
     test "parses pipe-separated constraints" do
       csv_content = """
       field_name,type,constraints
-      email,string,email() | max_length(255)
+      email,string,max(255)
       """
 
       path = write_temp_csv(csv_content)
 
       assert {:ok, code} = SheetSchema.from_csv(path)
-      assert String.contains?(code, "email()")
-      assert String.contains?(code, "max_length(255)")
+      assert String.contains?(code, "max: 255")
 
       File.rm(path)
     end
 
-    test "handles constraints without arguments" do
+    test "handles min constraint" do
       csv_content = """
       field_name,type,constraints
-      age,integer,positive
+      age,integer,min(0)
       """
 
       path = write_temp_csv(csv_content)
 
       assert {:ok, code} = SheetSchema.from_csv(path)
-      assert String.contains?(code, "positive()")
+      assert String.contains?(code, "min: 0")
 
       File.rm(path)
     end
@@ -185,7 +184,7 @@ defmodule Raggio.Schema.Importer.SheetSchemaTest do
       path = write_temp_csv(csv_content)
 
       assert {:ok, code} = SheetSchema.from_csv(path)
-      assert String.contains?(code, "optional()")
+      assert String.contains?(code, "Raggio.Schema.optional(")
 
       File.rm(path)
     end

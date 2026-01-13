@@ -75,12 +75,29 @@ defmodule Raggio.Schema.Adapters.BigQuery do
     "STRUCT<#{Enum.join(field_defs, ", ")}>"
   end
 
+  defp map_type(%Raggio.Schema{type: :literal, values: values}) when is_list(values) do
+    "STRING"
+  end
+
+  defp map_type(%Raggio.Schema{type: :union}) do
+    "STRING"
+  end
+
+  defp map_type(%Raggio.Schema{type: :tuple}) do
+    "ARRAY<STRING>"
+  end
+
+  defp map_type(%Raggio.Schema{type: :record}) do
+    "JSON"
+  end
+
   defp map_type(%Raggio.Schema{type: type}) do
     raise ArgumentError, "Unsupported type for BigQuery: #{inspect(type)}"
   end
 
-  defp required?(%Raggio.Schema{optional: false}), do: true
+  defp required?(%Raggio.Schema{nullable: true}), do: false
   defp required?(%Raggio.Schema{optional: true}), do: false
+  defp required?(_), do: true
 
   defp default_clause(%Raggio.Schema{default: nil}), do: ""
 

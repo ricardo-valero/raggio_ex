@@ -315,12 +315,25 @@ defmodule Raggio.Schema.Importer.SheetSchema do
   defp generate_field_code(field, indent_level) do
     indent_str = String.duplicate("  ", indent_level)
 
-    # Generate type code
+    constraints_map =
+      if field.constraints && field.constraints != "" do
+        parse_constraints_to_map(field.constraints)
+      else
+        %{}
+      end
+
+    constraints_with_default =
+      if field.default && field.default != "" do
+        default_value = parse_default_value(field.default, field.type)
+        Map.put(constraints_map, :default, default_value)
+      else
+        constraints_map
+      end
+
     type_code =
       if Enum.empty?(field.children) do
-        generate_type_code(field.type)
+        generate_type_code_with_constraints(field.type, constraints_with_default)
       else
-        # Nested struct
         nested_fields = generate_struct_fields(field.children, indent_level)
 
         """
@@ -331,43 +344,65 @@ defmodule Raggio.Schema.Importer.SheetSchema do
         |> String.trim()
       end
 
-    # Apply constraints
-    constrained_code =
-      if field.constraints && field.constraints != "" do
-        constraints = parse_constraints(field.constraints)
-        apply_constraints(type_code, constraints)
+    final_code =
+      if !field.required do
+        "Raggio.Schema.optional(#{type_code})"
       else
         type_code
       end
 
-    # Apply modifiers
-    modified_code = constrained_code
-
-    modified_code =
-      if !field.required do
-        "#{modified_code} |> Raggio.Schema.optional()"
-      else
-        modified_code
-      end
-
-    modified_code =
-      if field.default && field.default != "" do
-        default_value = parse_default_value(field.default, field.type)
-        "#{modified_code} |> Raggio.Schema.default(#{default_value})"
-      else
-        modified_code
-      end
-
-    "#{indent_str}{:#{field.name}, #{modified_code}}"
+    "#{indent_str}{:#{field.name}, #{final_code}}"
   end
 
-  defp generate_type_code(type_expr) do
+  defp generate_type_code_with_constraints(type_expr, constraints) do
     case parse_type(type_expr) do
-      {:ok, type_ast} -> type_ast_to_code(type_ast)
-      # fallback
-      {:error, _} -> "Raggio.Schema.string()"
+      {:ok, type_ast} ->
+        if map_size(constraints) > 0 do
+          type_ast_to_code(type_ast, constraints)
+        else
+          type_ast_to_code(type_ast)
+        end
+
+      {:error, _} ->
+        "Raggio.Schema.string()"
     end
   end
+
+  defp parse_constraints_to_map(constraints_str) do
+    constraints_str
+    |> String.split("|")
+    |> Enum.map(&String.trim/1)
+    |> Enum.reject(&(&1 == ""))
+    |> Enum.map(&parse_constraint_to_kv/1)
+    |> Enum.reject(&is_nil/1)
+    |> Map.new()
+  end
+
+  defp parse_constraint_to_kv(constraint) do
+    cond do
+      String.contains?(constraint, "(") ->
+        [func_name, args] = String.split(constraint, "(", parts: 2)
+        args = String.trim_trailing(args, ")")
+        key = constraint_func_to_key(String.trim(func_name))
+        if key, do: {key, args}, else: nil
+
+      constraint in ["email", "url", "uuid"] ->
+        {:pattern, "Raggio.Schema.#{constraint}()"}
+
+      constraint == "unique" ->
+        {:unique, true}
+
+      true ->
+        nil
+    end
+  end
+
+  defp constraint_func_to_key("min"), do: :min
+  defp constraint_func_to_key("max"), do: :max
+  defp constraint_func_to_key("min_length"), do: :min
+  defp constraint_func_to_key("max_length"), do: :max
+  defp constraint_func_to_key("pattern"), do: :pattern
+  defp constraint_func_to_key(_), do: nil
 
   defp type_ast_to_code({:primitive, type_name}) do
     "Raggio.Schema.#{type_name}()"
@@ -375,7 +410,7 @@ defmodule Raggio.Schema.Importer.SheetSchema do
 
   defp type_ast_to_code({:list, inner_type}) do
     inner_code = type_ast_to_code(inner_type)
-    "Raggio.Schema.array(#{inner_code})"
+    "Raggio.Schema.list(#{inner_code})"
   end
 
   defp type_ast_to_code({:union, types}) do
@@ -383,30 +418,46 @@ defmodule Raggio.Schema.Importer.SheetSchema do
     "Raggio.Schema.union([#{Enum.join(type_codes, ", ")}])"
   end
 
-  defp parse_constraints(constraints_str) do
-    constraints_str
-    |> String.split("|")
-    |> Enum.map(&String.trim/1)
-    |> Enum.reject(&(&1 == ""))
+  defp type_ast_to_code({:primitive, type_name}, constraints) when map_size(constraints) > 0 do
+    opts = format_constraints_as_opts(constraints)
+    "Raggio.Schema.#{type_name}(#{opts})"
   end
 
-  defp apply_constraints(base_code, constraints) do
-    Enum.reduce(constraints, base_code, fn constraint, acc ->
-      "#{acc} |> #{parse_single_constraint(constraint)}"
-    end)
+  defp type_ast_to_code({:primitive, type_name}, _constraints) do
+    "Raggio.Schema.#{type_name}()"
   end
 
-  defp parse_single_constraint(constraint) do
-    cond do
-      String.contains?(constraint, "(") ->
-        # Function call with arguments like "min_length(3)"
-        [func_name, args] = String.split(constraint, "(", parts: 2)
-        args = String.trim_trailing(args, ")")
-        "Raggio.Schema.#{String.trim(func_name)}(#{args})"
+  defp type_ast_to_code({:list, inner_type}, constraints) when map_size(constraints) > 0 do
+    inner_code = type_ast_to_code(inner_type)
+    list_opts = format_list_constraints(constraints)
 
-      true ->
-        # Simple function call like "email"
-        "Raggio.Schema.#{constraint}()"
+    if list_opts == "" do
+      "Raggio.Schema.list(#{inner_code})"
+    else
+      "Raggio.Schema.list(#{inner_code}, #{list_opts})"
+    end
+  end
+
+  defp type_ast_to_code({:list, inner_type}, _constraints) do
+    inner_code = type_ast_to_code(inner_type)
+    "Raggio.Schema.list(#{inner_code})"
+  end
+
+  defp format_constraints_as_opts(constraints) do
+    constraints
+    |> Enum.map(fn {key, value} -> "#{key}: #{value}" end)
+    |> Enum.join(", ")
+  end
+
+  defp format_list_constraints(constraints) do
+    list_constraints =
+      constraints
+      |> Enum.filter(fn {key, _} -> key in [:min, :max, :unique] end)
+
+    if Enum.empty?(list_constraints) do
+      ""
+    else
+      format_constraints_as_opts(list_constraints)
     end
   end
 

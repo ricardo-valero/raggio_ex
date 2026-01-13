@@ -165,40 +165,40 @@
 
 #### Node Structs (apps/raggio_syntax/lib/raggio_syntax/node/)
 
-- [ ] T061 [P] [US2] Implement SchemaNode struct with type, name, schema_type, fields, metadata in apps/raggio_syntax/lib/raggio_syntax/node/schema.ex
-- [ ] T062 [P] [US2] Implement FieldNode struct with type, name, field_type, required, default, metadata in apps/raggio_syntax/lib/raggio_syntax/node/field.ex
-- [ ] T063 [P] [US2] Implement TypeNode struct with type, name, parameters, metadata in apps/raggio_syntax/lib/raggio_syntax/node/type.ex
+- [X] T061 [P] [US2] Implement SchemaNode struct with type, name, schema_type, fields, metadata in apps/raggio_syntax/lib/raggio_syntax/node/schema.ex
+- [X] T062 [P] [US2] Implement FieldNode struct with type, name, field_type, required, default, metadata in apps/raggio_syntax/lib/raggio_syntax/node/field.ex
+- [X] T063 [P] [US2] Implement TypeNode struct with type, name, parameters, metadata in apps/raggio_syntax/lib/raggio_syntax/node/type.ex
 
 #### Node Protocol Implementations
 
-- [ ] T064 [P] [US2] Implement Node protocol for SchemaNode in apps/raggio_syntax/lib/raggio_syntax/node/schema.ex
-- [ ] T065 [P] [US2] Implement Node protocol for FieldNode in apps/raggio_syntax/lib/raggio_syntax/node/field.ex
-- [ ] T066 [P] [US2] Implement Node protocol for TypeNode in apps/raggio_syntax/lib/raggio_syntax/node/type.ex
+- [X] T064 [P] [US2] Implement Node protocol for SchemaNode in apps/raggio_syntax/lib/raggio_syntax/node/schema.ex
+- [X] T065 [P] [US2] Implement Node protocol for FieldNode in apps/raggio_syntax/lib/raggio_syntax/node/field.ex
+- [X] T066 [P] [US2] Implement Node protocol for TypeNode in apps/raggio_syntax/lib/raggio_syntax/node/type.ex
 
 #### Node Construction (apps/raggio_syntax/lib/raggio_syntax.ex)
 
-- [ ] T067 [P] [US2] Implement schema/1 creating schema node from fields list
-- [ ] T068 [P] [US2] Implement schema/2 creating named schema node
-- [ ] T069 [P] [US2] Implement field/2 creating field node
-- [ ] T070 [P] [US2] Implement field/3 creating field node with options
-- [ ] T071 [P] [US2] Implement type/1 creating simple type node
-- [ ] T072 [P] [US2] Implement type/2 creating generic type node with parameters
-- [ ] T073 [P] [US2] Implement ast/1 wrapping node in SyntaxTree
-- [ ] T074 [P] [US2] Implement ast/2 wrapping node with metadata
+- [X] T067 [P] [US2] Implement schema/1 creating schema node from fields list
+- [X] T068 [P] [US2] Implement schema/2 creating named schema node
+- [X] T069 [P] [US2] Implement field/2 creating field node
+- [X] T070 [P] [US2] Implement field/3 creating field node with options
+- [X] T071 [P] [US2] Implement type/1 creating simple type node
+- [X] T072 [P] [US2] Implement type/2 creating generic type node with parameters
+- [X] T073 [P] [US2] Implement ast/1 wrapping node in SyntaxTree
+- [X] T074 [P] [US2] Implement ast/2 wrapping node with metadata
 
 #### Traversal Functions (apps/raggio_syntax/lib/raggio_syntax/traversal.ex)
 
-- [ ] T075 [US2] Implement traverse/2 for depth-first traversal with visitor
-- [ ] T076 [US2] Implement traverse/3 for traversal with accumulator
-- [ ] T077 [US2] Implement traverse_breadth_first/2 for breadth-first traversal
-- [ ] T078 [US2] Implement find/2 to find first matching node
-- [ ] T079 [US2] Implement find_all/2 to find all matching nodes
+- [X] T075 [US2] Implement traverse/2 for depth-first traversal with visitor
+- [X] T076 [US2] Implement traverse/3 for traversal with accumulator
+- [X] T077 [US2] Implement traverse_breadth_first/2 for breadth-first traversal
+- [X] T078 [US2] Implement find/2 to find first matching node
+- [X] T079 [US2] Implement find_all/2 to find all matching nodes
 
 #### Query Functions
 
-- [ ] T080 [US2] Implement get_fields/1 to extract field nodes in apps/raggio_syntax/lib/raggio_syntax.ex
-- [ ] T081 [US2] Implement get_field/2 to get specific field by name in apps/raggio_syntax/lib/raggio_syntax.ex
-- [ ] T082 [US2] Implement get_children/1 to get immediate children in apps/raggio_syntax/lib/raggio_syntax.ex
+- [X] T080 [US2] Implement get_fields/1 to extract field nodes in apps/raggio_syntax/lib/raggio_syntax.ex
+- [X] T081 [US2] Implement get_field/2 to get specific field by name in apps/raggio_syntax/lib/raggio_syntax.ex
+- [X] T082 [US2] Implement get_children/1 to get immediate children in apps/raggio_syntax/lib/raggio_syntax.ex
 
 **Checkpoint**: User Story 2 complete - syntax manipulation functional
 
@@ -214,17 +214,17 @@
 
 #### Transformation Functions (apps/raggio_syntax/lib/raggio_syntax/transformer.ex)
 
-- [ ] T083 [US4] Implement transform/2 to apply transformation to all nodes
-- [ ] T084 [US4] Implement filter/2 to remove non-matching nodes
-- [ ] T085 [US4] Implement replace/3 to replace specific node
+- [X] T083 [US4] Implement transform/2 to apply transformation to all nodes
+- [X] T084 [US4] Implement filter/2 to remove non-matching nodes
+- [X] T085 [US4] Implement replace/3 to replace specific node
 
 #### Extension Examples
 
-- [ ] T086 [P] [US4] Create examples/raggio_schema/advanced/custom_validator.exs demonstrating custom validation composition
-- [ ] T087 [P] [US4] Create examples/raggio_syntax/advanced/custom_transformer.exs demonstrating transformer extension
-- [ ] T088 [P] [US4] Create examples/raggio_syntax/node_building/simple_ast.exs demonstrating basic node creation
-- [ ] T089 [P] [US4] Create examples/raggio_syntax/traversal/depth_first.exs demonstrating traversal
-- [ ] T090 [P] [US4] Create examples/raggio_syntax/transformation/modify_node.exs demonstrating transformation
+- [X] T086 [P] [US4] Create examples/raggio_schema/advanced/custom_validator.exs demonstrating custom validation composition
+- [X] T087 [P] [US4] Create examples/raggio_syntax/advanced/custom_transformer.exs demonstrating transformer extension
+- [X] T088 [P] [US4] Create examples/raggio_syntax/ast_building/simple_ast.exs demonstrating basic node creation
+- [X] T089 [P] [US4] Create examples/raggio_syntax/traversal/depth_first.exs demonstrating traversal
+- [X] T090 [P] [US4] Create examples/raggio_syntax/transformation/modify_node.exs demonstrating transformation
 
 **Checkpoint**: User Story 4 complete - extensibility through composition verified
 
@@ -240,19 +240,19 @@
 
 #### BigQuery Exporter (apps/raggio_schema/lib/raggio_schema/adapters/bigquery.ex)
 
-- [ ] T091 [US5] Update to_ddl/2 to use new Schema struct fields
-- [ ] T092 [US5] Update to_ddl/3 with options (partition_by, cluster_by, description)
-- [ ] T093 [US5] Update type mapping: string -> STRING, integer -> INT64, float -> FLOAT64
-- [ ] T094 [US5] Update type mapping: boolean -> BOOL, decimal -> NUMERIC, datetime -> DATETIME
-- [ ] T095 [US5] Update nested struct to STRUCT<...> conversion
-- [ ] T096 [US5] Update list to ARRAY<type> conversion
-- [ ] T097 [US5] Implement literal type handling (map to STRING with comment)
-- [ ] T098 [US5] Handle optional/nullable in NOT NULL generation
+- [X] T091 [US5] Update to_ddl/2 to use new Schema struct fields
+- [X] T092 [US5] Update to_ddl/3 with options (partition_by, cluster_by, description)
+- [X] T093 [US5] Update type mapping: string -> STRING, integer -> INT64, float -> FLOAT64
+- [X] T094 [US5] Update type mapping: boolean -> BOOL, decimal -> NUMERIC, datetime -> DATETIME
+- [X] T095 [US5] Update nested struct to STRUCT<...> conversion
+- [X] T096 [US5] Update list to ARRAY<type> conversion
+- [X] T097 [US5] Implement literal type handling (map to STRING with comment)
+- [X] T098 [US5] Handle optional/nullable in NOT NULL generation
 
 #### BigQuery Examples
 
-- [ ] T099 [P] [US5] Update examples/raggio_schema/adapters/bigquery_export.exs with new API syntax
-- [ ] T100 [P] [US5] Create examples/raggio_schema/adapters/bigquery_nested.exs demonstrating nested struct export
+- [X] T099 [P] [US5] Update examples/raggio_schema/adapters/bigquery_export.exs with new API syntax
+- [X] T100 [P] [US5] Create examples/raggio_schema/adapters/bigquery_nested.exs demonstrating nested struct export
 
 **Checkpoint**: User Story 5 complete - BigQuery export functional
 
@@ -268,19 +268,19 @@
 
 #### SheetSchema Importer (apps/raggio_schema/lib/raggio_schema/adapters/sheet_schema.ex)
 
-- [ ] T101 [US6] Update from_csv/1 to generate new API syntax
-- [ ] T102 [US6] Update from_csv/2 with options (module_name)
-- [ ] T103 [US6] Implement CSV column parsing: field_name, type, required, constraints
-- [ ] T104 [US6] Implement type parsing to generate new constructors
-- [ ] T105 [US6] Implement constraint parsing to generate keyword options (min:3 -> min: 3)
-- [ ] T106 [US6] Implement nesting via parent_path dot notation
-- [ ] T107 [US6] Implement validate_format/1 for format validation
-- [ ] T108 [US6] Generate structured errors with row numbers
+- [X] T101 [US6] Update from_csv/1 to generate new API syntax
+- [X] T102 [US6] Update from_csv/2 with options (module_name)
+- [X] T103 [US6] Implement CSV column parsing: field_name, type, required, constraints
+- [X] T104 [US6] Implement type parsing to generate new constructors
+- [X] T105 [US6] Implement constraint parsing to generate keyword options (min:3 -> min: 3)
+- [X] T106 [US6] Implement nesting via parent_path dot notation
+- [X] T107 [US6] Implement validate_format/1 for format validation
+- [X] T108 [US6] Generate structured errors with row numbers
 
 #### SheetSchema Examples
 
-- [ ] T109 [P] [US6] Update examples/raggio_schema/adapters/sheet_import.exs with new API syntax
-- [ ] T110 [P] [US6] Create examples/raggio_schema/adapters/sheet_nested.exs demonstrating nested field import
+- [X] T109 [P] [US6] Update examples/raggio_schema/adapters/sheet_import.exs with new API syntax
+- [X] T110 [P] [US6] Create examples/raggio_schema/adapters/sheet_nested.exs demonstrating nested field import
 
 **Checkpoint**: User Story 6 complete - SheetSchema import functional
 
@@ -296,45 +296,45 @@
 
 #### Raggio.Tabular Package Setup
 
-- [ ] T111 [US7] Create apps/raggio_tabular/mix.exs with raggio_schema dependency
-- [ ] T112 [P] [US7] Create apps/raggio_tabular/lib/raggio_tabular.ex main module
-- [ ] T113 [P] [US7] Create apps/raggio_tabular/README.md with package documentation
-- [ ] T114 Update mix.exs aliases to include raggio_tabular in test.all and format.all
+- [X] T111 [US7] Create apps/raggio_tabular/mix.exs with raggio_schema dependency
+- [X] T112 [P] [US7] Create apps/raggio_tabular/lib/raggio_tabular.ex main module
+- [X] T113 [P] [US7] Create apps/raggio_tabular/README.md with package documentation
+- [X] T114 Update mix.exs aliases to include raggio_tabular in test.all and format.all
 
 #### SheetSchema DSL (apps/raggio_tabular/lib/raggio_tabular/sheet_schema.ex)
 
-- [ ] T115 [US7] Implement column definition DSL with field_name, type, required, constraints
-- [ ] T116 [US7] Implement header detection with multiple variant support
-- [ ] T117 [US7] Implement row range filtering (from_row, to_row, skip_rows)
-- [ ] T118 [US7] Implement union schemas for format variance
+- [X] T115 [US7] Implement column definition DSL with field_name, type, required, constraints
+- [X] T116 [US7] Implement header detection with multiple variant support
+- [X] T117 [US7] Implement row range filtering (from_row, to_row, skip_rows)
+- [X] T118 [US7] Implement union schemas for format variance
 
 #### Parser Engine (apps/raggio_tabular/lib/raggio_tabular/parser.ex)
 
-- [ ] T119 [US7] Implement CSV parsing with header detection
-- [ ] T120 [US7] Implement row-by-row validation against schema
-- [ ] T121 [US7] Implement row number tracking for error reporting
-- [ ] T122 [US7] Implement valid/invalid row separation
+- [X] T119 [US7] Implement CSV parsing with header detection
+- [X] T120 [US7] Implement row-by-row validation against schema
+- [X] T121 [US7] Implement row number tracking for error reporting
+- [X] T122 [US7] Implement valid/invalid row separation
 
 #### Tabular Adapter (apps/raggio_tabular/lib/raggio_tabular/adapter.ex)
 
-- [ ] T123 [US7] Implement batch row parsing with configurable batch size
-- [ ] T124 [US7] Implement progress tracking callback
-- [ ] T125 [US7] Implement error collection mode (fail-fast vs collect-all)
-- [ ] T126 [US7] Return structured result with valid_rows, invalid_rows, error_details
+- [X] T123 [US7] Implement batch row parsing with configurable batch size
+- [X] T124 [US7] Implement progress tracking callback
+- [X] T125 [US7] Implement error collection mode (fail-fast vs collect-all)
+- [X] T126 [US7] Return structured result with valid_rows, invalid_rows, error_details
 
 #### Excel Transforms (apps/raggio_tabular/lib/raggio_tabular/transforms/excel.ex)
 
-- [ ] T127 [P] [US7] Implement excel_decimal/1 for currency string cleaning ($1,234.56 -> 1234.56)
-- [ ] T128 [P] [US7] Implement excel_integer/1 for float ID conversion (123.0 -> 123)
-- [ ] T129 [P] [US7] Implement excel_string/1 for float-to-string ID conversion (123.0 -> "123")
-- [ ] T130 [P] [US7] Implement excel_trim/1 for whitespace trimming
+- [X] T127 [P] [US7] Implement excel_decimal/1 for currency string cleaning ($1,234.56 -> 1234.56)
+- [X] T128 [P] [US7] Implement excel_integer/1 for float ID conversion (123.0 -> 123)
+- [X] T129 [P] [US7] Implement excel_string/1 for float-to-string ID conversion (123.0 -> "123")
+- [X] T130 [P] [US7] Implement excel_trim/1 for whitespace trimming
 
 #### Raggio.Tabular Examples
 
-- [ ] T131 [P] [US7] Create examples/raggio_tabular/csv_parsing/basic_csv.exs demonstrating CSV parsing
-- [ ] T132 [P] [US7] Create examples/raggio_tabular/csv_parsing/header_variants.exs demonstrating header detection
-- [ ] T133 [P] [US7] Create examples/raggio_tabular/excel_transforms/cleanup.exs demonstrating Excel transforms
-- [ ] T134 [P] [US7] Create examples/raggio_tabular/advanced/union_schemas.exs demonstrating format variance
+- [X] T131 [P] [US7] Create examples/raggio_tabular/csv_parsing/basic_csv.exs demonstrating CSV parsing
+- [X] T132 [P] [US7] Create examples/raggio_tabular/csv_parsing/header_variants.exs demonstrating header detection
+- [X] T133 [P] [US7] Create examples/raggio_tabular/excel_transforms/cleanup.exs demonstrating Excel transforms
+- [X] T134 [P] [US7] Create examples/raggio_tabular/advanced/union_schemas.exs demonstrating format variance
 
 **Checkpoint**: User Story 7 complete - Tabular parsing functional
 
@@ -344,17 +344,17 @@
 
 **Purpose**: Final improvements across all user stories
 
-- [ ] T135 Create feature parity checklist comparing old_code to new packages in specs/001-monorepo-restructure/parity-checklist.md
-- [ ] T136 Run mix format to format all code
-- [ ] T137 Run mix compile to verify all packages compile
-- [ ] T138 Run mix test to verify all tests pass
-- [ ] T139 Update test/example_test.exs to verify all examples in examples/ compile and run
-- [ ] T140 Run quickstart.md validation - verify all code snippets work
-- [ ] T141 [P] Add @type specifications to all public functions in apps/raggio_schema/lib/raggio_schema.ex
-- [ ] T142 [P] Add @type specifications to all public functions in apps/raggio_syntax/lib/raggio_syntax.ex
-- [ ] T143 [P] Add @type specifications to all public functions in apps/raggio_tabular/lib/raggio_tabular.ex
-- [ ] T144 Remove deprecated enum/1 function if present
-- [ ] T145 Verify no macros in public API across all packages
+- [X] T135 Create feature parity checklist comparing old_code to new packages in specs/001-monorepo-restructure/parity-checklist.md
+- [X] T136 Run mix format to format all code
+- [X] T137 Run mix compile to verify all packages compile
+- [X] T138 Run mix test to verify all tests pass
+- [X] T139 Update test/example_test.exs to verify all examples in examples/ compile and run
+- [X] T140 Run quickstart.md validation - verify all code snippets work
+- [X] T141 [P] Add @type specifications to all public functions in apps/raggio_schema/lib/raggio_schema.ex
+- [X] T142 [P] Add @type specifications to all public functions in apps/raggio_syntax/lib/raggio_syntax.ex
+- [X] T143 [P] Add @type specifications to all public functions in apps/raggio_tabular/lib/raggio_tabular.ex
+- [X] T144 Remove deprecated enum/1 function if present
+- [X] T145 Verify no macros in public API across all packages
 
 ---
 

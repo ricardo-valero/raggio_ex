@@ -21,14 +21,19 @@ defmodule Raggio.MixProject do
     []
   end
 
-  # Aliases for coordinated operations across packages
   defp aliases do
     [
-      "test.all": ["test", "cmd --app raggio_schema mix test", "cmd --app raggio_syntax mix test"],
+      "test.all": [
+        "test",
+        "cmd --app raggio_schema mix test",
+        "cmd --app raggio_syntax mix test",
+        "cmd --app raggio_tabular mix test"
+      ],
       "format.all": [
         "format",
         "cmd --app raggio_schema mix format",
-        "cmd --app raggio_syntax mix format"
+        "cmd --app raggio_syntax mix format",
+        "cmd --app raggio_tabular mix format"
       ]
     ]
   end

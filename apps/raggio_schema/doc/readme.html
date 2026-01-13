@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="ExDoc v0.39.3">
+    <meta name="project" content="RaggioSchema v0.1.0">
+
+
+    <title>Raggio.Schema — RaggioSchema v0.1.0</title>
+
+    <link rel="stylesheet" href="dist/html-elixir-VYWJUHZE.css" />
+
+    <script defer src="dist/sidebar_items-E81E3882.js"></script>
+    <script defer src="docs_config.js"></script>
+    <script defer src="dist/html-XBCM4BHM.js"></script>
+
+  </head>
+  <body>
+    <script>(()=>{var t="ex_doc:settings",e="dark";var o="dark",s="light";var E="sidebar_state",n="closed";var r="sidebar_width";var a="sidebar-open";var i=new URLSearchParams(window.location.search),S=i.get("theme")||JSON.parse(localStorage.getItem(t)||"{}").theme;(S===o||S!==s&&window.matchMedia("(prefers-color-scheme: dark)").matches)&&document.body.classList.add(e);var d=sessionStorage.getItem(E),A=d!==n&&!window.matchMedia(`screen and (max-width: ${768}px)`).matches;document.body.classList.toggle(a,A);var c=sessionStorage.getItem(r);c&&document.body.style.setProperty("--sidebarWidth",`${c}px`);var p=/(Macintosh|iPhone|iPad|iPod)/.test(window.navigator.userAgent);document.documentElement.classList.toggle("apple-os",p);})();
+</script>
+
+<div class="body-wrapper">
+
+<button id="sidebar-menu" class="sidebar-button sidebar-toggle" aria-label="toggle sidebar" aria-controls="sidebar">
+  <i class="ri-menu-line ri-lg" title="Collapse/expand sidebar"></i>
+</button>
+
+<nav id="sidebar" class="sidebar">
+
+  <div class="sidebar-header">
+    <div class="sidebar-projectInfo">
+
+      <div>
+        <a href="readme.html" class="sidebar-projectName" translate="no">
+RaggioSchema
+        </a>
+        <div class="sidebar-projectVersion" translate="no">
+          v0.1.0
+        </div>
+      </div>
+    </div>
+    <ul id="sidebar-list-nav" class="sidebar-list-nav" role="tablist" data-extras=""></ul>
+  </div>
+</nav>
+
+<output role="status" id="toast"></output>
+
+<main class="content page-extra" id="main" data-type="extras">
+  <div id="content" class="content-inner">
+    <div class="top-search">
+      <div class="search-settings">
+        <form class="search-bar" action="search.html">
+          <label class="search-label">
+            <span class="sr-only">Search documentation of RaggioSchema</span>
+            <div class="search-input-wrapper">
+              <input name="q" type="text" class="search-input" placeholder="Press / to search" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
+              <button type="button" tabindex="-1" class="search-close-button" aria-hidden="true">
+                <i class="ri-close-line ri-lg" title="Cancel search"></i>
+              </button>
+            </div>
+          </label>
+        </form>
+        <div class="autocomplete">
+        </div>
+        <div class="engine-selector" data-multiple="false">
+          <button type="button" class="engine-button" aria-label="Select search engine" aria-haspopup="true" aria-expanded="false">
+            <i class="ri-search-2-line" aria-hidden="true"></i>
+            <span class="engine-name">Default</span>
+            <i class="ri-arrow-down-s-line" aria-hidden="true"></i>
+          </button>
+          <div class="engine-dropdown" hidden role="menu">
+
+              <button type="button"
+                      class="engine-option"
+                      data-engine-url="search.html?q="
+                      role="menuitemradio"
+                      aria-checked="true">
+                <span class="name">Default</span>
+                <span class="help">In-browser search</span>
+              </button>
+
+          </div>
+        </div>
+        <button class="icon-settings display-settings">
+          <i class="ri-settings-3-line"></i>
+          <span class="sr-only">Settings</span>
+        </button>
+      </div>
+    </div>
+
+<div id="top-content">
+  <div class="heading-with-actions top-heading">
+    <h1>Raggio.Schema</h1>
+
+
+      <a href="https://github.com/ricardo-valero/raggio_ex/blob/v0.1.0/README.md#L1" title="View Source" class="icon-action" rel="help">
+        <i class="ri-code-s-slash-line" aria-hidden="true"></i>
+        <span class="sr-only">View Source</span>
+      </a>
+
+  </div>
+
+
+<p>Composable schema definition and validation library for Elixir.</p><h2 id="purpose" class="section-heading"><a href="#purpose" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i></a><span class="text">Purpose</span></h2><p>Raggio.Schema provides a composable, function-based API for defining data schemas and validating data without complex macro syntax. Build type-safe schemas using the pipe operator and pure functions.</p><h2 id="installation" class="section-heading"><a href="#installation" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i></a><span class="text">Installation</span></h2><p>Add <code class="inline">raggio_schema</code> to your list of dependencies in <code class="inline">mix.exs</code>:</p><pre><code class="makeup elixir" translate="no"><span class="kd">def</span><span class="w"> </span><span class="nf">deps</span><span class="w"> </span><span class="k" data-group-id="6560940057-1">do</span><span class="w">
+  </span><span class="p" data-group-id="6560940057-2">[</span><span class="w">
+    </span><span class="p" data-group-id="6560940057-3">{</span><span class="ss">:raggio_schema</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;~&gt; 0.1.0&quot;</span><span class="p" data-group-id="6560940057-3">}</span><span class="w">
+  </span><span class="p" data-group-id="6560940057-2">]</span><span class="w">
+</span><span class="k" data-group-id="6560940057-1">end</span></code></pre><h2 id="quick-example" class="section-heading"><a href="#quick-example" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i></a><span class="text">Quick Example</span></h2><pre><code class="makeup elixir" translate="no"><span class="c1"># Define schema</span><span class="w">
+</span><span class="n">user_schema</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nc">Raggio.Schema</span><span class="o">.</span><span class="n">struct</span><span class="p" data-group-id="2431715675-1">(</span><span class="p" data-group-id="2431715675-2">[</span><span class="w">
+  </span><span class="p" data-group-id="2431715675-3">{</span><span class="ss">:name</span><span class="p">,</span><span class="w"> </span><span class="nc">Raggio.Schema</span><span class="o">.</span><span class="n">string</span><span class="p" data-group-id="2431715675-4">(</span><span class="p" data-group-id="2431715675-4">)</span><span class="p" data-group-id="2431715675-3">}</span><span class="p">,</span><span class="w">
+  </span><span class="p" data-group-id="2431715675-5">{</span><span class="ss">:age</span><span class="p">,</span><span class="w"> </span><span class="nc">Raggio.Schema</span><span class="o">.</span><span class="n">integer</span><span class="p" data-group-id="2431715675-6">(</span><span class="p" data-group-id="2431715675-6">)</span><span class="w"> </span><span class="o">|&gt;</span><span class="w"> </span><span class="nc">Raggio.Schema</span><span class="o">.</span><span class="n">positive</span><span class="p" data-group-id="2431715675-7">(</span><span class="p" data-group-id="2431715675-7">)</span><span class="p" data-group-id="2431715675-5">}</span><span class="w">
+</span><span class="p" data-group-id="2431715675-2">]</span><span class="p" data-group-id="2431715675-1">)</span><span class="w">
+
+</span><span class="c1"># Validate data</span><span class="w">
+</span><span class="k">case</span><span class="w"> </span><span class="nc">Raggio.Schema</span><span class="o">.</span><span class="n">validate</span><span class="p" data-group-id="2431715675-8">(</span><span class="n">user_schema</span><span class="p">,</span><span class="w"> </span><span class="p" data-group-id="2431715675-9">%{</span><span class="ss">name</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;Alice&quot;</span><span class="p">,</span><span class="w"> </span><span class="ss">age</span><span class="p">:</span><span class="w"> </span><span class="mi">30</span><span class="p" data-group-id="2431715675-9">}</span><span class="p" data-group-id="2431715675-8">)</span><span class="w"> </span><span class="k" data-group-id="2431715675-10">do</span><span class="w">
+  </span><span class="p" data-group-id="2431715675-11">{</span><span class="ss">:ok</span><span class="p">,</span><span class="w"> </span><span class="n">data</span><span class="p" data-group-id="2431715675-11">}</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="p" data-group-id="2431715675-12">{</span><span class="ss">:ok</span><span class="p">,</span><span class="w"> </span><span class="n">data</span><span class="p" data-group-id="2431715675-12">}</span><span class="w">
+  </span><span class="p" data-group-id="2431715675-13">{</span><span class="ss">:error</span><span class="p">,</span><span class="w"> </span><span class="n">errors</span><span class="p" data-group-id="2431715675-13">}</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="p" data-group-id="2431715675-14">{</span><span class="ss">:error</span><span class="p">,</span><span class="w"> </span><span class="n">errors</span><span class="p" data-group-id="2431715675-14">}</span><span class="w">
+</span><span class="k" data-group-id="2431715675-10">end</span></code></pre><h2 id="more-examples" class="section-heading"><a href="#more-examples" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i></a><span class="text">More Examples</span></h2><p>See the <code class="inline">examples/raggio_schema/</code> directory for working, compilable examples demonstrating various patterns and use cases.</p>
+
+</div>
+
+<div class="bottom-actions" id="bottom-actions">
+  <div class="bottom-actions-item">
+
+  </div>
+  <div class="bottom-actions-item">
+
+      <a href="changelog.html" class="bottom-actions-button" rel="next">
+        <span class="subheader">
+          Next Page →
+        </span>
+        <span class="title">
+Changelog
+        </span>
+      </a>
+
+  </div>
+</div>
+    <footer class="footer">
+
+        <p>
+
+            <span class="line">
+              <a href="https://hex.pm/packages/raggio_schema/0.1.0" class="footer-hex-package">Hex Package</a>
+
+              <a href="https://preview.hex.pm/preview/raggio_schema/0.1.0">Hex Preview</a>
+
+                (<a href="https://preview.hex.pm/preview/raggio_schema/0.1.0/show/README.md">current file</a>)
+
+            </span>
+
+          <span class="line">
+            <button class="a-main footer-button display-quick-switch" title="Go to package docs">
+              Go to package docs
+            </button>
+
+          </span>
+        </p>
+
+        <p class="built-using">
+          Built using
+          <a href="https://github.com/elixir-lang/ex_doc" title="ExDoc" target="_blank" rel="help noopener" translate="no">ExDoc</a> (v0.39.3) for the
+
+            <a href="https://elixir-lang.org" title="Elixir" target="_blank" translate="no">Elixir programming language</a>
+
+        </p>
+
+
+    </footer>
+  </div>
+</main>
+</div>
+
+  </body>
+</html>

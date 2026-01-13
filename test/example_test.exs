@@ -16,13 +16,17 @@ defmodule ExampleTest do
       @tag example_file: example_file
       @tag relative_path: relative_path
       test "example: #{relative_path}" do
-        # Execute example file with compiled module paths
         project_root = Path.expand("..", __DIR__)
         schema_ebin = Path.join([project_root, "_build", "test", "lib", "raggio_schema", "ebin"])
         syntax_ebin = Path.join([project_root, "_build", "test", "lib", "raggio_syntax", "ebin"])
 
+        tabular_ebin =
+          Path.join([project_root, "_build", "test", "lib", "raggio_tabular", "ebin"])
+
         {output, exit_code} =
-          System.cmd("elixir", ["-pa", schema_ebin, "-pa", syntax_ebin, unquote(example_file)],
+          System.cmd(
+            "elixir",
+            ["-pa", schema_ebin, "-pa", syntax_ebin, "-pa", tabular_ebin, unquote(example_file)],
             stderr_to_stdout: true,
             env: [{"MIX_ENV", "test"}],
             cd: project_root
