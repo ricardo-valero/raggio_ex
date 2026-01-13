@@ -3,9 +3,9 @@ alias Raggio.Schema
 config_schema =
   Schema.struct([
     {:name, Schema.string()},
-    {:description, Schema.optional(Schema.string())},
-    {:count, Schema.nullable(Schema.integer())},
-    {:enabled, Schema.boolean(default: true)}
+    {:description, Schema.string() |> Schema.optional()},
+    {:count, Schema.integer() |> Schema.nullable()},
+    {:enabled, Schema.boolean(true)}
   ])
 
 IO.puts("=== Optional, Nullable, and Default Values ===\n")

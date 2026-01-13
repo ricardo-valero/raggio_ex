@@ -9,8 +9,8 @@ user_schema =
     {:email, Schema.string()},
     {:name, Schema.string()},
     {:created_at, Schema.datetime()},
-    {:is_active, Schema.boolean(default: true)},
-    {:score, Schema.optional(Schema.decimal())}
+    {:is_active, Schema.boolean(true)},
+    {:score, Schema.decimal() |> Schema.optional()}
   ])
 
 IO.puts("--- Basic Table ---")

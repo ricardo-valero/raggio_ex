@@ -1,6 +1,6 @@
 # Raggio.Schema Public API Contract
 
-**Version**: 0.2.0  
+**Version**: 0.3.0  
 **Date**: 2026-01-13
 
 ## Type Constructors
@@ -8,37 +8,61 @@
 ### Primitive Types
 
 ```elixir
+@spec string() :: Schema.t()
 @spec string(keyword()) :: Schema.t()
-def string(opts \\ [])
-# opts: min: integer, max: integer, pattern: Regex.t, default: String.t
+@spec string(default :: any()) :: Schema.t()
+@spec string(default :: any(), keyword()) :: Schema.t()
+def string()
+def string(opts) when is_list(opts)
+def string(default)
+def string(default, opts)
+# opts: min: integer, max: integer, pattern: Regex.t
 
+@spec integer() :: Schema.t()
 @spec integer(keyword()) :: Schema.t()
-def integer(opts \\ [])
-# opts: min: integer, max: integer, default: integer
+@spec integer(default :: any()) :: Schema.t()
+@spec integer(default :: any(), keyword()) :: Schema.t()
+def integer()
+def integer(opts) when is_list(opts)
+def integer(default)
+def integer(default, opts)
+# opts: min: integer, max: integer
 
+@spec float() :: Schema.t()
 @spec float(keyword()) :: Schema.t()
-def float(opts \\ [])
-# opts: min: number, max: number, default: float
+@spec float(default :: any()) :: Schema.t()
+def float()
+def float(opts) when is_list(opts)
+def float(default)
+# opts: min: number, max: number
 
-@spec boolean(keyword()) :: Schema.t()
-def boolean(opts \\ [])
-# opts: default: boolean
+@spec boolean() :: Schema.t()
+@spec boolean(default :: boolean()) :: Schema.t()
+def boolean()
+def boolean(default)
 
+@spec decimal() :: Schema.t()
 @spec decimal(keyword()) :: Schema.t()
-def decimal(opts \\ [])
-# opts: min: number, max: number, default: Decimal.t
+@spec decimal(default :: any()) :: Schema.t()
+def decimal()
+def decimal(opts) when is_list(opts)
+def decimal(default)
+# opts: min: number, max: number
 
-@spec date(keyword()) :: Schema.t()
-def date(opts \\ [])
-# opts: default: Date.t
+@spec date() :: Schema.t()
+@spec date(default :: Date.t()) :: Schema.t()
+def date()
+def date(default)
 
-@spec datetime(keyword()) :: Schema.t()
-def datetime(opts \\ [])
-# opts: default: DateTime.t | NaiveDateTime.t
+@spec datetime() :: Schema.t()
+@spec datetime(default :: DateTime.t() | NaiveDateTime.t()) :: Schema.t()
+def datetime()
+def datetime(default)
 
-@spec atom(keyword()) :: Schema.t()
-def atom(opts \\ [])
-# opts: default: atom
+@spec atom() :: Schema.t()
+@spec atom(default :: atom()) :: Schema.t()
+def atom()
+def atom(default)
 ```
 
 ### Composite Types

@@ -7,7 +7,7 @@ Composable data schema definition, validation, and syntax manipulation for Elixi
 Raggio provides two main submodules:
 
 - **Raggio.Schema** - Define and validate data schemas
-- **Raggio.Syntax** - Build and manipulate syntax trees (coming soon)
+- **Raggio.Syntax** - Build and manipulate syntax trees
 
 ## Installation
 
@@ -28,7 +28,9 @@ user_schema =
   Schema.struct([
     {:name, Schema.string(min: 1, max: 100)},
     {:age, Schema.integer(min: 0)},
-    {:email, Schema.string(pattern: Schema.email())}
+    {:email, Schema.string(pattern: Schema.email())},
+    {:status, Schema.string("active")},
+    {:bio, Schema.string() |> Schema.optional()}
   ])
 
 case Schema.validate(user_schema, %{name: "Alice", age: 30, email: "alice@example.com"}) do
@@ -42,11 +44,18 @@ end
 ### Primitives
 
 ```elixir
+Schema.string()
+Schema.string("default_value")
 Schema.string(min: 3, max: 100, pattern: ~r/^[A-Z]/)
+Schema.string("default", min: 3, max: 100)
+
+Schema.integer()
+Schema.integer(0)
 Schema.integer(min: 0, max: 150)
-Schema.float(min: 0.0, max: 100.0)
-Schema.boolean(default: false)
-Schema.decimal(min: Decimal.new("0"))
+
+Schema.float()
+Schema.boolean(false)
+Schema.decimal()
 Schema.date()
 Schema.datetime()
 Schema.atom()
@@ -63,11 +72,12 @@ Schema.literal(:active, :inactive, :pending)
 Schema.record(Schema.string(), Schema.integer())
 ```
 
-### Field Descriptors
+### Field Descriptors (pipe-friendly)
 
 ```elixir
-Schema.optional(Schema.string())
-Schema.nullable(Schema.integer())
+Schema.string() |> Schema.optional()
+Schema.integer() |> Schema.nullable()
+Schema.list(Schema.integer()) |> Schema.optional()
 ```
 
 ## Validation
@@ -81,12 +91,14 @@ Schema.validate!(schema, data)
 
 ## Examples
 
-Working examples in `examples/schema/basic_validation/`:
+Working examples in `examples/`:
 
 ```bash
 mix run examples/schema/basic_validation/simple_schema.exs
 mix run examples/schema/basic_validation/nested_structs.exs
-mix run examples/schema/basic_validation/lists_and_records.exs
+mix run examples/schema/basic_validation/optional_nullable_default.exs
+mix run examples/schema/adapters/bigquery_export.exs
+mix run examples/syntax/node_building/basic_nodes.exs
 ```
 
 ## Development

@@ -10,65 +10,65 @@ defmodule Raggio.Schema do
   @type t :: Type.t()
   @type validation_result :: {:ok, any()} | {:error, [Error.t()]}
 
-  def string(opts \\ []) do
-    %Type{
+  def string(), do: %Type{kind: :string}
+
+  def string(opts) when is_list(opts),
+    do: %Type{kind: :string, constraints: Keyword.take(opts, [:min, :max, :pattern])}
+
+  def string(default), do: %Type{kind: :string, default: default}
+
+  def string(default, opts),
+    do: %Type{
       kind: :string,
       constraints: Keyword.take(opts, [:min, :max, :pattern]),
-      default: Keyword.get(opts, :default)
+      default: default
     }
-  end
 
-  def integer(opts \\ []) do
-    %Type{
-      kind: :integer,
-      constraints: Keyword.take(opts, [:min, :max]),
-      default: Keyword.get(opts, :default)
-    }
-  end
+  def integer(), do: %Type{kind: :integer}
 
-  def float(opts \\ []) do
-    %Type{
-      kind: :float,
-      constraints: Keyword.take(opts, [:min, :max]),
-      default: Keyword.get(opts, :default)
-    }
-  end
+  def integer(opts) when is_list(opts),
+    do: %Type{kind: :integer, constraints: Keyword.take(opts, [:min, :max])}
 
-  def boolean(opts \\ []) do
-    %Type{
-      kind: :boolean,
-      default: Keyword.get(opts, :default)
-    }
-  end
+  def integer(default), do: %Type{kind: :integer, default: default}
 
-  def date(opts \\ []) do
-    %Type{
-      kind: :date,
-      default: Keyword.get(opts, :default)
-    }
-  end
+  def integer(default, opts),
+    do: %Type{kind: :integer, constraints: Keyword.take(opts, [:min, :max]), default: default}
 
-  def datetime(opts \\ []) do
-    %Type{
-      kind: :datetime,
-      default: Keyword.get(opts, :default)
-    }
-  end
+  def float(), do: %Type{kind: :float}
 
-  def decimal(opts \\ []) do
-    %Type{
-      kind: :decimal,
-      constraints: Keyword.take(opts, [:min, :max]),
-      default: Keyword.get(opts, :default)
-    }
-  end
+  def float(opts) when is_list(opts),
+    do: %Type{kind: :float, constraints: Keyword.take(opts, [:min, :max])}
 
-  def atom(opts \\ []) do
-    %Type{
-      kind: :atom,
-      default: Keyword.get(opts, :default)
-    }
-  end
+  def float(default), do: %Type{kind: :float, default: default}
+
+  def float(default, opts),
+    do: %Type{kind: :float, constraints: Keyword.take(opts, [:min, :max]), default: default}
+
+  def boolean(), do: %Type{kind: :boolean}
+  def boolean(opts) when is_list(opts), do: %Type{kind: :boolean}
+  def boolean(default), do: %Type{kind: :boolean, default: default}
+
+  def date(), do: %Type{kind: :date}
+  def date(opts) when is_list(opts), do: %Type{kind: :date}
+  def date(default), do: %Type{kind: :date, default: default}
+
+  def datetime(), do: %Type{kind: :datetime}
+  def datetime(opts) when is_list(opts), do: %Type{kind: :datetime}
+  def datetime(default), do: %Type{kind: :datetime, default: default}
+
+  def decimal(), do: %Type{kind: :decimal}
+
+  def decimal(opts) when is_list(opts),
+    do: %Type{kind: :decimal, constraints: Keyword.take(opts, [:min, :max])}
+
+  def decimal(default), do: %Type{kind: :decimal, default: default}
+
+  def decimal(default, opts),
+    do: %Type{kind: :decimal, constraints: Keyword.take(opts, [:min, :max]), default: default}
+
+  def atom(), do: %Type{kind: :atom}
+  def atom(opts) when is_list(opts), do: %Type{kind: :atom}
+  def atom(default), do: %Type{kind: :atom, default: default}
 
   def struct(fields) when is_list(fields) do
     %Type{
