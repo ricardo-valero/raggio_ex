@@ -1,0 +1,11 @@
+field_name,type,required,constraints,parent_path
+company_id,integer,true,,
+company_name,string,true,min(2),
+name,string,true,,contact
+email,string,true,,contact
+phone,string,false,,contact
+street,string,true,,address
+city,string,true,,address
+zip,string,true,,address
+lat,float,false,min(-90) | max(90),address.geo
+lng,float,false,min(-180) | max(180),address.geo
