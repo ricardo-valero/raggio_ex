@@ -40,6 +40,10 @@ defmodule Raggio.MixProject do
       {:jason, "~> 1.4"},
       {:telemetry, "~> 1.0"},
 
+      # Tabular parsing (Sheet Adapter feature)
+      {:nimble_csv, "~> 1.2"},
+      {:xlsx_reader, "~> 0.8"},
+
       # Dev/Test
       {:ex_doc, "~> 0.31", only: :dev, runtime: false}
     ]

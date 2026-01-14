@@ -1,5 +1,6 @@
 alias Raggio.Schema
-alias RaggioTabular.SheetSchema
+alias Raggio.Tabular
+alias Raggio.Tabular.SheetSchema
 
 IO.puts("=== Basic CSV Parsing Example ===\n")
 
@@ -7,31 +8,27 @@ schema =
   SheetSchema.define([
     {:id, Schema.integer()},
     {:name, Schema.string(min: 1)},
-    {:age, Schema.optional(Schema.integer(min: 0))}
+    {:age, Schema.integer(min: 0), required: false}
   ])
 
-csv_content = """
-id,name,age
-1,Alice,30
-2,Bob,25
-3,Charlie,
-4,Diana,28
-"""
+IO.puts("Schema defined for: id (integer), name (string), age (optional integer)")
+IO.puts("\nTo parse a CSV file:")
 
-IO.puts("Input CSV:")
-IO.puts(csv_content)
+IO.puts("""
+  {:ok, result} = Tabular.parse_file("users.csv", schema)
 
-{:ok, result} = RaggioTabular.parse_string(csv_content, schema)
+  # result.valid_rows => [%{id: 1, name: "Alice", age: 30}, ...]
+  # result.invalid_rows => [%Raggio.Tabular.Error{row: 5, ...}, ...]
+  # result.total_rows => count of processed rows
+""")
 
-IO.puts("\nParsing Results:")
-IO.puts("Valid rows: #{length(result.valid_rows)}")
-IO.puts("Invalid rows: #{length(result.invalid_rows)}")
-IO.puts("Total rows: #{result.total_rows}")
+IO.puts("With options:")
 
-IO.puts("\nValid data:")
+IO.puts("""
+  {:ok, result} = Tabular.parse_file("users.csv", schema,
+    delimiter: ",",
+    header: :present
+  )
+""")
 
-Enum.each(result.valid_rows, fn row ->
-  IO.puts("  #{row.id}: #{row.name} (age: #{row.age || "N/A"})")
-end)
-
-IO.puts("\nBasic CSV parsing complete!")
+IO.puts("\nBasic CSV parsing example complete!")

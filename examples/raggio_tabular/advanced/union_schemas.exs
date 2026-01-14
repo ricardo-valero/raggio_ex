@@ -1,5 +1,5 @@
 alias Raggio.Schema
-alias RaggioTabular.SheetSchema
+alias Raggio.Tabular.SheetSchema
 
 IO.puts("=== Union Schemas Example ===\n")
 
@@ -17,30 +17,29 @@ format_v2 =
     {:amount, Schema.decimal()}
   ])
 
-union_schema = SheetSchema.union([format_v1, format_v2])
+union_schema = SheetSchema.union([format_v1, format_v2], strategy: :first_match)
 
-IO.puts("Union schema supports multiple formats:")
+IO.puts("Union schema created with two format variants:")
 IO.puts("  Format V1: id (int), name (string), value (float)")
 IO.puts("  Format V2: identifier (string), description (string), amount (decimal)")
+IO.puts("\nStrategy: :first_match (use first schema that matches headers)")
 
-IO.puts("\nRow range filtering example:")
+exact_one_union = SheetSchema.union([format_v1, format_v2], strategy: :exact_one)
 
-schema_with_range =
+IO.puts("\nAlternatively, use :exact_one strategy to require exactly one match")
+IO.puts("(returns error if multiple schemas match)")
+
+IO.puts("\nRow filtering example:")
+
+schema_with_filters =
   SheetSchema.define([
     {:id, Schema.integer()},
     {:data, Schema.string()}
   ])
-  |> SheetSchema.with_row_range(3, 5)
+  |> SheetSchema.with_row_filters(%{skip_rows: 2, row_range: 3..10})
 
-IO.puts("  Schema configured to parse rows 3-5 only")
-
-skip_schema =
-  SheetSchema.define([
-    {:id, Schema.integer()},
-    {:data, Schema.string()}
-  ])
-  |> SheetSchema.skip_rows(2)
-
-IO.puts("  Schema configured to skip first 2 data rows")
+IO.puts("Schema configured with row filters:")
+IO.puts("  - skip_rows: 2 (skip first 2 data rows)")
+IO.puts("  - row_range: 3..10 (only process rows 3-10)")
 
 IO.puts("\nUnion schemas example complete!")
