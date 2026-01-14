@@ -1,30 +1,35 @@
 # Implementation Plan: Sheet Adapter
 
-**Branch**: `003-sheet-adapter` | **Date**: 2026-01-14 | **Spec**: `specs/003-sheet-adapter/spec.md`
-**Input**: Feature specification from `specs/003-sheet-adapter/spec.md`
+**Branch**: `003-sheet-adapter` | **Date**: 2026-01-14 | **Spec**: [spec.md](./spec.md)
+**Input**: Feature specification from `/specs/003-sheet-adapter/spec.md`
 
 ## Summary
 
-Add a new tabular ingestion capability that can read CSV and XLSX files, normalize them into a consistent row stream, and parse them with a declarative SheetSchema to produce typed rows plus row-numbered errors.
+Implement a parser-agnostic tabular file adapter for Raggio. The library defines a `Raggio.Tabular.Parser` behaviour that users implement with their preferred parsing libraries (nimble_csv, xlsx_reader, etc.). No bundled parsing dependencies - explicit parser selection at call site. Maintains parity with legacy `old/` capabilities for header detection, union schemas, row filtering, and row-numbered errors.
 
 ## Technical Context
 
-**Language/Version**: Elixir `~> 1.14` (per `mix.exs`)  
-**Primary Dependencies**: `decimal`, `jason`, `telemetry` (existing); add `nimble_csv` for CSV parsing; add one XLSX reader (`xlsx_reader` or `spreadsheet`)  
-**Storage**: N/A  
-**Testing**: `mix test` (ExUnit)  
-**Target Platform**: BEAM (library)  
-**Project Type**: single Elixir library package (Ecto-style submodules)  
-**Performance Goals**: Stream parse 100k rows within ~10s on typical dev laptop  
-**Constraints**: Consistent error shape across formats; memory bounded by streaming (avoid loading entire file)  
-**Scale/Scope**: CSV + XLSX v1; TSV as delimiter variant; extension point for future formats
+**Language/Version**: Elixir ~> 1.14 (per existing mix.exs)  
+**Primary Dependencies**: `decimal`, `jason`, `telemetry` (existing); NO parsing libraries bundled  
+**Storage**: N/A (library for data parsing, not storage)  
+**Testing**: ExUnit (mix test)  
+**Target Platform**: Elixir/OTP applications  
+**Project Type**: Single library package  
+**Performance Goals**: 100,000 rows in <10 seconds, streaming to avoid full memory load (SC-003)  
+**Constraints**: <reasonable memory footprint for file size, parser-agnostic API  
+**Scale/Scope**: Support typical business spreadsheet sizes (10k-1M rows)
 
 ## Constitution Check
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-- Constitution file `.specify/memory/constitution.md` currently contains placeholder sections (e.g., `[PRINCIPLE_1_NAME]`) and defines no enforceable gates.
-- Gate result: PASS (no explicit constitution constraints to enforce).
+The project constitution (`constitution.md`) contains template placeholders without specific principles defined. No mandatory gates apply. The implementation follows standard Elixir library conventions:
+
+| Principle | Status | Notes |
+|-----------|--------|-------|
+| Library-First | PASS | Feature is a standalone library module |
+| Test Coverage | PASS | ExUnit tests will be provided |
+| Documentation | PASS | Hexdocs + example implementations |
 
 ## Project Structure
 
@@ -33,36 +38,81 @@ Add a new tabular ingestion capability that can read CSV and XLSX files, normali
 ```text
 specs/003-sheet-adapter/
 ├── plan.md              # This file
-├── research.md          # Phase 0 output
+├── research.md          # Phase 0 output (completed)
 ├── data-model.md        # Phase 1 output
 ├── quickstart.md        # Phase 1 output
 ├── contracts/           # Phase 1 output
-└── tasks.md             # Phase 2 output (/speckit.tasks, not created here)
+│   └── parser-behaviour.ex
+└── tasks.md             # Phase 2 output (via /speckit.tasks)
 ```
 
 ### Source Code (repository root)
 
 ```text
-lib/
-├── raggio.ex
-├── raggio/
-│   ├── schema.ex
-│   ├── schema/
-│   ├── syntax.ex
-│   ├── syntax/
-│   └── bigquery/
-└── mix/tasks/
+lib/raggio/tabular/
+├── parser.ex            # NEW: Behaviour definition (@callback stream_rows/2, sheet_names/1)
+├── row_parser.ex        # RENAMED: Parsing logic (was parser.ex)
+├── sheet_schema.ex      # Unchanged
+├── column_def.ex        # Unchanged
+├── result.ex            # Unchanged
+├── error.ex             # Unchanged
+├── transform.ex         # Unchanged
+├── union.ex             # Unchanged
+├── source.ex            # Unchanged
+├── sheet_info.ex        # Unchanged
+├── worksheet_selector.ex # Unchanged
+└── registry.ex          # MAY REMOVE: No longer needed with explicit parser selection
 
-examples/
-  raggio_tabular/
+lib/raggio/tabular/adapters/  # TO BE REMOVED (moved to examples/)
 
-test/
+examples/tabular/
+├── csv_parser.ex        # Reference implementation using nimble_csv
+├── xlsx_parser.ex       # Reference implementation using xlsx_reader
+└── README.md            # Setup and usage guide
+
+test/raggio/tabular/
+├── parser_test.exs      # Behaviour compliance tests
+├── row_parser_test.exs  # Parsing logic tests
+├── sheet_schema_test.exs
+├── transform_test.exs
+├── union_test.exs
+└── integration/
+    └── csv_xlsx_parity_test.exs  # Cross-format equivalence (uses example parsers)
 ```
 
-**Structure Decision**: Implement this feature as a new submodule `Raggio.Tabular` under `lib/raggio/tabular.ex` with internal modules under `lib/raggio/tabular/`.
+**Structure Decision**: Single library package with example implementations in `examples/` directory. Existing adapters moved out of `lib/` to maintain zero external parsing dependencies in production.
 
 ## Complexity Tracking
 
-| Violation | Why Needed | Simpler Alternative Rejected Because |
-|-----------|------------|-------------------------------------|
-| NIF dependency (optional) | Considered if choosing `spreadsheet` for XLSX performance/format support | Pure-Elixir XLSX parsing may be slower/more memory-hungry for large files |
+No constitution violations to justify. The architecture follows the simplest viable approach:
+- Single behaviour with 2 callbacks
+- Explicit configuration (no magic)
+- Examples in separate directory (not shipped)
+
+## Key Implementation Notes
+
+### Breaking Changes from Current Implementation
+
+1. **Remove bundled parsers**: `nimble_csv` and `xlsx_reader` move to `:dev` only
+2. **Explicit parser option**: All `Raggio.Tabular` calls require `parser:` option
+3. **Rename behaviour**: `Raggio.Tabular.Adapter` -> `Raggio.Tabular.Parser`
+4. **Simplified callbacks**: Remove `sniff/1`, keep only `stream_rows/2` + `sheet_names/1`
+
+### Migration for Existing Users
+
+Users currently relying on automatic CSV/XLSX detection will need to:
+1. Add their preferred parsing library to deps
+2. Either copy example implementations or write their own
+3. Pass `parser:` option explicitly
+
+### Behaviour Contract
+
+```elixir
+defmodule Raggio.Tabular.Parser do
+  @callback stream_rows(source :: term(), opts :: keyword()) ::
+    {:ok, Enumerable.t({pos_integer(), [term()]})} | {:error, term()}
+
+  @callback sheet_names(source :: term()) ::
+    {:ok, [String.t()]} | {:error, term()}
+end
+```

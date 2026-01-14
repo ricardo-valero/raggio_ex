@@ -1,7 +1,9 @@
-# Tasks: Sheet Adapter
+# Tasks: Sheet Adapter (Parser-Agnostic)
 
 **Input**: Design documents from `/specs/003-sheet-adapter/`  
 **Prerequisites**: plan.md, spec.md, research.md, data-model.md, contracts/  
+
+**Architecture**: Parser-agnostic - library defines behaviours, users provide implementations. No bundled parsing dependencies.
 
 **Tests**: Not explicitly requested in spec - test tasks omitted (add if needed)
 
@@ -15,115 +17,115 @@
 
 ## Path Conventions
 
-- **Library**: `lib/raggio/tabular/` for implementation
+- **Library**: `lib/raggio/tabular/` for core implementation (behaviours + parsing logic)
+- **Examples**: `examples/tabular/` for reference parser implementations
 - **Tests**: `test/raggio/tabular/` for tests
 - **Legacy reference**: `old/data_schema/` for behavioral parity
 
 ---
 
-## Phase 1: Setup (Shared Infrastructure)
+## Phase 1: Setup (Refactor to Parser-Agnostic)
 
-**Purpose**: Project initialization and dependency configuration
+**Purpose**: Restructure for parser-agnostic architecture - remove bundled parsers, establish behaviour-based extension
 
-- [x] T001 Add `nimble_csv` dependency to `mix.exs`
-- [x] T002 Add `xlsx_reader` dependency to `mix.exs`
-- [x] T003 Create base module `lib/raggio/tabular.ex` with module doc and placeholder public API
-- [x] T004 Create directory structure `lib/raggio/tabular/` for submodules
+- [x] T001 Move `nimble_csv` dependency to `:dev` only in `mix.exs` (was production dep)
+- [x] T002 Move `xlsx_reader` dependency to `:dev` only in `mix.exs` (was production dep)
+- [x] T003 Create `examples/tabular/` directory for reference parser implementations
+- [x] T004 Move `lib/raggio/tabular/adapters/csv.ex` to `examples/tabular/csv_parser.ex` (preserve as example)
+- [x] T005 Move `lib/raggio/tabular/adapters/xlsx.ex` to `examples/tabular/xlsx_parser.ex` (preserve as example)
+- [x] T006 Delete `lib/raggio/tabular/adapters/` directory after migration
+- [x] T007 Delete `lib/raggio/tabular/registry.ex` (no longer needed with explicit parser selection)
 
 ---
 
-## Phase 2: Foundational (Blocking Prerequisites)
+## Phase 2: Foundational (Core Behaviour & Types)
 
-**Purpose**: Core infrastructure that MUST be complete before ANY user story can be implemented
+**Purpose**: Define the `Raggio.Tabular.Parser` behaviour and core types that MUST be complete before ANY user story
 
 **CRITICAL**: No user story work can begin until this phase is complete
 
-### Error & Result Types
+### Parser Behaviour (NEW)
 
-- [x] T005 [P] Create `Raggio.Tabular.Error` struct in `lib/raggio/tabular/error.ex` with fields: row, path, message, value, constraint (per research.md Decision 3)
-- [x] T006 [P] Create `Raggio.Tabular.Result` struct in `lib/raggio/tabular/result.ex` with fields: valid_rows, invalid_rows, total_rows, matched_schema, metadata (per data-model.md ParseResult)
+- [x] T008 Create `Raggio.Tabular.Parser` behaviour in `lib/raggio/tabular/parser.ex` with callbacks: `stream_rows/2`, `sheet_names/1` (per contracts/adapter_contract.md)
+- [x] T009 Add @callback typespecs to `lib/raggio/tabular/parser.ex`: `stream_rows(source, opts) :: {:ok, Enumerable.t({pos_integer(), [term()]})} | {:error, map()}`
+- [x] T010 Add @callback typespecs to `lib/raggio/tabular/parser.ex`: `sheet_names(source) :: {:ok, [String.t()]} | {:error, map()}`
+- [x] T011 Add module documentation to `lib/raggio/tabular/parser.ex` explaining behaviour contract and implementation requirements
 
-### Adapter Behaviour
+### Row Parsing Logic (Renamed)
 
-- [x] T007 Create `Raggio.Tabular.Adapter` behaviour in `lib/raggio/tabular/adapter.ex` defining callbacks: sniff/1, list_sheets/2, stream_rows/2 (per contracts/adapter_contract.md)
-- [x] T008 Create `Raggio.Tabular.SheetInfo` struct in `lib/raggio/tabular/sheet_info.ex` with fields: name, index (per contracts/adapter_contract.md)
+- [x] T012 Rename `lib/raggio/tabular/parser.ex` (existing parsing logic) to `lib/raggio/tabular/row_parser.ex` to avoid conflict with behaviour module
+- [x] T013 Update all internal references from `Raggio.Tabular.Parser` (old) to `Raggio.Tabular.RowParser` in `lib/raggio/tabular/`
 
-### Source Types
+### Error & Result Types (Existing - Verify)
 
-- [x] T009 [P] Create `Raggio.Tabular.Source` struct in `lib/raggio/tabular/source.ex` with fields: type, location, hints (per data-model.md SheetSource)
-- [x] T010 [P] Create `Raggio.Tabular.WorksheetSelector` module in `lib/raggio/tabular/worksheet_selector.ex` with by_name/by_index selectors (per data-model.md)
+- [x] T014 [P] Verify `Raggio.Tabular.Error` struct in `lib/raggio/tabular/error.ex` has fields: row, path, message, value, constraint
+- [x] T015 [P] Verify `Raggio.Tabular.Result` struct in `lib/raggio/tabular/result.ex` has fields: valid_rows, invalid_rows, row_count, matched_schema
 
-### SheetSchema Core Types (required by all user stories)
+### SheetSchema Core Types (Existing - Verify)
 
-- [x] T011 Create `Raggio.Tabular.SheetSchema` struct in `lib/raggio/tabular/sheet_schema.ex` with fields: columns, header_mode, header_variants, row_filters (per data-model.md)
-- [x] T012 Create `Raggio.Tabular.ColumnDef` struct in `lib/raggio/tabular/column_def.ex` with fields: field_name, header, at, required, type_schema (per data-model.md ColumnDefinition)
+- [x] T016 [P] Verify `Raggio.Tabular.SheetSchema` struct in `lib/raggio/tabular/sheet_schema.ex` has fields: columns, header_mode, header_variants, row_filters, transforms
+- [x] T017 [P] Verify `Raggio.Tabular.ColumnDef` struct in `lib/raggio/tabular/column_def.ex` has fields: field_name, header, at, required, type_schema
 
-**Checkpoint**: Foundation ready - user story implementation can now begin
+**Checkpoint**: Foundation ready - Parser behaviour defined, row parsing logic renamed, core types verified
 
 ---
 
 ## Phase 3: User Story 1 - Developer parses tabular files into typed data (Priority: P1)
 
-**Goal**: Parse CSV and XLSX files into typed rows using a SheetSchema mapping, cleanly separating valid and invalid rows with row-numbered errors
+**Goal**: Parse CSV and XLSX files into typed rows using a SheetSchema mapping, cleanly separating valid and invalid rows with row-numbered errors. **Users provide parser implementations via the behaviour.**
 
-**Independent Test**: Provide small CSV and XLSX with same data, define SheetSchema, verify both produce equivalent typed output and row-level errors
+**Independent Test**: Provide small CSV and XLSX with same data, define SheetSchema, implement example parsers, verify both produce equivalent typed output and row-level errors
 
-### CSV Adapter Implementation
+### Public API Update (Explicit Parser Selection)
 
-- [x] T013 [P] [US1] Create `Raggio.Tabular.Adapters.CSV` module in `lib/raggio/tabular/adapters/csv.ex` implementing Adapter behaviour
-- [x] T014 [US1] Implement `sniff/1` in CSV adapter to detect CSV format by extension and content heuristics in `lib/raggio/tabular/adapters/csv.ex`
-- [x] T015 [US1] Implement `list_sheets/2` in CSV adapter returning single synthetic sheet in `lib/raggio/tabular/adapters/csv.ex`
-- [x] T016 [US1] Implement `stream_rows/2` in CSV adapter using `nimble_csv` for streaming parse in `lib/raggio/tabular/adapters/csv.ex`
-- [x] T017 [US1] Add delimiter option support (comma, tab, semicolon) to CSV adapter in `lib/raggio/tabular/adapters/csv.ex` (FR-014, edge case: TSV support)
-- [x] T018 [US1] Add encoding detection and BOM handling to CSV adapter in `lib/raggio/tabular/adapters/csv.ex` (FR-015)
+- [x] T018 [US1] Update `Raggio.Tabular.parse/3` in `lib/raggio/tabular.ex` to REQUIRE `parser:` option (no auto-detection)
+- [x] T019 [US1] Add validation in `lib/raggio/tabular.ex` that returns `{:error, %{type: :missing_parser}}` if `parser:` option not provided
+- [x] T020 [US1] Update `Raggio.Tabular.list_sheets/2` in `lib/raggio/tabular.ex` to REQUIRE `parser:` option
+- [x] T021 [US1] Remove `parse_file/2` (without opts) from `lib/raggio/tabular.ex` - all calls must specify parser
 
-### XLSX Adapter Implementation
+### Integration with Parser Behaviour
 
-- [x] T019 [P] [US1] Create `Raggio.Tabular.Adapters.XLSX` module in `lib/raggio/tabular/adapters/xlsx.ex` implementing Adapter behaviour
-- [x] T020 [US1] Implement `sniff/1` in XLSX adapter to detect XLSX format by extension in `lib/raggio/tabular/adapters/xlsx.ex`
-- [x] T021 [US1] Implement `list_sheets/2` in XLSX adapter returning worksheet list in `lib/raggio/tabular/adapters/xlsx.ex`
-- [x] T022 [US1] Implement `stream_rows/2` in XLSX adapter using `xlsx_reader` for streaming in `lib/raggio/tabular/adapters/xlsx.ex`
-- [x] T023 [US1] Add worksheet selector support (by name, by index) to XLSX adapter in `lib/raggio/tabular/adapters/xlsx.ex` (FR-005)
-- [x] T024 [US1] Handle formula cells by reading computed values in XLSX adapter in `lib/raggio/tabular/adapters/xlsx.ex` (FR-017)
+- [x] T022 [US1] Update `lib/raggio/tabular.ex` to call `parser.stream_rows(source, opts)` from provided parser module
+- [x] T023 [US1] Update `lib/raggio/tabular.ex` to call `parser.sheet_names(source)` from provided parser module
+- [x] T024 [US1] Pass `sheet:` option through to parser's `stream_rows/2` in `lib/raggio/tabular.ex`
+- [x] T025 [US1] Handle parser errors gracefully in `lib/raggio/tabular.ex` - wrap in consistent error format
 
-### SheetSchema Definition API
+### Row Parsing Pipeline (Using Behaviour Output)
 
-- [x] T025 [US1] Implement `define/1` function in `lib/raggio/tabular/sheet_schema.ex` for creating schema from field list (per contracts/tabular_api.md)
-- [x] T026 [US1] Implement column resolution logic (by header name, by position, or both) in `lib/raggio/tabular/sheet_schema.ex` (FR-006)
-- [x] T027 [US1] Implement required vs optional column handling in `lib/raggio/tabular/sheet_schema.ex` (FR-009)
+- [x] T026 [US1] Update `lib/raggio/tabular/row_parser.ex` to accept stream from any Parser behaviour implementation
+- [x] T027 [US1] Ensure row_parser correctly handles `{row_number, cells}` tuple format from parsers in `lib/raggio/tabular/row_parser.ex`
+- [x] T028 [US1] Verify header detection (auto, present, absent modes) works with behaviour-provided streams in `lib/raggio/tabular/row_parser.ex`
+- [x] T029 [US1] Verify row-numbered error accumulation uses original row numbers from parser in `lib/raggio/tabular/row_parser.ex`
 
-### Header Detection & Row Parsing
+### Example CSV Parser (Reference Implementation)
 
-- [x] T028 [US1] Create `Raggio.Tabular.Parser` module in `lib/raggio/tabular/parser.ex` for header detection and row parsing pipeline
-- [x] T029 [US1] Implement header row detection (auto, present, absent modes) in `lib/raggio/tabular/parser.ex` (per legacy old/data_schema/sheet_schema/parser.ex)
-- [x] T030 [US1] Implement column-to-field mapping after header resolution in `lib/raggio/tabular/parser.ex`
-- [x] T031 [US1] Implement row parsing using `Raggio.Schema` validation for each cell in `lib/raggio/tabular/parser.ex`
-- [x] T032 [US1] Implement row-numbered error accumulation in `lib/raggio/tabular/parser.ex` (FR-011, FR-012)
+- [x] T030 [P] [US1] Update `examples/tabular/csv_parser.ex` to implement `Raggio.Tabular.Parser` behaviour
+- [x] T031 [US1] Implement `sheet_names/1` in `examples/tabular/csv_parser.ex` returning `{:ok, ["default"]}`
+- [x] T032 [US1] Implement `stream_rows/2` in `examples/tabular/csv_parser.ex` using NimbleCSV with streaming
+- [x] T033 [US1] Add delimiter option support (comma, tab, semicolon) to `examples/tabular/csv_parser.ex`
+- [x] T034 [US1] Add error handling for file not found, read errors in `examples/tabular/csv_parser.ex`
 
-### Adapter Registry & Format Detection
+### Example XLSX Parser (Reference Implementation)
 
-- [x] T033 [US1] Create `Raggio.Tabular.Registry` module in `lib/raggio/tabular/registry.ex` for adapter registration and lookup
-- [x] T034 [US1] Implement format detection by extension with adapter sniffing fallback in `lib/raggio/tabular/registry.ex`
+- [x] T035 [P] [US1] Update `examples/tabular/xlsx_parser.ex` to implement `Raggio.Tabular.Parser` behaviour
+- [x] T036 [US1] Implement `sheet_names/1` in `examples/tabular/xlsx_parser.ex` using XlsxReader
+- [x] T037 [US1] Implement `stream_rows/2` in `examples/tabular/xlsx_parser.ex` using XlsxReader
+- [x] T038 [US1] Add sheet selection support (by name via `sheet:` option) in `examples/tabular/xlsx_parser.ex`
+- [x] T039 [US1] Add error handling for file not found, invalid format, sheet not found in `examples/tabular/xlsx_parser.ex`
 
-### Public API Implementation
+### Example Documentation
 
-- [x] T035 [US1] Implement `parse_file/2` in `lib/raggio/tabular.ex` delegating to parser with auto-detected adapter (contracts/tabular_api.md)
-- [x] T036 [US1] Implement `parse_file/3` with options (format, delimiter, encoding, worksheet, header) in `lib/raggio/tabular.ex` (contracts/tabular_api.md)
-- [x] T037 [US1] Implement `list_sheets/1` in `lib/raggio/tabular.ex` for workbook introspection (contracts/tabular_api.md)
+- [x] T040 [P] [US1] Create `examples/tabular/README.md` with setup instructions (adding deps, implementing behaviour)
+- [x] T041 [US1] Add usage examples to `examples/tabular/README.md` showing explicit parser selection
 
 ### Error Handling for Format Issues
 
-- [x] T038 [US1] Implement actionable error messages for empty file, malformed CSV in `lib/raggio/tabular/adapters/csv.ex` (FR-013)
-- [x] T039 [US1] Implement actionable error messages for unknown sheet, invalid XLSX in `lib/raggio/tabular/adapters/xlsx.ex` (FR-013)
-- [x] T040 [US1] Implement duplicate header detection with actionable error in `lib/raggio/tabular/parser.ex` (edge case)
-- [x] T041 [US1] Implement missing required header error with field list in `lib/raggio/tabular/parser.ex` (edge case)
+- [x] T042 [US1] Verify actionable error messages for missing required headers in `lib/raggio/tabular/row_parser.ex` (FR-013)
+- [x] T043 [US1] Verify duplicate header detection with actionable error in `lib/raggio/tabular/row_parser.ex`
+- [x] T044 [US1] Verify blank row skipping works with any parser output in `lib/raggio/tabular/row_parser.ex` (FR-016)
+- [x] T045 [US1] Verify ragged row handling (pad short, ignore extra trailing) in `lib/raggio/tabular/row_parser.ex` (FR-016)
 
-### Blank/Ragged Row Handling
-
-- [x] T042 [US1] Implement blank row skipping in row stream processing in `lib/raggio/tabular/parser.ex` (FR-016)
-- [x] T043 [US1] Implement ragged row handling (pad short, ignore extra trailing) in `lib/raggio/tabular/parser.ex` (FR-016)
-
-**Checkpoint**: User Story 1 complete - CSV and XLSX parsing works with typed results and row-numbered errors
+**Checkpoint**: User Story 1 complete - Users can implement Parser behaviour and parse CSV/XLSX to typed results with row-numbered errors
 
 ---
 
@@ -135,17 +137,17 @@
 
 ### Header Variants
 
-- [x] T044 [US2] Implement `with_header_variants/2` in `lib/raggio/tabular/sheet_schema.ex` for header synonym configuration (contracts/tabular_api.md)
-- [x] T045 [US2] Update header resolution in `lib/raggio/tabular/parser.ex` to check variants when primary header not found (FR-007)
-- [x] T046 [US2] Support case-insensitive header matching option in `lib/raggio/tabular/parser.ex`
+- [x] T046 [US2] Verify `with_header_variants/2` exists in `lib/raggio/tabular/sheet_schema.ex` for header synonym configuration
+- [x] T047 [US2] Verify header resolution in `lib/raggio/tabular/row_parser.ex` checks variants when primary header not found (FR-007)
+- [x] T048 [US2] Verify case-insensitive header matching in `lib/raggio/tabular/row_parser.ex`
 
 ### Union Schema
 
-- [x] T047 [US2] Create `Raggio.Tabular.Union` struct in `lib/raggio/tabular/union.ex` with fields: schemas, strategy (per data-model.md SchemaUnion)
-- [x] T048 [US2] Implement `union/2` function in `lib/raggio/tabular/sheet_schema.ex` for creating union schemas (contracts/tabular_api.md)
-- [x] T049 [US2] Implement `:first_match` strategy in union matching in `lib/raggio/tabular/parser.ex` (FR-008)
-- [x] T050 [US2] Implement `:exact_one` strategy with ambiguous-match error in `lib/raggio/tabular/parser.ex` (FR-008, acceptance scenario 3)
-- [x] T051 [US2] Track which schema variant matched in parse result in `lib/raggio/tabular/parser.ex`
+- [x] T049 [US2] Verify `Raggio.Tabular.Union` struct in `lib/raggio/tabular/union.ex` has fields: schemas, strategy
+- [x] T050 [US2] Verify `Union.new/2` function in `lib/raggio/tabular/union.ex` creates union schemas
+- [x] T051 [US2] Verify `:first_match` strategy in union matching in `lib/raggio/tabular/row_parser.ex` (FR-008)
+- [x] T052 [US2] Verify `:exact_one` strategy with ambiguous-match error in `lib/raggio/tabular/row_parser.ex` (FR-008)
+- [x] T053 [US2] Verify matched schema variant tracked in parse result in `lib/raggio/tabular/row_parser.ex`
 
 **Checkpoint**: User Story 2 complete - header variants and union schemas work independently
 
@@ -159,20 +161,20 @@
 
 ### Row Filtering
 
-- [x] T052 [US3] Add row_filters field support to SheetSchema in `lib/raggio/tabular/sheet_schema.ex` (skip_rows, row_range)
-- [x] T053 [US3] Implement `skip_rows` option for skipping leading N rows in `lib/raggio/tabular/parser.ex` (FR-010)
-- [x] T054 [US3] Implement `row_range` option for parsing only specified row range in `lib/raggio/tabular/parser.ex` (FR-010)
-- [x] T055 [US3] Ensure row numbers in errors align to original file positions after filtering in `lib/raggio/tabular/parser.ex` (acceptance scenario 1)
+- [x] T054 [US3] Verify row_filters field support in SheetSchema in `lib/raggio/tabular/sheet_schema.ex` (skip_rows, row_range)
+- [x] T055 [US3] Verify `skip_rows` option skips leading N rows in `lib/raggio/tabular/row_parser.ex` (FR-010)
+- [x] T056 [US3] Verify `row_range` option parses only specified row range in `lib/raggio/tabular/row_parser.ex` (FR-010)
+- [x] T057 [US3] Verify row numbers in errors align to original file positions after filtering in `lib/raggio/tabular/row_parser.ex`
 
-### Value Transforms (Spreadsheet Normalization)
+### Value Transforms
 
-- [x] T056 [US3] Create `Raggio.Tabular.Transform` module in `lib/raggio/tabular/transform.ex` for opt-in value normalization (FR-018)
-- [x] T057 [US3] Implement currency symbol stripping transform in `lib/raggio/tabular/transform.ex`
-- [x] T058 [US3] Implement thousand separator removal transform in `lib/raggio/tabular/transform.ex`
-- [x] T059 [US3] Implement whitespace trimming transform in `lib/raggio/tabular/transform.ex`
-- [x] T060 [US3] Implement Excel date serial to Date conversion transform in `lib/raggio/tabular/transform.ex`
-- [x] T061 [US3] Implement float-to-integer ID coercion transform in `lib/raggio/tabular/transform.ex`
-- [x] T062 [US3] Integrate transform pipeline with parser in `lib/raggio/tabular/parser.ex`
+- [x] T058 [US3] Verify `Raggio.Tabular.Transform` module exists in `lib/raggio/tabular/transform.ex` (FR-018)
+- [x] T059 [US3] Verify currency symbol stripping transform in `lib/raggio/tabular/transform.ex`
+- [x] T060 [US3] Verify thousand separator removal transform in `lib/raggio/tabular/transform.ex`
+- [x] T061 [US3] Verify whitespace trimming transform in `lib/raggio/tabular/transform.ex`
+- [x] T062 [US3] Verify Excel date serial to Date conversion transform in `lib/raggio/tabular/transform.ex`
+- [x] T063 [US3] Verify float-to-integer ID coercion transform in `lib/raggio/tabular/transform.ex`
+- [x] T064 [US3] Verify transform pipeline integration with row_parser in `lib/raggio/tabular/row_parser.ex`
 
 **Checkpoint**: User Story 3 complete - row filtering and transforms work independently
 
@@ -184,27 +186,33 @@
 
 ### Performance & Streaming
 
-- [x] T063 [P] Verify streaming behavior for 100k row file stays within memory bounds in CSV adapter (SC-003)
-- [x] T064 [P] Verify streaming behavior for 100k row file stays within memory bounds in XLSX adapter (SC-003)
-- [x] T065 Apply `:binary.copy/1` for cell values in CSV adapter to prevent binary reference leaks (research.md note)
+- [ ] T065 [P] Verify streaming behavior with example CSV parser for 100k row file stays within memory bounds (SC-003)
+- [ ] T066 [P] Verify streaming behavior with example XLSX parser for 100k row file stays within memory bounds (SC-003)
 
 ### Legacy Parity Validation
 
-- [x] T066 Review `old/data_schema/sheet_schema.ex` and validate API parity in `lib/raggio/tabular/sheet_schema.ex` (FR-020)
-- [x] T067 Review `old/data_schema/sheet_schema/parser.ex` and validate parser behavior parity in `lib/raggio/tabular/parser.ex` (FR-020)
-- [x] T068 Review `old/data_schema/adapters/tabular.ex` and validate error reporting parity in `lib/raggio/tabular/` (FR-020)
+- [ ] T067 Review `old/data_schema/sheet_schema.ex` and validate API parity in `lib/raggio/tabular/sheet_schema.ex` (FR-020)
+- [ ] T068 Review `old/data_schema/sheet_schema/parser.ex` and validate behavior parity in `lib/raggio/tabular/row_parser.ex` (FR-020)
+- [ ] T069 Review `old/data_schema/adapters/tabular.ex` and validate error reporting parity in `lib/raggio/tabular/` (FR-020)
 
 ### Documentation
 
-- [x] T069 [P] Add module docs to `lib/raggio/tabular.ex` with usage examples
-- [x] T070 [P] Add module docs to `lib/raggio/tabular/sheet_schema.ex` with schema definition examples
-- [x] T071 [P] Add typespecs to all public functions in `lib/raggio/tabular/` modules
+- [x] T070 [P] Update module docs in `lib/raggio/tabular.ex` to explain parser-agnostic architecture and `parser:` option requirement
+- [x] T071 [P] Update module docs in `lib/raggio/tabular/parser.ex` with behaviour implementation guide
+- [x] T072 [P] Update module docs in `lib/raggio/tabular/sheet_schema.ex` with schema definition examples
+- [x] T073 [P] Add typespecs to all public functions in `lib/raggio/tabular/` modules (already present)
 
 ### Quickstart Validation
 
-- [x] T072 Create example script `examples/raggio_tabular/basic_csv_parse.exs` demonstrating CSV parsing
-- [x] T073 Create example script `examples/raggio_tabular/xlsx_with_schema.exs` demonstrating XLSX parsing
-- [x] T074 Validate quickstart scenarios from `specs/003-sheet-adapter/quickstart.md` work as documented
+- [x] T074 Update example script `examples/raggio_tabular/csv_parsing/basic_csv.exs` to use explicit parser option
+- [x] T075 Update example scripts in `examples/raggio_tabular/` to use explicit parser option
+- [x] T076 Validate quickstart scenarios from `specs/003-sheet-adapter/quickstart.md` work as documented with new API (API corrected in quickstart)
+
+### Cleanup
+
+- [x] T077 Remove any dead code references to old Adapter behaviour in `lib/raggio/tabular/` (adapter.ex deleted in prior session)
+- [x] T078 No test files in `test/raggio/tabular/` exist - tests not explicitly requested in spec
+- [x] T079 Run `mix compile --warnings-as-errors` to verify no compilation warnings (PASSED)
 
 ---
 
@@ -212,51 +220,55 @@
 
 ### Phase Dependencies
 
-- **Setup (Phase 1)**: No dependencies - can start immediately
+- **Setup (Phase 1)**: No dependencies - can start immediately - refactors existing code
 - **Foundational (Phase 2)**: Depends on Setup completion - BLOCKS all user stories
-- **User Story 1 (Phase 3)**: Depends on Foundational - core parsing capability
-- **User Story 2 (Phase 4)**: Depends on Foundational - can run parallel to US1 if desired
-- **User Story 3 (Phase 5)**: Depends on Foundational - can run parallel to US1/US2 if desired
+- **User Story 1 (Phase 3)**: Depends on Foundational - core parsing with explicit parser
+- **User Story 2 (Phase 4)**: Depends on Foundational - can run parallel to US1
+- **User Story 3 (Phase 5)**: Depends on Foundational - can run parallel to US1/US2
 - **Polish (Phase 6)**: Depends on all user stories being complete
 
 ### User Story Dependencies
 
-- **User Story 1 (P1)**: MVP - basic CSV/XLSX parsing with typed results
+- **User Story 1 (P1)**: MVP - explicit parser selection with example implementations
 - **User Story 2 (P2)**: Independent of US1 at code level, but builds on same foundation
 - **User Story 3 (P2)**: Independent of US1/US2 at code level, but builds on same foundation
 
 ### Within Each User Story
 
-- Adapters can be developed in parallel (CSV and XLSX are independent)
-- SheetSchema API must precede Parser implementation
-- Parser must precede public API implementation
-- Error handling integrates throughout
+- Public API changes before parser integration
+- Row parsing updates before example implementations
+- Example implementations can be developed in parallel (CSV and XLSX are independent)
 
 ### Parallel Opportunities
 
-**Phase 2 Parallel Group**:
+**Phase 1 Parallel Group (after dependency moves)**:
 ```
-T005 (Error struct) || T006 (Result struct) || T009 (Source) || T010 (WorksheetSelector)
+T004 (move CSV) || T005 (move XLSX)
 ```
 
-**Phase 3 Adapter Parallel Group**:
+**Phase 2 Parallel Group**:
 ```
-T013-T018 (CSV adapter) || T019-T024 (XLSX adapter)
+T014 (verify Error) || T015 (verify Result) || T016 (verify SheetSchema) || T017 (verify ColumnDef)
+```
+
+**Phase 3 Example Parser Parallel Group**:
+```
+T030-T034 (CSV example parser) || T035-T039 (XLSX example parser) || T040-T041 (example docs)
 ```
 
 **Phase 6 Parallel Group**:
 ```
-T063 (CSV perf) || T064 (XLSX perf) || T069-T071 (docs)
+T065 (CSV perf) || T066 (XLSX perf) || T070-T073 (docs)
 ```
 
 ---
 
-## Parallel Example: User Story 1 Adapters
+## Parallel Example: User Story 1 Example Parsers
 
 ```bash
-# Launch both adapter implementations in parallel:
-Task: "Create Raggio.Tabular.Adapters.CSV module in lib/raggio/tabular/adapters/csv.ex"
-Task: "Create Raggio.Tabular.Adapters.XLSX module in lib/raggio/tabular/adapters/xlsx.ex"
+# Launch both example parser updates in parallel:
+Task: "Update examples/tabular/csv_parser.ex to implement Raggio.Tabular.Parser behaviour"
+Task: "Update examples/tabular/xlsx_parser.ex to implement Raggio.Tabular.Parser behaviour"
 ```
 
 ---
@@ -265,16 +277,16 @@ Task: "Create Raggio.Tabular.Adapters.XLSX module in lib/raggio/tabular/adapters
 
 ### MVP First (User Story 1 Only)
 
-1. Complete Phase 1: Setup (T001-T004)
-2. Complete Phase 2: Foundational (T005-T012)
-3. Complete Phase 3: User Story 1 (T013-T043)
-4. **STOP and VALIDATE**: Test CSV and XLSX parsing independently
-5. Deploy/demo if ready - core value delivered
+1. Complete Phase 1: Setup (T001-T007) - Refactor to parser-agnostic
+2. Complete Phase 2: Foundational (T008-T017) - Define Parser behaviour
+3. Complete Phase 3: User Story 1 (T018-T045) - Explicit parser selection works
+4. **STOP and VALIDATE**: Test with example CSV/XLSX parsers
+5. Deploy/demo if ready - core value delivered with new architecture
 
 ### Incremental Delivery
 
-1. Setup + Foundational -> Foundation ready
-2. Add User Story 1 -> Test CSV/XLSX -> Demo (MVP!)
+1. Setup + Foundational -> Parser-agnostic foundation ready
+2. Add User Story 1 -> Test explicit parser -> Demo (MVP!)
 3. Add User Story 2 -> Test header variants/unions -> Demo
 4. Add User Story 3 -> Test filtering/transforms -> Demo
 5. Each story adds value without breaking previous stories
@@ -285,10 +297,10 @@ With multiple developers:
 
 1. Team completes Setup + Foundational together
 2. Once Foundational is done:
-   - Developer A: CSV adapter (T013-T018) + CSV-specific error handling (T038)
-   - Developer B: XLSX adapter (T019-T024) + XLSX-specific error handling (T039)
-   - Developer C: SheetSchema API + Parser (T025-T032)
-3. Integrate and complete public API (T033-T043)
+   - Developer A: Public API updates (T018-T025)
+   - Developer B: Example CSV parser (T030-T034)
+   - Developer C: Example XLSX parser (T035-T039)
+3. Integrate and complete row parsing updates (T026-T029, T042-T045)
 
 ---
 
@@ -299,6 +311,8 @@ With multiple developers:
 - Each user story should be independently completable and testable
 - Commit after each task or logical group
 - Stop at any checkpoint to validate story independently
+- **NEW**: Parser implementations are in `examples/`, not `lib/`
+- **NEW**: All `Raggio.Tabular` calls REQUIRE explicit `parser:` option
+- **NEW**: `lib/raggio/tabular/parser.ex` is the BEHAVIOUR, `row_parser.ex` is the parsing LOGIC
 - Legacy code in `old/` is reference for behavioral parity, not copy-paste source
-- `nimble_csv` requires explicit `:binary.copy/1` for values that outlive parse
-- `xlsx_reader` chosen for pure-Elixir; can swap to `spreadsheet` if performance insufficient
+- Example parsers use `nimble_csv` and `xlsx_reader` as `:dev` dependencies

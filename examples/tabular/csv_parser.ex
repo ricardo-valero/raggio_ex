@@ -1,60 +1,58 @@
-defmodule Raggio.Tabular.Adapters.CSV do
+defmodule Examples.Tabular.CSVParser do
   @moduledoc """
-  CSV adapter implementing the Tabular.Adapter behaviour.
+  Example CSV parser implementing `Raggio.Tabular.Parser` behaviour.
 
-  Supports:
-  - Comma, tab, semicolon delimiters (configurable)
-  - UTF-8 encoding with BOM detection
-  - RFC4180-compatible parsing via NimbleCSV
-  - Streaming for large files
+  This is a reference implementation using NimbleCSV. Copy and adapt
+  for your own needs, or use as-is for development/testing.
+
+  ## Setup
+
+  Add to your mix.exs:
+
+      {:nimble_csv, "~> 1.2"}
+
+  ## Usage
+
+      Raggio.Tabular.parse("data.csv", schema, parser: Examples.Tabular.CSVParser)
+
+  ## Options
+
+  - `:delimiter` - Field delimiter (default: ","). Use "\\t" for TSV.
+  - `:encoding` - Character encoding hint (default: :utf8)
   """
 
-  @behaviour Raggio.Tabular.Adapter
-
-  alias Raggio.Tabular.{Adapter, SheetInfo}
+  @behaviour Raggio.Tabular.Parser
 
   @csv_extensions [".csv", ".tsv", ".txt"]
   @default_delimiter ","
   @bom_utf8 <<0xEF, 0xBB, 0xBF>>
 
-  NimbleCSV.define(CommaParser, separator: ",", escape: "\"")
-  NimbleCSV.define(TabParser, separator: "\t", escape: "\"")
-  NimbleCSV.define(SemicolonParser, separator: ";", escape: "\"")
+  NimbleCSV.define(__MODULE__.CommaParser, separator: ",", escape: "\"")
+  NimbleCSV.define(__MODULE__.TabParser, separator: "\t", escape: "\"")
+  NimbleCSV.define(__MODULE__.SemicolonParser, separator: ";", escape: "\"")
 
-  @impl Raggio.Tabular.Adapter
-  def sniff(path) when is_binary(path) do
-    ext = Path.extname(path) |> String.downcase()
-
-    if ext in @csv_extensions do
-      :ok
-    else
-      :no
-    end
-  end
-
-  @impl Raggio.Tabular.Adapter
-  def list_sheets(path, _opts) do
+  @impl Raggio.Tabular.Parser
+  def sheet_names(path) when is_binary(path) do
     if File.exists?(path) do
-      {:ok, [SheetInfo.new("CSV", 0)]}
+      {:ok, ["default"]}
     else
-      {:error, Adapter.format_error(:not_found, "File not found: #{path}")}
+      {:error, %{type: :file_not_found, message: "File not found: #{path}"}}
     end
   end
 
-  @impl Raggio.Tabular.Adapter
-  def stream_rows(path, opts) do
+  @impl Raggio.Tabular.Parser
+  def stream_rows(path, opts) when is_binary(path) do
     delimiter = Keyword.get(opts, :delimiter, detect_delimiter(path))
-    encoding = Keyword.get(opts, :encoding, :utf8)
 
     cond do
       not File.exists?(path) ->
-        {:error, Adapter.format_error(:not_found, "File not found: #{path}")}
+        {:error, %{type: :file_not_found, message: "File not found: #{path}"}}
 
       empty_file?(path) ->
-        {:error, Adapter.format_error(:format_error, "File is empty: #{path}")}
+        {:error, %{type: :empty_file, message: "File is empty: #{path}"}}
 
       true ->
-        stream = build_row_stream(path, delimiter, encoding)
+        stream = build_row_stream(path, delimiter)
         {:ok, stream}
     end
   end
@@ -74,7 +72,7 @@ defmodule Raggio.Tabular.Adapters.CSV do
     end
   end
 
-  defp build_row_stream(path, delimiter, _encoding) do
+  defp build_row_stream(path, delimiter) do
     parser = parser_for_delimiter(delimiter)
 
     path
@@ -95,10 +93,10 @@ defmodule Raggio.Tabular.Adapters.CSV do
     end)
   end
 
-  defp parser_for_delimiter(","), do: CommaParser
-  defp parser_for_delimiter("\t"), do: TabParser
-  defp parser_for_delimiter(";"), do: SemicolonParser
-  defp parser_for_delimiter(_), do: CommaParser
+  defp parser_for_delimiter(","), do: __MODULE__.CommaParser
+  defp parser_for_delimiter("\t"), do: __MODULE__.TabParser
+  defp parser_for_delimiter(";"), do: __MODULE__.SemicolonParser
+  defp parser_for_delimiter(_), do: __MODULE__.CommaParser
 
   defp strip_bom(<<@bom_utf8, rest::binary>>), do: rest
   defp strip_bom(line), do: line

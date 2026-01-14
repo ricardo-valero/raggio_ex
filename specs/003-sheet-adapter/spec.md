@@ -72,9 +72,11 @@ A developer receives spreadsheets with leading junk rows (titles, notes), repeat
 ### Functional Requirements
 
 - **FR-001**: System MUST provide a Sheet adapter that reads tabular files into a consistent row representation that downstream parsing can consume
-- **FR-002**: System MUST support CSV and XLSX as first-class input formats
-- **FR-003**: System SHOULD treat TSV as a supported CSV variant (tab-delimited) without requiring a separate user-facing integration
-- **FR-004**: System MUST define a clear extension point so additional "sheet-like" formats can be supported in future without changing user code beyond configuration (e.g., adding a new adapter implementation)
+- **FR-002**: System MUST define format-agnostic behaviours for CSV and XLSX parsing that users implement with their preferred libraries
+- **FR-003**: System SHOULD support TSV as a CSV variant via the same behaviour (delimiter configuration)
+- **FR-004**: System MUST define a `Raggio.Tabular.Parser` behaviour as the extension point for all tabular formats; users provide implementations for CSV, XLSX, or custom formats
+- **FR-004a**: The `Raggio.Tabular.Parser` behaviour MUST define two callbacks: `stream_rows/2` (returns `Stream.t()` of row lists) and `sheet_names/1` (returns list of available sheet names)
+- **FR-004b**: Parser selection MUST be explicit at call site via `parser:` option (e.g., `Tabular.parse(source, parser: MyParser)`); no implicit registration or config-based resolution
 - **FR-005**: System MUST allow selecting the sheet/worksheet to parse for multi-sheet workbooks by name and by index
 - **FR-006**: System MUST support header-based parsing where columns can be resolved by header name, position, or both
 - **FR-007**: System MUST support header variants so that multiple header spellings/cases/synonyms can map to the same canonical field
@@ -94,7 +96,7 @@ A developer receives spreadsheets with leading junk rows (titles, notes), repeat
 
 ### Key Entities *(include if feature involves data)*
 
-- **Sheet Adapter**: A pluggable component that reads a file in a supported tabular format and yields rows plus metadata (e.g., available sheets). Provides a consistent interface across CSV, XLSX, and future formats.
+- **Sheet Adapter / Parser Behaviour**: A behaviour (`Raggio.Tabular.Parser`) that users implement to read tabular files. Required callbacks: `stream_rows/2` (returns `Stream.t()` of rows), `sheet_names/1` (returns list of sheet names for multi-sheet formats, or `["default"]` for single-sheet formats like CSV).
 - **Sheet Source**: The user-provided input representing a tabular file (e.g., a file path or in-memory content) along with optional parsing hints (delimiter, encoding, worksheet selection).
 - **Workbook**: A multi-sheet tabular container (e.g., an Excel file) with addressable worksheets.
 - **SheetSchema**: A declarative mapping that describes expected columns, how to resolve them (by header/position), which are optional, and how to parse values into typed fields.
@@ -116,14 +118,29 @@ A developer receives spreadsheets with leading junk rows (titles, notes), repeat
 - The primary users are developers building ingestion pipelines for spreadsheet-based inputs from business users
 - CSV and XLSX cover the vast majority of real-world spreadsheet imports; TSV is a common export variant
 - Parity with the existing legacy sheet parsing behavior is more important than adding many niche formats up front
+- Documentation will include copy-paste example implementations wrapping nimble_csv and xlsx_reader to help users get started
+- Existing adapter implementations in `lib/raggio/tabular/adapters/` will be moved to `examples/` as runnable reference code
 
 ### Constraints
 
 - The feature MUST remain format-agnostic at the API level: users configure what they need, and the adapter layer handles file-specific details
 - Error reporting MUST be consistent across formats so users can build uniform tooling around it
+- The library MUST NOT bundle specific parsing libraries (nimble_csv, xlsx_reader); users implement the `Raggio.Tabular.Parser` behaviour with their preferred libraries
+- The behaviour contract MUST be simple enough that wrapping common libraries (nimble_csv, xlsx_reader, etc.) requires minimal boilerplate
+
+## Clarifications
+
+### Session 2026-01-14
+
+- Q: Should parsing libraries (nimble_csv, xlsx_reader) be bundled or user-provided? → A: Behaviours only - users provide parser implementations
+- Q: What callbacks should the parser behaviour require? → A: Streaming-focused - `stream_rows/2` returning Stream, plus `sheet_names/1` for multi-sheet files
+- Q: How should users configure which parser to use? → A: Explicit module at call site - `Tabular.parse(source, parser: MyCSVParser)`
+- Q: Should the library provide reference parser implementations? → A: Documentation only - example implementations in guides (nimble_csv, xlsx_reader wrappers)
+- Q: What happens to existing adapter code in lib/raggio/tabular/adapters/? → A: Move to examples/ directory as runnable reference implementations
 
 ## Out of Scope
 
 - Live integrations (e.g., directly reading a remote Google Sheet without exporting a file)
 - Supporting niche formats without clear demand (e.g., fixed-width) in the initial release
 - Legacy XLS support unless required by demonstrated user demand
+- Bundled parsing library dependencies (nimble_csv, xlsx_reader) - users must provide their own parser implementations

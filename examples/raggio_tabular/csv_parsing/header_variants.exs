@@ -3,7 +3,7 @@ alias Raggio.Tabular.SheetSchema
 
 IO.puts("=== Header Variants Example ===\n")
 
-schema =
+_schema =
   SheetSchema.define([
     {:user_id, Schema.integer()},
     {:full_name, Schema.string(min: 1)},
@@ -27,5 +27,17 @@ IO.puts("  - id, name, email")
 IO.puts("  - uid, fullname, mail")
 IO.puts("  - user id, full name, e-mail")
 IO.puts("\nAll variants map to the same canonical fields: user_id, full_name, email_address")
+
+IO.puts("\nUsage with parser-agnostic API:")
+
+IO.puts("""
+  # Provide your parser implementation explicitly
+  {:ok, result} = Tabular.parse("users.csv", schema,
+    parser: Examples.Tabular.CSVParser
+  )
+
+  # The parser resolves header variants automatically
+  # regardless of which header naming the file uses
+""")
 
 IO.puts("\nHeader variants example complete!")

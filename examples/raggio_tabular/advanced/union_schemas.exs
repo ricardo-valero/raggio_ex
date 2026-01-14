@@ -17,21 +17,32 @@ format_v2 =
     {:amount, Schema.decimal()}
   ])
 
-union_schema = SheetSchema.union([format_v1, format_v2], strategy: :first_match)
+_union_schema = SheetSchema.union([format_v1, format_v2], strategy: :first_match)
 
 IO.puts("Union schema created with two format variants:")
 IO.puts("  Format V1: id (int), name (string), value (float)")
 IO.puts("  Format V2: identifier (string), description (string), amount (decimal)")
 IO.puts("\nStrategy: :first_match (use first schema that matches headers)")
 
-exact_one_union = SheetSchema.union([format_v1, format_v2], strategy: :exact_one)
+_exact_one_union = SheetSchema.union([format_v1, format_v2], strategy: :exact_one)
 
 IO.puts("\nAlternatively, use :exact_one strategy to require exactly one match")
 IO.puts("(returns error if multiple schemas match)")
 
+IO.puts("\nUsage with parser-agnostic API:")
+
+IO.puts("""
+  # Union schemas work with any parser implementation
+  {:ok, result} = Tabular.parse("data.csv", union_schema,
+    parser: Examples.Tabular.CSVParser
+  )
+
+  # result.matched_schema indicates which format was detected
+""")
+
 IO.puts("\nRow filtering example:")
 
-schema_with_filters =
+_schema_with_filters =
   SheetSchema.define([
     {:id, Schema.integer()},
     {:data, Schema.string()}
