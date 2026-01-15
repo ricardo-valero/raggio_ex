@@ -1,56 +1,73 @@
-alias RaggioTabular.Transforms.Excel
+alias Raggio.Tabular.Transform
 
-IO.puts("=== Excel Transforms Example ===\n")
+IO.puts("=== Spreadsheet Transforms Example ===\n")
 
-IO.puts("1. Decimal cleanup (currency):")
-test_decimals = ["$1,234.56", "€999.99", "1,000,000.00", "123.45"]
+IO.puts("1. Currency symbol stripping:")
+test_values = ["$1,234.56", "€999.99", "£50.00", "100.00"]
+strip = Transform.strip_currency()
 
-Enum.each(test_decimals, fn val ->
-  {:ok, result} = Excel.excel_decimal(val)
+Enum.each(test_values, fn val ->
+  result = strip.(val)
   IO.puts("  #{val} -> #{result}")
 end)
 
-IO.puts("\n2. Float ID to integer:")
-test_floats = ["123.0", "456.00", 789.0, 1000]
+IO.puts("\n2. Thousand separator removal:")
+test_numbers = ["1,234.56", "1,000,000.00", "999.99"]
+remove_sep = Transform.remove_thousand_separators()
 
-Enum.each(test_floats, fn val ->
-  {:ok, result} = Excel.excel_integer(val)
-  IO.puts("  #{inspect(val)} -> #{result}")
+Enum.each(test_numbers, fn val ->
+  result = remove_sep.(val)
+  IO.puts("  #{val} -> #{result}")
 end)
 
-IO.puts("\n3. Float to string ID:")
-test_ids = [123.0, 456, "789.0", "001234"]
-
-Enum.each(test_ids, fn val ->
-  {:ok, result} = Excel.excel_string(val)
-  IO.puts("  #{inspect(val)} -> \"#{result}\"")
-end)
-
-IO.puts("\n4. Whitespace trimming:")
-test_strings = ["  hello  ", " \u00A0world\u00A0 ", "no trim needed"]
+IO.puts("\n3. Whitespace trimming:")
+test_strings = ["  hello  ", " world ", "no trim"]
+trim = Transform.trim_whitespace()
 
 Enum.each(test_strings, fn val ->
-  {:ok, result} = Excel.excel_trim(val)
-  IO.puts("  #{inspect(val)} -> \"#{result}\"")
+  result = trim.(val)
+  IO.puts("  \"#{val}\" -> \"#{result}\"")
 end)
 
-IO.puts("\n5. Excel date serial:")
-test_dates = [44927, 44562, 45000]
+IO.puts("\n4. Float to integer ID:")
+test_floats = ["123.0", "456.00", "789.5"]
+float_to_int = Transform.float_to_integer_id()
 
-Enum.each(test_dates, fn val ->
-  {:ok, result} = Excel.excel_date(val)
+Enum.each(test_floats, fn val ->
+  result = float_to_int.(val)
   IO.puts("  #{val} -> #{result}")
 end)
 
-IO.puts("\n6. Chained transforms:")
-messy_value = "  $1,234.56  "
+IO.puts("\n5. Excel date serial conversion:")
+test_dates = ["44927", "45000"]
+date_convert = Transform.excel_date_serial_to_date()
 
-{:ok, result} =
-  Excel.pipe_transforms(messy_value, [
-    &Excel.excel_trim/1,
-    &Excel.excel_decimal/1
+Enum.each(test_dates, fn val ->
+  result = date_convert.(val)
+  IO.puts("  #{val} -> #{result}")
+end)
+
+IO.puts("\n6. Composed transforms:")
+
+composed =
+  Transform.compose([
+    Transform.trim_whitespace(),
+    Transform.strip_currency(),
+    Transform.remove_thousand_separators()
   ])
 
-IO.puts("  \"#{messy_value}\" -> #{result}")
+messy_value = "  $1,234.56  "
+result = composed.(messy_value)
+IO.puts("  \"#{messy_value}\" -> \"#{result}\"")
 
-IO.puts("\nExcel transforms complete!")
+IO.puts("\nTransforms can be applied to a SheetSchema:")
+
+IO.puts("""
+  schema = SheetSchema.define([...])
+    |> SheetSchema.with_transforms([
+      Transform.trim_whitespace(),
+      Transform.strip_currency()
+    ])
+""")
+
+IO.puts("\nSpreadsheet transforms example complete!")

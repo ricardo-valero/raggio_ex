@@ -1,7 +1,7 @@
 defmodule Raggio.MixProject do
   use Mix.Project
 
-  @version "0.1.0"
+  @version "0.1.1"
   @source_url "https://github.com/your-org/raggio"
 
   def project do
@@ -41,7 +41,11 @@ defmodule Raggio.MixProject do
       {:telemetry, "~> 1.0"},
 
       # Dev/Test
-      {:ex_doc, "~> 0.31", only: :dev, runtime: false}
+      {:ex_doc, "~> 0.31", only: :dev, runtime: false},
+
+      # Example parser implementations (dev only - not bundled in production)
+      {:nimble_csv, "~> 1.2", only: [:dev, :test]},
+      {:xlsx_reader, "~> 0.8", only: [:dev, :test]}
     ]
   end
 

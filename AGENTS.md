@@ -14,6 +14,9 @@ Auto-generated from all feature plans. Last updated: 2026-01-12
 - Elixir 1.14+ (per existing mix.exs) + Raggio.Schema (internal), Raggio.Syntax (internal), Decimal, Jason (existing deps) (002-bigquery-kit-migration)
 - BigQuery (external service via adapters) - no local storage (002-bigquery-kit-migration)
 - Elixir 1.14+ (per existing mix.exs) + Decimal ~> 2.0, Jason ~> 1.4, Telemetry ~> 1.0 (to add) (002-bigquery-kit-migration)
+- Elixir `~> 1.14` (per `mix.exs`) + `decimal`, `jason`, `telemetry` (existing); add `nimble_csv` for CSV parsing; add one XLSX reader (`xlsx_reader` or `spreadsheet`) (003-sheet-adapter)
+- Elixir ~> 1.14 (per existing mix.exs) + `decimal`, `jason`, `telemetry` (existing); NO parsing libraries bundled (003-sheet-adapter)
+- N/A (library for data parsing, not storage) (003-sheet-adapter)
 
 - Elixir 1.14+ (compatible with current Elixir ecosystem) + None initially (both package are foundational library with no external dependency beyond Elixir stdlib) (001-monorepo-restructure)
 
@@ -33,9 +36,9 @@ tests/
 Elixir 1.14+ (compatible with current Elixir ecosystem): Follow standard conventions
 
 ## Recent Changes
+- 003-sheet-adapter: Added Elixir ~> 1.14 (per existing mix.exs) + `decimal`, `jason`, `telemetry` (existing); NO parsing libraries bundled
+- 003-sheet-adapter: Added Elixir `~> 1.14` (per `mix.exs`) + `decimal`, `jason`, `telemetry` (existing); add `nimble_csv` for CSV parsing; add one XLSX reader (`xlsx_reader` or `spreadsheet`)
 - 002-bigquery-kit-migration: Added Elixir 1.14+ (per existing mix.exs) + Decimal ~> 2.0, Jason ~> 1.4, Telemetry ~> 1.0 (to add)
-- 002-bigquery-kit-migration: Added Elixir 1.14+ (per existing mix.exs) + Raggio.Schema (internal), Raggio.Syntax (internal), Decimal, Jason (existing deps)
-- 001-monorepo-restructure: Added Elixir 1.14+ (minimum supported version per spec) + Decimal (precise numerics), Jason (JSON encoding for BigQuery exporter)
 
 
 <!-- MANUAL ADDITIONS START -->
