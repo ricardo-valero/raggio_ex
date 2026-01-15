@@ -42,6 +42,7 @@ defmodule Raggio.MixProject do
 
       # Dev/Test
       {:ex_doc, "~> 0.31", only: :dev, runtime: false},
+      {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
 
       # Example parser implementations (dev only - not bundled in production)
       {:nimble_csv, "~> 1.2", only: [:dev, :test]},
