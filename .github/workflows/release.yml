@@ -1,0 +1,65 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+jobs:
+  hex_publish:
+    name: Hex publish
+    runs-on: ubuntu-latest
+
+    env:
+      MIX_ENV: dev
+      HEX_API_KEY: ${{ secrets.HEX_API_KEY }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up BEAM
+        uses: erlef/setup-beam@v1
+        with:
+          elixir-version: "1.18.4"
+          otp-version: "26.2"
+
+      - name: Cache deps and build
+        uses: actions/cache@v4
+        with:
+          path: |
+            deps
+            _build
+          key: ${{ runner.os }}-mix-${{ hashFiles('**/mix.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-mix-
+
+      - name: Install Hex/Rebar
+        run: |
+          mix local.hex --force
+          mix local.rebar --force
+
+      - name: Install dependencies
+        run: mix deps.get
+
+      - name: Compile
+        run: mix compile --warnings-as-errors
+
+      - name: Verify tag matches mix.exs version
+        run: |
+          VERSION=$(mix run -e 'IO.puts(Mix.Project.config()[:version])')
+          echo "mix.exs version: ${VERSION}"
+          echo "git tag: ${GITHUB_REF_NAME}"
+          test "v${VERSION}" = "${GITHUB_REF_NAME}"
+
+      - name: Configure Hex auth
+        run: mix hex.config api_key "${HEX_API_KEY}"
+
+      - name: Publish package
+        run: mix hex.publish --yes
+
+      - name: Publish docs
+        run: mix hex.publish docs --yes
