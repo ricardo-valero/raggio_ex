@@ -67,7 +67,7 @@ defmodule Raggio.BigQuery.API do
 
       Telemetry.span([:request], %{method: :get, resource: :dataset}, fn ->
         Retry.with_retry(fn ->
-          do_get(validated, url)
+          request(:get, validated, url)
         end)
       end)
     end
@@ -84,7 +84,7 @@ defmodule Raggio.BigQuery.API do
 
       Telemetry.span([:request], %{method: :get, resource: :table}, fn ->
         Retry.with_retry(fn ->
-          do_get(validated, url)
+          request(:get, validated, url)
         end)
       end)
     end
@@ -108,7 +108,7 @@ defmodule Raggio.BigQuery.API do
 
       Telemetry.span([:request], %{method: :post, resource: :table}, fn ->
         Retry.with_retry(fn ->
-          do_post(validated, url, body)
+          request(:post, validated, url, body)
         end)
       end)
     end
@@ -125,7 +125,7 @@ defmodule Raggio.BigQuery.API do
 
       Telemetry.span([:request], %{method: :patch, resource: :table}, fn ->
         Retry.with_retry(fn ->
-          do_patch(validated, url, table_resource)
+          request(:patch, validated, url, table_resource)
         end)
       end)
     end
@@ -201,7 +201,7 @@ defmodule Raggio.BigQuery.API do
     }
 
     Retry.with_retry(fn ->
-      case do_post(config, url, body) do
+      case request(:post, config, url, body) do
         {:ok, %{"insertErrors" => errors}} when errors != [] ->
           Logger.error("[Raggio.BigQuery.API] Insert errors: #{inspect(errors)}")
           {:error, {:insert_errors, errors}}
@@ -255,7 +255,7 @@ defmodule Raggio.BigQuery.API do
       "queryParameters" => query_params
     }
 
-    case do_post(config, url, body) do
+    case request(:post, config, url, body) do
       {:ok, %{"rows" => rows, "schema" => %{"fields" => fields}}} ->
         field_names = Enum.map(fields, & &1["name"])
         parsed_rows = Enum.map(rows, &parse_row(&1, field_names))
@@ -294,7 +294,7 @@ defmodule Raggio.BigQuery.API do
 
       Telemetry.span([:request], %{method: :post, resource: :job}, fn ->
         Retry.with_retry(fn ->
-          do_post(validated, url, job_config)
+          request(:post, validated, url, job_config)
         end)
       end)
     end
@@ -310,7 +310,7 @@ defmodule Raggio.BigQuery.API do
 
       Telemetry.span([:request], %{method: :get, resource: :job}, fn ->
         Retry.with_retry(fn ->
-          do_get(validated, url)
+          request(:get, validated, url)
         end)
       end)
     end
@@ -473,29 +473,15 @@ defmodule Raggio.BigQuery.API do
     config.auth.get_token(auth_config)
   end
 
-  defp do_get(config, url) do
+  defp request(method, config, url, body \\ nil) do
     with {:ok, token} <- get_token(config) do
       headers = build_headers(token)
       opts = [timeout: Map.get(config, :timeout, 30_000)]
+      encoded_body = if body, do: Jason.encode!(body), else: nil
 
-      case config.http_client.request(:get, url, headers, nil, opts) do
-        {:ok, %{status: 200, body: body}} ->
-          {:ok, Jason.decode!(body)}
-
-        {:ok, %{status: 404}} ->
-          {:error, :not_found}
-
-        {:ok, %{status: 401}} ->
-          {:error, :authentication_failed}
-
-        {:ok, %{status: 403}} ->
-          {:error, :permission_denied}
-
-        {:ok, %{status: 429, body: body}} ->
-          {:error, {:http_error, 429, body}}
-
-        {:ok, %{status: status, body: body}} ->
-          {:error, {:http_error, status, body}}
+      case config.http_client.request(method, url, headers, encoded_body, opts) do
+        {:ok, %{status: status, body: resp_body}} ->
+          handle_response(status, resp_body)
 
         {:error, reason} ->
           {:error, reason}
@@ -503,65 +489,13 @@ defmodule Raggio.BigQuery.API do
     end
   end
 
-  defp do_post(config, url, body) do
-    with {:ok, token} <- get_token(config) do
-      headers = build_headers(token)
-      opts = [timeout: Map.get(config, :timeout, 30_000)]
-      encoded_body = Jason.encode!(body)
-
-      case config.http_client.request(:post, url, headers, encoded_body, opts) do
-        {:ok, %{status: status, body: resp_body}} when status in [200, 201] ->
-          {:ok, Jason.decode!(resp_body)}
-
-        {:ok, %{status: 404}} ->
-          {:error, :not_found}
-
-        {:ok, %{status: 401}} ->
-          {:error, :authentication_failed}
-
-        {:ok, %{status: 403}} ->
-          {:error, :permission_denied}
-
-        {:ok, %{status: 429, body: resp_body}} ->
-          {:error, {:http_error, 429, resp_body}}
-
-        {:ok, %{status: status, body: resp_body}} ->
-          {:error, {:http_error, status, resp_body}}
-
-        {:error, reason} ->
-          {:error, reason}
-      end
-    end
-  end
-
-  defp do_patch(config, url, body) do
-    with {:ok, token} <- get_token(config) do
-      headers = build_headers(token)
-      opts = [timeout: Map.get(config, :timeout, 30_000)]
-      encoded_body = Jason.encode!(body)
-
-      case config.http_client.request(:patch, url, headers, encoded_body, opts) do
-        {:ok, %{status: 200, body: resp_body}} ->
-          {:ok, Jason.decode!(resp_body)}
-
-        {:ok, %{status: 404}} ->
-          {:error, :not_found}
-
-        {:ok, %{status: 401}} ->
-          {:error, :authentication_failed}
-
-        {:ok, %{status: 403}} ->
-          {:error, :permission_denied}
-
-        {:ok, %{status: 429, body: resp_body}} ->
-          {:error, {:http_error, 429, resp_body}}
-
-        {:ok, %{status: status, body: resp_body}} ->
-          {:error, {:http_error, status, resp_body}}
-
-        {:error, reason} ->
-          {:error, reason}
-      end
+  defp handle_response(status, body) do
+    case status do
+      status when status in [200, 201] -> {:ok, Jason.decode!(body)}
+      404 -> {:error, :not_found}
+      401 -> {:error, :authentication_failed}
+      403 -> {:error, :permission_denied}
+      _ -> {:error, {:http_error, status, body}}
     end
   end
 
