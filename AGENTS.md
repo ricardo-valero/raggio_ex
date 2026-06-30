@@ -1,45 +1,59 @@
-# raggio_ex Development Guidelines
+# Raggio — Agent Guide
 
-Auto-generated from all feature plans. Last updated: 2026-01-12
+Raggio is a single Elixir library (Ecto-style layout, **not** an umbrella) providing
+composable data-schema definition, validation, and adjacent tooling.
 
-## Active Technologies
-- Elixir 1.14+ + None initially (both packages are foundational libraries with no external dependencies beyond Elixir stdlib) (001-monorepo-restructure)
-- N/A (libraries for data validation and AST manipulation, not data storage) (001-monorepo-restructure)
-- Elixir 1.14+ (minimum supported version per spec clarifications) + None initially (both packages are foundational libraries with no external dependencies beyond Elixir stdlib) (001-monorepo-restructure)
-- N/A (libraries for data validation and syntax manipulation, not data storage) (001-monorepo-restructure)
-- Elixir 1.14+ (minimum version for modern features with good ecosystem compatibility) + Decimal (precise numeric types), Jason (JSON encoding for BigQuery exporter), standard Elixir libraries (Date, DateTime, Regex) (001-monorepo-restructure)
-- Elixir 1.14+ (minimum supported version per spec) + Decimal (precise numeric types), Jason (JSON encoding for BigQuery exporter), standard Elixir libraries (Date, DateTime, Regex) (001-monorepo-restructure)
-- Elixir 1.14+ (minimum supported version per spec) + Decimal (precise numerics), Jason (JSON encoding for BigQuery exporter) (001-monorepo-restructure)
-- N/A (library for data validation and syntax manipulation, not data storage) (001-monorepo-restructure)
-- Elixir 1.14+ (per existing mix.exs) + Raggio.Schema (internal), Raggio.Syntax (internal), Decimal, Jason (existing deps) (002-bigquery-kit-migration)
-- BigQuery (external service via adapters) - no local storage (002-bigquery-kit-migration)
-- Elixir 1.14+ (per existing mix.exs) + Decimal ~> 2.0, Jason ~> 1.4, Telemetry ~> 1.0 (to add) (002-bigquery-kit-migration)
-- Elixir `~> 1.14` (per `mix.exs`) + `decimal`, `jason`, `telemetry` (existing); add `nimble_csv` for CSV parsing; add one XLSX reader (`xlsx_reader` or `spreadsheet`) (003-sheet-adapter)
-- Elixir ~> 1.14 (per existing mix.exs) + `decimal`, `jason`, `telemetry` (existing); NO parsing libraries bundled (003-sheet-adapter)
-- N/A (library for data parsing, not storage) (003-sheet-adapter)
+## Submodules
 
-- Elixir 1.14+ (compatible with current Elixir ecosystem) + None initially (both package are foundational library with no external dependency beyond Elixir stdlib) (001-monorepo-restructure)
-
-## Project Structure
-
-```text
-src/
-tests/
-```
+| Module | Responsibility |
+|---|---|
+| `Raggio.Schema` | Composable schema definition + validation ("parse, don't validate"; Effect-TS/Schema-inspired; functions over macros). |
+| `Raggio.Syntax` | Building and transforming syntax/AST trees. |
+| `Raggio.Tabular` | CSV/XLSX/TSV parsing with schema-driven row parsing. |
+| `Raggio.BigQuery` | BigQuery repo / migrations / DDL kit (with `mix raggio.bigquery.*` tasks). |
+| `Raggio.Schema.Adapters` | Export/import adapters (BigQuery DDL, SheetSchema). |
 
 ## Commands
 
-# Add commands for Elixir 1.14+ (compatible with current Elixir ecosystem)
+```bash
+mix deps.get        # fetch dependencies
+mix compile         # compile
+mix test            # run the suite (ExUnit)
+mix format          # format (see .formatter.exs)
+mix credo           # static analysis (runs in CI on PRs)
+```
 
-## Code Style
+Run an example:
 
-Elixir 1.14+ (compatible with current Elixir ecosystem): Follow standard conventions
+```bash
+mix run examples/schema/basic_validation/simple_schema.exs
+```
 
-## Recent Changes
-- 003-sheet-adapter: Added Elixir ~> 1.14 (per existing mix.exs) + `decimal`, `jason`, `telemetry` (existing); NO parsing libraries bundled
-- 003-sheet-adapter: Added Elixir `~> 1.14` (per `mix.exs`) + `decimal`, `jason`, `telemetry` (existing); add `nimble_csv` for CSV parsing; add one XLSX reader (`xlsx_reader` or `spreadsheet`)
-- 002-bigquery-kit-migration: Added Elixir 1.14+ (per existing mix.exs) + Decimal ~> 2.0, Jason ~> 1.4, Telemetry ~> 1.0 (to add)
+A Nix dev shell is provided (`flake.nix`, auto-loaded via direnv / `.envrc`): Elixir,
+`git`, `gh`, and tooling. `nix develop` if you don't use direnv.
 
+## Conventions
 
-<!-- MANUAL ADDITIONS START -->
-<!-- MANUAL ADDITIONS END -->
+- **Elixir `~> 1.14`** minimum.
+- **Minimal runtime deps:** `decimal`, `jason`, `telemetry`. Parsing libraries
+  (`nimble_csv`, an XLSX reader) are **dev/test-only** — the core bundles no parser
+  (bring-your-own-parser); parser adapters live under `examples/`.
+- **Prefer function composition and plain data over macros.** Schema constraints are
+  keyword options on type constructors, e.g. `Schema.string(min: 3, max: 20)`. Keep the
+  constraint set small and orthogonal (`min`, `max`, `pattern`, `unique`).
+- **Validation contract:** `{:ok, parsed} | {:error, errors}`; errors are structured maps
+  with `:path`, `:message`, `:value`, `:constraint`. Modes: `:fail_fast` (default),
+  `:all_errors`, and `partial: true`.
+- **Examples are primary documentation.** Working, compilable scripts under
+  `examples/<submodule>/<use_case>` are exercised by `test/examples_test.exs`.
+
+## Spec workflow
+
+This project uses **OpenSpec** (it migrated off GitHub spec-kit / Specify).
+
+- Active and archived changes: `openspec/changes/` (shipped 001/002/003 features are under
+  `openspec/changes/archive/`).
+- Living capability specs: `openspec/specs/` (`schema`, `syntax`, `schema-adapters`,
+  `bigquery`, `tabular`).
+- Project context for AI artifact generation: `openspec/config.yaml`.
+- Useful: `openspec list`, `openspec list --specs`, `openspec validate <change>`.
