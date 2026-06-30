@@ -1,20 +1,20 @@
 ## 1. P0 — Test foundation
 
-- [ ] 1.1 Add `stream_data` as a `:test` dependency in `mix.exs`; `mix deps.get`
-- [ ] 1.2 Create `test/raggio/schema/` tree; unit-test every primitive constructor (`string/integer/float/boolean/date/datetime/decimal/atom`): accept valid, reject wrong type, default applied on nil
-- [ ] 1.3 Unit-test every composite (`struct/list/tuple/union/literal/record`): nesting, ordering, `unique`, tuple size mismatch, union variant selection, record key/value validation
-- [ ] 1.4 Unit-test constraints (`min/max/pattern/unique`) across string/number/list, and `optional`/`nullable`/`default`
-- [ ] 1.5 Unit-test validation modes: `:fail_fast` vs `:all_errors` error counts, and `partial: true` `{successes, failures}` shape; assert error `:path` correctness for nested failures
-- [ ] 1.6 Add property-based tests (`StreamData`): derive a valid-value generator per schema → assert `validate` accepts; targeted invalid generators → assert reject with expected `:constraint`
+- [x] 1.1 Add `stream_data` as a `:test` dependency in `mix.exs`; `mix deps.get`
+- [x] 1.2 Create `test/raggio/schema/` tree; unit-test every primitive constructor (`string/integer/float/boolean/date/datetime/decimal/atom`): accept valid, reject wrong type, default applied on nil
+- [x] 1.3 Unit-test every composite (`struct/list/tuple/union/literal/record`): nesting, ordering, `unique`, tuple size mismatch, union variant selection, record key/value validation
+- [x] 1.4 Unit-test constraints (`min/max/pattern/unique`) across string/number/list, and `optional`/`nullable`/`default`
+- [x] 1.5 Unit-test validation modes: `:fail_fast` vs `:all_errors` error counts, and `partial: true` `{successes, failures}` shape; assert error `:path` correctness for nested failures
+- [x] 1.6 Add property-based tests (`StreamData`): derive a valid-value generator per schema → assert `validate` accepts; targeted invalid generators → assert reject with expected `:constraint`
 - [ ] 1.7 Record current coverage baseline; wire into CI alongside Credo
 
 ## 2. P0 — JSON Schema generation
 
-- [ ] 2.1 Create `lib/raggio/schema/adapters/json_schema.ex` with `to_json_schema/1` walking `%Type{}` (mirror `adapters/bigquery.ex`)
-- [ ] 2.2 Map primitives + `date`/`datetime`/`decimal` (→ `string` + `format`/convention) and constraints → `minLength`/`maxLength`/`pattern`/`minimum`/`maximum`/`minItems`/`maxItems`/`uniqueItems`
-- [ ] 2.3 Map composites: `struct` → object/properties/required (exclude optional & defaulted), `list` → array/items, `tuple` → prefixItems, `record` → additionalProperties, `union` → anyOf, `literal` → enum/const, `nullable` → `type: [..., "null"]`, `default` → `default`
-- [ ] 2.4 Target draft 2020-12; emit `$schema`; read annotations (`title`/`description`/`examples`) once 5.5 lands
-- [ ] 2.5 Golden-file tests of generated documents; validate sample data against the generated schema with an external JSON Schema validator (or structural assertions); add an `examples/schema/adapters/json_schema_export.exs`
+- [x] 2.1 Create `lib/raggio/schema/adapters/json_schema.ex` with `to_json_schema/1` walking `%Type{}` (mirror `adapters/bigquery.ex`)
+- [x] 2.2 Map primitives + `date`/`datetime`/`decimal` (→ `string` + `format`/convention) and constraints → `minLength`/`maxLength`/`pattern`/`minimum`/`maximum`/`minItems`/`maxItems`/`uniqueItems`
+- [x] 2.3 Map composites: `struct` → object/properties/required (exclude optional & defaulted), `list` → array/items, `tuple` → prefixItems, `record` → additionalProperties, `union` → anyOf, `literal` → enum/const, `nullable` → `type: [..., "null"]`, `default` → `default`
+- [x] 2.4 Target draft 2020-12; emit `$schema`; read annotations (`title`/`description`/`examples`) from the metadata channel
+- [x] 2.5 Structural golden tests of generated documents; runnable `examples/schema/adapters/json_schema_export.exs` (smoke-tested by `examples_test`)
 
 ## 3. P1 — Custom refinements + expanded checks
 
