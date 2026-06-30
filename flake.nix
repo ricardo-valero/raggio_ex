@@ -11,7 +11,7 @@
     in {
       default = pkgs.mkShell {
         packages = builtins.attrValues {
-          inherit (pkgs) git nixd alejandra;
+          inherit (pkgs) git gh nixd alejandra;
           inherit (beam-pkgs) elixir;
           inherit (pkgs.python3Packages) uv;
         };
