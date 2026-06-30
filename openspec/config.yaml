@@ -1,0 +1,40 @@
+schema: spec-driven
+
+# Project context (shown to AI when creating artifacts).
+context: |
+  Raggio is a single Elixir library (Ecto-style layout, NOT an umbrella) providing
+  composable data-schema definition, validation, and adjacent tooling. Submodules:
+    - Raggio.Schema   — composable schema definition + validation ("parse, don't validate",
+                         Effect-TS/Schema-inspired ergonomics, function composition over macros)
+    - Raggio.Syntax   — building and transforming syntax/AST trees
+    - Raggio.Tabular  — CSV/XLSX/TSV parsing with schema-driven row parsing
+    - Raggio.BigQuery — BigQuery repo / migrations / DDL kit
+    - Raggio.Schema.Adapters — export/import adapters (BigQuery DDL, SheetSchema)
+
+  Tech stack & conventions:
+    - Elixir ~> 1.14 (minimum supported).
+    - Runtime deps kept minimal: Decimal, Jason, Telemetry. Parsing libraries
+      (nimble_csv, an XLSX reader) are dev/example-only — the core bundles NO parser
+      (bring-your-own-parser); adapters live under examples/.
+    - Design philosophy: prefer function composition and plain data over macros;
+      constraints expressed as keyword options on type constructors
+      (e.g. Schema.string(min: 3, max: 20)); a small orthogonal constraint set
+      (min, max, pattern, unique).
+    - Validation returns {:ok, parsed} | {:error, errors}; errors are structured maps
+      with :path, :message, :value, :constraint. Modes: :fail_fast (default),
+      :all_errors, and partial: true.
+    - Working, compilable examples under examples/<submodule>/<use_case> are primary
+      documentation and are exercised by test/examples_test.exs.
+    - Tooling: mix format, Credo (CI on PRs), ExUnit. Hex release workflow in CI.
+
+  Spec workflow: this project migrated from GitHub spec-kit (Specify) to OpenSpec.
+  The original 001/002/003 features are preserved under openspec/changes/archive/.
+
+# Per-artifact rules (optional)
+# Add custom rules for specific artifacts.
+# Example:
+#   rules:
+#     proposal:
+#       - Keep proposals under 500 words
+#     tasks:
+#       - Break tasks into chunks of max 2 hours
