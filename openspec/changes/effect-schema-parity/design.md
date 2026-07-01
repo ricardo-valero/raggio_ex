@@ -324,3 +324,51 @@ deferred  brand, template literals, ToEquivalence                        ← dom
 The actual swap — adding the `raggio_ex` dep, rewriting `Domain.Schema` as the shim, deleting
 the 8 engine modules, and the OpenAPI assembly — is a **separate change in integration-hub**
 (`back-domain-schema-with-raggio`) that depends on this one. Not captured in this repo.
+
+## Appendix — §3 AST shape spike (de-risks the foundational swap)
+
+Concrete target structs, so §3 is a mechanical port rather than an open rewrite.
+
+```elixir
+%Raggio.Schema.AST{
+  kind: :string|:integer|:float|:boolean|:atom|:date|:datetime|:decimal
+      | :literal|:struct|:array|:tuple|:record|:union|:declaration|:suspend,
+  # payload — only the slot for `kind` is meaningful:
+  literal:  term(),            # :literal → value, or list = closed set
+  element:  t(),               # :array   → inner
+  elements: [t()],             # :tuple   → positional
+  variants: [t()],             # :union   → members
+  key:      t(), value: t(),   # :record
+  fields:   [{atom, t()}],     # :struct  → ordered
+  module:   module(),          # :struct (bound target) | :declaration (opaque)
+  discriminator: atom() | nil, # :union   → nil untagged / field tagged
+  thunk:    (-> t()),          # :suspend
+  # uniform slots — on every node:
+  checks:      [Check.t()],    # was %Type.constraints
+  encoding:    [Link.t()],     # codec chain (P2; [] today)
+  context:     Context.t()|nil,# was node flags optional/nullable/default
+  annotations: %{}             # title/description/examples/format/json_schema
+}
+
+%Raggio.Schema.Check{ name: atom, run: (term -> :ok | {:error, msg}),
+                      meta: %{}, aborted: false }   # meta = JSON-Schema descriptor
+%Raggio.Schema.Context{ optional?: false, nullable?: false, default: :none }  # :none ≠ nil
+```
+
+Lowering (public API unchanged):
+- `Schema.string(min: 3)` → `%AST{kind: :string, checks: [%Check{name: :min_length,
+  meta: %{"minLength" => 3}}]}`
+- `s |> Schema.optional()` → sets `s.context.optional?: true` (NOT a node flag); `struct/1`
+  reads each field's `context`. `nullable`/`default` likewise → `context`.
+- `Schema.list(inner, unique: true)` → `%AST{kind: :array, element: inner, checks: [unique]}`
+
+Interpreter: type-match `kind` → run `checks` (honor `aborted`/mode) → run `encoding` decode
+(P2 no-op) → recurse composites (struct reads field `context`) → if `:struct` + `module`,
+`struct(mod, map)` else map. JSON Schema adapter: `base_type(kind) |> fold(checks[].meta) |>
+merge(annotations) |> required_from(contexts)` — i.e. the per-constraint mapping moves into
+each check's `meta`, and the adapter becomes check-agnostic (shorter).
+
+Scope guardrails for §3 (keep it behavior-preserving):
+- **Error shape stays flat** (`%Error{path, message, value, constraint}`). The richer Issue
+  *tree* is a later step, NOT part of §3 — this is what keeps the P0 tests green unmodified.
+- No public API change; `Type` deleted only once nothing reads it; adapters re-pointed to `AST`.
