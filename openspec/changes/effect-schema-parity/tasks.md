@@ -23,23 +23,24 @@
 > combinator **surface** identical. This is what makes refinements (P1) and the codec (P2) native
 > instead of bolt-ons. The public API and the P0 tests are the safety net for the swap.
 
-- [ ] 3.1 Introduce `Raggio.Schema.AST`: one uniform node = `kind` + a single payload slot per
-      kind (`literal` / `element` / `fields` / `module` / `variants` / `discriminator`) + the four
-      uniform slots `checks: [%Check{}]`, `encoding: [%Link{}]`, `context: %Context{}`,
-      `annotations: %{}`. Reserve `:suspend`.
-- [ ] 3.2 Introduce `%Raggio.Schema.Check{}` (predicate + message + machine-readable JSON-Schema
-      `meta`) and `%Context{}` (per-field `optional?`/`default`); port existing `min/max/pattern/
-      unique` from `%Type{}` fields to Checks and move `optional`/`nullable`/`default` to `context`
-- [ ] 3.3 Keep the surface unchanged: `Schema.string(min: 1)`, `Schema.struct/1`, `Schema.list/2`,
-      `s |> Schema.optional()` build the new AST + push Checks / set context. **No public API change;
-      the P0 tests must stay green unmodified.**
-- [ ] 3.4 Rewrite `Validator` as an interpreter over the uniform AST (one AST, many projections);
-      preserve `{:ok, _} | {:error, [Error]}`, `:fail_fast`/`:all_errors`, and `partial: true`
-- [ ] 3.5 Rewrite the JSON Schema adapter to walk the uniform AST (fold `checks[].meta` into
-      keywords instead of reading `constraints`); its golden tests stay green
-- [ ] 3.6 Update the BigQuery + Sheet adapters that read `%Type{}` to read the AST (or add a
-      compatibility accessor); their tests stay green
-- [ ] 3.7 Full suite green through the swap; delete `%Type{}` once nothing references it
+- [x] 3.1 Introduce `Raggio.Schema.AST`: one uniform node = `kind` + a single payload slot per
+      kind (`inner` / `fields` / `elements` / `key_type` / `value_type` / `values` / `module`) + the
+      uniform slots `checks: [%Check{}]`, `encoding: []`, `context: %Context{}`, `metadata: %{}`
+- [x] 3.2 Introduce `%Raggio.Schema.Check{}` (constraint tag + `run` + machine-readable JSON-Schema
+      `meta`) and `%Context{}` (per-field `optional?`/`nullable?`/`default: :none`); port existing
+      `min/max/pattern/unique` from `%Type{}` fields to Checks and move `optional`/`nullable`/`default`
+      to `context`
+- [x] 3.3 Surface unchanged: `Schema.string(min: 1)`, `Schema.struct/1`, `Schema.list/2`,
+      `s |> Schema.optional()` build the new AST + push Checks / set context. No public API change;
+      the P0 tests stayed green unmodified.
+- [x] 3.4 Rewrote `Validator` as an interpreter over the uniform AST; preserves
+      `{:ok, _} | {:error, [Error]}`, `:fail_fast`/`:all_errors`, and `partial: true`
+- [x] 3.5 Rewrote the JSON Schema adapter to walk the AST (folds `checks[].meta` into keywords);
+      golden tests green
+- [x] 3.6 Updated the BigQuery DDL adapter + `Raggio.BigQuery.Table` that read `%Type{}` to read the
+      AST + `context` (Sheet adapter emits code strings, reads no `%Type{}`); their tests green
+- [x] 3.7 Full suite green through the swap (247 tests + 6 properties); deleted `%Type{}` (one
+      white-box test reference `%Schema.Type{}` → `%Schema.AST{}`)
 
 ## 4. P1 — Checks + refinements (native to the uniform model)
 

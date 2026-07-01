@@ -78,7 +78,7 @@ defmodule Raggio.BigQuery.TableTest do
     test "returns Raggio.Schema struct type" do
       schema = BasicTable.__schema__()
 
-      assert %Schema.Type{kind: :struct, fields: fields} = schema
+      assert %Schema.AST{kind: :struct, fields: fields} = schema
       assert is_list(fields)
       assert Keyword.has_key?(fields, :id)
       assert Keyword.has_key?(fields, :name)
@@ -86,7 +86,7 @@ defmodule Raggio.BigQuery.TableTest do
     end
 
     test "schema field types are correct" do
-      %Schema.Type{fields: fields} = BasicTable.__schema__()
+      %Schema.AST{fields: fields} = BasicTable.__schema__()
 
       {_, id_type} = List.keyfind(fields, :id, 0)
       assert id_type.kind == :string

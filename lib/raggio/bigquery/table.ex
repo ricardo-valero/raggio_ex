@@ -45,7 +45,7 @@ defmodule Raggio.BigQuery.Table do
 
   @callback __dataset__() :: String.t()
   @callback __table__() :: String.t()
-  @callback __schema__() :: Raggio.Schema.Type.t()
+  @callback __schema__() :: Raggio.Schema.AST.t()
   @callback __time_partitioning__() :: keyword() | nil
   @callback __clustering__() :: [atom()] | nil
 
@@ -105,7 +105,7 @@ defmodule Raggio.BigQuery.Table do
   end
 
   @doc false
-  def schema_to_bigquery_format(%Raggio.Schema.Type{kind: :struct, fields: fields}) do
+  def schema_to_bigquery_format(%Raggio.Schema.AST{kind: :struct, fields: fields}) do
     %{
       "fields" =>
         Enum.map(fields, fn {name, type_schema} ->
@@ -114,7 +114,7 @@ defmodule Raggio.BigQuery.Table do
     }
   end
 
-  defp field_to_bigquery(name, %Raggio.Schema.Type{} = schema) do
+  defp field_to_bigquery(name, %Raggio.Schema.AST{} = schema) do
     base = %{
       "name" => to_string(name),
       "type" => type_to_bigquery(schema),
@@ -127,7 +127,7 @@ defmodule Raggio.BigQuery.Table do
 
       :list ->
         case schema.inner do
-          %Raggio.Schema.Type{kind: :struct, fields: inner_fields} ->
+          %Raggio.Schema.AST{kind: :struct, fields: inner_fields} ->
             Map.put(base, "fields", nested_fields_to_bigquery(inner_fields))
 
           _ ->
@@ -145,27 +145,27 @@ defmodule Raggio.BigQuery.Table do
     end)
   end
 
-  defp type_to_bigquery(%Raggio.Schema.Type{kind: :list, inner: inner}) do
+  defp type_to_bigquery(%Raggio.Schema.AST{kind: :list, inner: inner}) do
     type_to_bigquery(inner)
   end
 
-  defp type_to_bigquery(%Raggio.Schema.Type{kind: :struct}) do
+  defp type_to_bigquery(%Raggio.Schema.AST{kind: :struct}) do
     "RECORD"
   end
 
-  defp type_to_bigquery(%Raggio.Schema.Type{kind: kind}) do
+  defp type_to_bigquery(%Raggio.Schema.AST{kind: kind}) do
     Map.get(@type_mapping, kind, "STRING")
   end
 
-  defp mode_to_bigquery(%Raggio.Schema.Type{kind: :list}) do
+  defp mode_to_bigquery(%Raggio.Schema.AST{kind: :list}) do
     "REPEATED"
   end
 
-  defp mode_to_bigquery(%Raggio.Schema.Type{optional: true}) do
+  defp mode_to_bigquery(%Raggio.Schema.AST{context: %Raggio.Schema.Context{optional?: true}}) do
     "NULLABLE"
   end
 
-  defp mode_to_bigquery(%Raggio.Schema.Type{nullable: true}) do
+  defp mode_to_bigquery(%Raggio.Schema.AST{context: %Raggio.Schema.Context{nullable?: true}}) do
     "NULLABLE"
   end
 

@@ -1,9 +1,14 @@
 defmodule Raggio.Schema.Validator do
   @moduledoc """
-  Core validation engine for Raggio.Schema.
+  Core validation engine for `Raggio.Schema` — the interpreter over `Raggio.Schema.AST`.
+
+  Decoding is a walk of the uniform AST: match the node's `kind`, run its `checks`, then
+  recurse for composites. Optionality/nullability/defaults are read from each node's
+  `context`. (The `encoding` chain — the codec — is a later step; this interpreter is the
+  decode-from-unknown / validate direction.)
   """
 
-  alias Raggio.Schema.{Type, Error}
+  alias Raggio.Schema.{AST, Context, Error}
 
   def validate(schema, data), do: validate(schema, data, [])
 
@@ -17,16 +22,17 @@ defmodule Raggio.Schema.Validator do
     end
   end
 
-  defp do_validate(%Type{nullable: true}, nil, _path, _mode, _partial), do: {:ok, nil}
+  defp do_validate(%AST{context: %Context{nullable?: true}}, nil, _path, _mode, _partial),
+    do: {:ok, nil}
 
-  defp do_validate(%Type{default: default}, nil, _path, _mode, _partial)
-       when not is_nil(default) do
+  defp do_validate(%AST{context: %Context{default: default}}, nil, _path, _mode, _partial)
+       when default != :none do
     {:ok, default}
   end
 
-  defp do_validate(%Type{kind: kind} = schema, value, path, mode, partial) do
+  defp do_validate(%AST{kind: kind} = schema, value, path, mode, partial) do
     with {:ok, value} <- validate_type(kind, value, path),
-         {:ok, value} <- validate_constraints(schema, value, path, mode, partial) do
+         {:ok, value} <- validate_node(schema, value, path, mode, partial) do
       {:ok, value}
     end
   end
@@ -72,32 +78,28 @@ defmodule Raggio.Schema.Validator do
   defp validate_type(:union, value, _path), do: {:ok, value}
   defp validate_type(:literal, value, _path), do: {:ok, value}
 
-  defp validate_constraints(%Type{kind: :struct, fields: fields}, value, path, mode, partial) do
+  # --- per-kind node validation -------------------------------------------
+
+  defp validate_node(%AST{kind: :struct, fields: fields}, value, path, mode, partial) do
     validate_struct_fields(fields, value, path, mode, partial, [])
   end
 
-  defp validate_constraints(
-         %Type{kind: :list, inner: inner, constraints: constraints},
-         value,
-         path,
-         mode,
-         _partial
-       ) do
-    with {:ok, _} <- validate_list_constraints(constraints, value, path),
+  defp validate_node(%AST{kind: :list, inner: inner, checks: checks}, value, path, mode, _partial) do
+    with {:ok, _} <- run_checks(checks, value, path),
          {:ok, validated} <- validate_list_elements(inner, value, path, mode) do
       {:ok, validated}
     end
   end
 
-  defp validate_constraints(%Type{kind: :tuple, elements: schemas}, value, path, mode, _partial) do
+  defp validate_node(%AST{kind: :tuple, elements: schemas}, value, path, mode, _partial) do
     validate_tuple_elements(schemas, Tuple.to_list(value), path, mode, 0, [])
   end
 
-  defp validate_constraints(%Type{kind: :union, elements: schemas}, value, path, _mode, _partial) do
+  defp validate_node(%AST{kind: :union, elements: schemas}, value, path, _mode, _partial) do
     validate_union(schemas, value, path)
   end
 
-  defp validate_constraints(%Type{kind: :literal, values: values}, value, path, _mode, _partial) do
+  defp validate_node(%AST{kind: :literal, values: values}, value, path, _mode, _partial) do
     if value in values do
       {:ok, value}
     else
@@ -113,8 +115,8 @@ defmodule Raggio.Schema.Validator do
     end
   end
 
-  defp validate_constraints(
-         %Type{kind: :record, key_type: key_schema, value_type: value_schema},
+  defp validate_node(
+         %AST{kind: :record, key_type: key_schema, value_type: value_schema},
          value,
          path,
          mode,
@@ -123,9 +125,32 @@ defmodule Raggio.Schema.Validator do
     validate_record_entries(Map.to_list(value), key_schema, value_schema, path, mode, %{})
   end
 
-  defp validate_constraints(%Type{constraints: constraints}, value, path, _mode, _partial) do
-    validate_primitive_constraints(constraints, value, path)
+  # primitives — run the refinement checks
+  defp validate_node(%AST{checks: checks}, value, path, _mode, _partial) do
+    run_checks(checks, value, path)
   end
+
+  # --- checks --------------------------------------------------------------
+
+  defp run_checks(checks, value, path) do
+    errors =
+      Enum.reduce(checks, [], fn check, acc ->
+        case check.run.(value) do
+          :ok ->
+            acc
+
+          {:error, message} ->
+            [
+              %Error{path: path, message: message, value: value, constraint: check.constraint}
+              | acc
+            ]
+        end
+      end)
+
+    if errors == [], do: {:ok, value}, else: {:error, errors}
+  end
+
+  # --- structs -------------------------------------------------------------
 
   defp validate_struct_fields([], value, _path, _mode, _partial, errors) do
     if errors == [], do: {:ok, value}, else: {:error, errors}
@@ -141,15 +166,16 @@ defmodule Raggio.Schema.Validator do
        ) do
     field_value = Map.get(value, field_name)
     field_path = path ++ [field_name]
+    %Context{} = ctx = field_schema.context
 
     cond do
-      is_nil(field_value) and field_schema.optional ->
+      is_nil(field_value) and ctx.optional? ->
         validate_struct_fields(rest, value, path, mode, partial, errors)
 
       is_nil(field_value) and partial ->
         validate_struct_fields(rest, value, path, mode, partial, errors)
 
-      is_nil(field_value) and not field_schema.nullable and is_nil(field_schema.default) ->
+      is_nil(field_value) and not ctx.nullable? and ctx.default == :none ->
         error = %Error{
           path: field_path,
           message: "is required",
@@ -177,52 +203,7 @@ defmodule Raggio.Schema.Validator do
     end
   end
 
-  defp validate_list_constraints(constraints, value, path) do
-    errors =
-      Enum.reduce(constraints, [], fn
-        {:min, min}, acc when length(value) < min ->
-          [
-            %Error{
-              path: path,
-              message: "must have at least #{min} element(s)",
-              value: value,
-              constraint: :min
-            }
-            | acc
-          ]
-
-        {:max, max}, acc when length(value) > max ->
-          [
-            %Error{
-              path: path,
-              message: "must have at most #{max} element(s)",
-              value: value,
-              constraint: :max
-            }
-            | acc
-          ]
-
-        {:unique, true}, acc ->
-          if length(value) == length(Enum.uniq(value)) do
-            acc
-          else
-            [
-              %Error{
-                path: path,
-                message: "must have unique elements",
-                value: value,
-                constraint: :unique
-              }
-              | acc
-            ]
-          end
-
-        _, acc ->
-          acc
-      end)
-
-    if errors == [], do: {:ok, value}, else: {:error, errors}
-  end
+  # --- lists ---------------------------------------------------------------
 
   defp validate_list_elements(inner_schema, value, path, mode) do
     validate_list_elements_loop(inner_schema, value, path, mode, 0, [])
@@ -243,6 +224,8 @@ defmodule Raggio.Schema.Validator do
         validate_list_elements_loop(inner, rest, path, mode, idx + 1, acc)
     end
   end
+
+  # --- tuples --------------------------------------------------------------
 
   defp validate_tuple_elements([], [], _path, _mode, _idx, acc),
     do: {:ok, List.to_tuple(Enum.reverse(acc))}
@@ -269,6 +252,8 @@ defmodule Raggio.Schema.Validator do
      ]}
   end
 
+  # --- unions --------------------------------------------------------------
+
   defp validate_union([], value, path) do
     {:error,
      [
@@ -288,6 +273,8 @@ defmodule Raggio.Schema.Validator do
     end
   end
 
+  # --- records -------------------------------------------------------------
+
   defp validate_record_entries([], _key_schema, _value_schema, _path, _mode, acc), do: {:ok, acc}
 
   defp validate_record_entries([{k, v} | rest], key_schema, value_schema, path, mode, acc) do
@@ -302,65 +289,6 @@ defmodule Raggio.Schema.Validator do
         Map.put(acc, validated_k, validated_v)
       )
     end
-  end
-
-  defp validate_primitive_constraints(constraints, value, path) do
-    errors =
-      Enum.reduce(constraints, [], fn
-        {:min, min}, acc when is_binary(value) and byte_size(value) < min ->
-          [
-            %Error{
-              path: path,
-              message: "must be at least #{min} character(s)",
-              value: value,
-              constraint: :min
-            }
-            | acc
-          ]
-
-        {:min, min}, acc when is_number(value) and value < min ->
-          [
-            %Error{path: path, message: "must be at least #{min}", value: value, constraint: :min}
-            | acc
-          ]
-
-        {:max, max}, acc when is_binary(value) and byte_size(value) > max ->
-          [
-            %Error{
-              path: path,
-              message: "must be at most #{max} character(s)",
-              value: value,
-              constraint: :max
-            }
-            | acc
-          ]
-
-        {:max, max}, acc when is_number(value) and value > max ->
-          [
-            %Error{path: path, message: "must be at most #{max}", value: value, constraint: :max}
-            | acc
-          ]
-
-        {:pattern, pattern}, acc when is_binary(value) ->
-          if Regex.match?(pattern, value) do
-            acc
-          else
-            [
-              %Error{
-                path: path,
-                message: "does not match pattern",
-                value: value,
-                constraint: :pattern
-              }
-              | acc
-            ]
-          end
-
-        _, acc ->
-          acc
-      end)
-
-    if errors == [], do: {:ok, value}, else: {:error, errors}
   end
 
   defp type_error(path, value, expected) do

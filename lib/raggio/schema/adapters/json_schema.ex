@@ -3,19 +3,10 @@ defmodule Raggio.Schema.Adapters.JsonSchema do
   Generate a [JSON Schema](https://json-schema.org) (draft 2020-12) document from a
   `Raggio.Schema` definition.
 
-  Like `Raggio.Schema.Adapters.BigQuery`, this walks the `Raggio.Schema.Type` AST and
-  maps each node to its JSON Schema representation:
-
-    * primitives map to `type` (with `format` for date/datetime/decimal),
-    * constraints map to keywords (`minLength`/`maxLength`/`pattern`,
-      `minimum`/`maximum`, `minItems`/`maxItems`/`uniqueItems`),
-    * `struct` maps to an `object` with `properties` and `required` (optional and
-      defaulted fields are excluded from `required`),
-    * `list` -> `array`/`items`, `tuple` -> `prefixItems`, `record` ->
-      `additionalProperties`, `union` -> `anyOf`, `literal` -> `const`/`enum`,
-    * `nullable` widens `type` to include `"null"`, `default` emits `default`,
-    * annotations on the `:metadata` channel (`title`, `description`, `examples`)
-      flow into the emitted schema object.
+  A projection of the uniform `Raggio.Schema.AST`: map the node `kind` to a JSON type,
+  then **fold each check's `meta`** into the object (so the adapter needs no knowledge of
+  individual constraints), then layer on composite structure, per-field `context`
+  (`required`/`nullable`/`default`), and annotations (`title`/`description`/`examples`).
 
   ## Example
 
@@ -30,26 +21,22 @@ defmodule Raggio.Schema.Adapters.JsonSchema do
       ["name"]
   """
 
-  alias Raggio.Schema.Type
+  alias Raggio.Schema.{AST, Context}
 
   @draft "https://json-schema.org/draft/2020-12/schema"
 
-  @formats %{
-    date: "date",
-    datetime: "date-time",
-    decimal: "decimal"
-  }
+  @formats %{date: "date", datetime: "date-time", decimal: "decimal"}
 
   @doc """
   Convert a schema into a JSON Schema document (a plain map).
 
-  The top-level document includes the `$schema` draft identifier. Pass
-  `root: false` to omit it (used internally for nested schemas).
+  The top-level document includes the `$schema` draft identifier. Pass `root: false` to
+  omit it (used internally for nested schemas).
   """
-  @spec to_json_schema(Type.t(), keyword()) :: map()
+  @spec to_json_schema(AST.t(), keyword()) :: map()
   def to_json_schema(schema, opts \\ [])
 
-  def to_json_schema(%Type{} = schema, opts) do
+  def to_json_schema(%AST{} = schema, opts) do
     base = build(schema)
 
     if Keyword.get(opts, :root, true) do
@@ -62,54 +49,34 @@ defmodule Raggio.Schema.Adapters.JsonSchema do
   @doc """
   Convert a schema into a JSON-encoded string. Requires `Jason`.
   """
-  @spec to_json_string(Type.t(), keyword()) :: String.t()
-  def to_json_string(%Type{} = schema, opts \\ []) do
+  @spec to_json_string(AST.t(), keyword()) :: String.t()
+  def to_json_string(%AST{} = schema, opts \\ []) do
     schema |> to_json_schema(opts) |> Jason.encode!(pretty: Keyword.get(opts, :pretty, true))
   end
 
   # --- node dispatch -------------------------------------------------------
 
-  defp build(%Type{} = schema) do
+  defp build(%AST{} = schema) do
     schema
     |> base_for_kind()
+    |> fold_checks(schema)
     |> with_annotations(schema)
     |> with_nullable(schema)
     |> with_default(schema)
   end
 
-  defp base_for_kind(%Type{kind: :string, constraints: c}) do
-    %{"type" => "string"}
-    |> put_some("minLength", c[:min])
-    |> put_some("maxLength", c[:max])
-    |> put_some("pattern", pattern_source(c[:pattern]))
-  end
-
-  defp base_for_kind(%Type{kind: :integer, constraints: c}) do
-    %{"type" => "integer"}
-    |> put_some("minimum", c[:min])
-    |> put_some("maximum", c[:max])
-  end
-
-  defp base_for_kind(%Type{kind: :float, constraints: c}) do
-    %{"type" => "number"}
-    |> put_some("minimum", c[:min])
-    |> put_some("maximum", c[:max])
-  end
-
-  defp base_for_kind(%Type{kind: :boolean}), do: %{"type" => "boolean"}
-
+  defp base_for_kind(%AST{kind: :string}), do: %{"type" => "string"}
+  defp base_for_kind(%AST{kind: :integer}), do: %{"type" => "integer"}
+  defp base_for_kind(%AST{kind: :float}), do: %{"type" => "number"}
+  defp base_for_kind(%AST{kind: :boolean}), do: %{"type" => "boolean"}
   # atoms serialize as strings in JSON
-  defp base_for_kind(%Type{kind: :atom}), do: %{"type" => "string"}
+  defp base_for_kind(%AST{kind: :atom}), do: %{"type" => "string"}
 
-  defp base_for_kind(%Type{kind: kind}) when kind in [:date, :datetime] do
+  defp base_for_kind(%AST{kind: kind}) when kind in [:date, :datetime, :decimal] do
     %{"type" => "string", "format" => @formats[kind]}
   end
 
-  defp base_for_kind(%Type{kind: :decimal}) do
-    %{"type" => "string", "format" => @formats[:decimal]}
-  end
-
-  defp base_for_kind(%Type{kind: :struct, fields: fields}) do
+  defp base_for_kind(%AST{kind: :struct, fields: fields}) do
     properties =
       for {name, field_schema} <- fields, into: %{} do
         {to_string(name), build(field_schema)}
@@ -124,14 +91,11 @@ defmodule Raggio.Schema.Adapters.JsonSchema do
     |> put_unless_empty("required", required)
   end
 
-  defp base_for_kind(%Type{kind: :list, inner: inner, constraints: c}) do
+  defp base_for_kind(%AST{kind: :list, inner: inner}) do
     %{"type" => "array", "items" => build(inner)}
-    |> put_some("minItems", c[:min])
-    |> put_some("maxItems", c[:max])
-    |> put_some("uniqueItems", if(c[:unique], do: true))
   end
 
-  defp base_for_kind(%Type{kind: :tuple, elements: elements}) do
+  defp base_for_kind(%AST{kind: :tuple, elements: elements}) do
     n = length(elements)
 
     %{
@@ -143,24 +107,30 @@ defmodule Raggio.Schema.Adapters.JsonSchema do
     }
   end
 
-  defp base_for_kind(%Type{kind: :union, elements: elements}) do
+  defp base_for_kind(%AST{kind: :union, elements: elements}) do
     %{"anyOf" => Enum.map(elements, &build/1)}
   end
 
-  defp base_for_kind(%Type{kind: :literal, values: values}) do
+  defp base_for_kind(%AST{kind: :literal, values: values}) do
     case Enum.map(values, &encode_value/1) do
       [single] -> %{"const" => single}
       many -> %{"enum" => many}
     end
   end
 
-  defp base_for_kind(%Type{kind: :record, value_type: value_type}) do
+  defp base_for_kind(%AST{kind: :record, value_type: value_type}) do
     %{"type" => "object", "additionalProperties" => build(value_type)}
   end
 
-  # --- modifiers -----------------------------------------------------------
+  # --- slots ---------------------------------------------------------------
 
-  defp with_annotations(json, %Type{metadata: metadata}) when is_map(metadata) do
+  # Fold each check's machine-readable descriptor into the schema object — the adapter
+  # stays agnostic of what any individual check does.
+  defp fold_checks(json, %AST{checks: checks}) do
+    Enum.reduce(checks, json, fn check, acc -> Map.merge(acc, check.meta) end)
+  end
+
+  defp with_annotations(json, %AST{metadata: metadata}) when is_map(metadata) do
     json
     |> put_some("title", get_meta(metadata, :title))
     |> put_some("description", get_meta(metadata, :description))
@@ -169,34 +139,28 @@ defmodule Raggio.Schema.Adapters.JsonSchema do
 
   defp with_annotations(json, _schema), do: json
 
-  # `nullable` widens the type to include "null" (or uses anyOf when there is no
-  # single concrete `type` to widen, e.g. unions/literals).
-  defp with_nullable(json, %Type{nullable: true}) do
+  # `nullable` widens the type to include "null" (or uses anyOf when there is no single
+  # concrete `type` to widen, e.g. unions/literals).
+  defp with_nullable(json, %AST{context: %Context{nullable?: true}}) do
     case json do
-      %{"type" => type} when is_binary(type) ->
-        Map.put(json, "type", [type, "null"])
-
-      _ ->
-        %{"anyOf" => [json, %{"type" => "null"}]}
+      %{"type" => type} when is_binary(type) -> Map.put(json, "type", [type, "null"])
+      _ -> %{"anyOf" => [json, %{"type" => "null"}]}
     end
   end
 
   defp with_nullable(json, _schema), do: json
 
-  defp with_default(json, %Type{default: nil}), do: json
+  defp with_default(json, %AST{context: %Context{default: :none}}), do: json
 
-  defp with_default(json, %Type{default: default}),
+  defp with_default(json, %AST{context: %Context{default: default}}),
     do: Map.put(json, "default", encode_value(default))
 
   # --- helpers -------------------------------------------------------------
 
   # A struct field is required unless it is optional or carries a default.
-  defp required_field?(%Type{optional: true}), do: false
-  defp required_field?(%Type{default: default}) when not is_nil(default), do: false
-  defp required_field?(%Type{}), do: true
-
-  defp pattern_source(nil), do: nil
-  defp pattern_source(%Regex{} = regex), do: Regex.source(regex)
+  defp required_field?(%AST{context: %Context{optional?: true}}), do: false
+  defp required_field?(%AST{context: %Context{default: default}}) when default != :none, do: false
+  defp required_field?(%AST{}), do: true
 
   defp get_meta(metadata, key) do
     Map.get(metadata, key) || Map.get(metadata, to_string(key))
