@@ -230,3 +230,97 @@ deferred  brand, Symbol/BigInt, class-based,
 - **JSON Schema fidelity for Elixir-only types** (`decimal`, `atom`, `date`) requires
   annotation/`format` conventions that no external validator enforces natively — document the
   chosen representation.
+
+## Consumer-driven parity: integration-hub's `Domain.Schema`
+
+`integration-hub` PR #60 (merged, change `replace-ecto-domain-with-schema`) built
+`Domain.Schema` — an effect-smol-shaped Elixir engine (uniform AST + `checks`/`encoding`/
+`context`/`annotations` slots, Issue tree, tagged unions, literals-as-primitive,
+Declarations, Transforms, and a JSON Schema/OpenAPI compiler). It is, on the effect-smol
+axis, *ahead* of raggio's current `%Type{}`/Validator model on nearly every dimension.
+
+The intended end-state is **not** two engines: `Domain.Schema` becomes a **thin macro shim**
+that lowers its `schema do field … end` DSL onto `Raggio.Schema`, and the *engine logic*
+lives in raggio. This makes `Domain.Schema`'s test suite (domain 150 green) the concrete
+**acceptance gate** for "raggio is on par": fuzzy parity → green-or-not.
+
+This reframes the roadmap: parity is driven by what a real consumer uses, not an abstract
+checklist. Items the domain never uses (brand, template literals, `ToEquivalence`,
+`suspend`/recursion) stay deferred — *as they are in `Domain.Schema` itself*.
+
+### Decision D8 — `@type t` / struct generation is macro territory; ship it opt-in
+A runtime value (`Schema.struct([...])` returning data) **cannot** emit an `@type t` or a
+`defstruct` — those are compile-time. Only a macro can, and a macro sees the field
+declarations literally, so it can derive an accurate typespec (`{:float, gt: 0}` → `float()`,
+module-typed → `Mod.t()`, union → `A.t() | B.t()`). Therefore the runtime core stays
+macro-free, and an **optional `use Raggio.Schema.Struct`** macro provides the Ecto-like
+call-site, `defstruct`, `@type t`, `__schema__/0`, and `decode`/`encode` wrappers. integration-
+hub's `Domain.Schema` then collapses to ~a re-export of that macro.
+
+### Decision D9 — `decode` builds the struct (effect's Type projection), opt-in via a bound module
+effect-smol's `decode`/`make` yield the **Type** projection; for a `Class`/struct schema that
+is the typed value, and `Domain.Schema.parse` returns the member struct. A validated *map* is
+the weaker model. So a `:struct` node may carry a **bound `:module`** (mirroring
+`Domain.Schema.AST`'s `:module` slot); the interpreter returns `struct(Mod, decoded)` when
+bound and a plain map otherwise. The macro (D8) binds the module; the runtime API stays
+map-based. This is both more powerful and more effect-aligned.
+
+### Decision D10 — promote Declarations and tagged unions to table-stakes
+The consumer uses **Declarations** (opaque custom types, e.g. `Json`) and **tagged unions**
+(carrier `{name, service}` made unrepresentable-when-invalid). These move out of the deferred
+tier / P3 into the consumer-driven tier (task group 6). Untagged unions and literal *sets*
+with normalizing decode (`:downcase`/`:upcase`) come along.
+
+### Decision D11 — uniform-node + checks *engine*, behind the macro-less combinator *surface*
+Engine architecture and construction surface are **orthogonal axes**:
+
+```
+                  SURFACE (declare)       macro DSL          macro-less combinators
+ENGINE (AST)   bespoke node + fields          —              raggio TODAY
+               uniform node + checks     Domain.Schema        ⭐ TARGET = effect-smol itself
+```
+
+effect-smol lives in the bottom-right: its `Schema` is **macro-less combinators**
+(`Schema.String.pipe(minLength(2))`, `Schema.Struct({…})`, `decodeUnknownSync`) over a
+**uniform** AST. So raggio's macro-less surface is *already* the effect-faithful surface;
+what's wrong is the **engine** — raggio stores `min: 1` as a *field* on a per-kind struct
+(the `data_schema` bespoke-node model), where effect stores it as a `Check` on a uniform node.
+
+**Decision:** keep raggio's column (macro-less combinators — `Schema.string(min: 1)`,
+`Schema.struct/1`, `s |> Schema.optional()`), drop one row — replace the bespoke `%Type{kind,
+constraints, inner, fields, optional, …}` with a **uniform `%AST{kind, checks, encoding,
+context, annotations}`** (shaped like `Domain.Schema.AST`). Constructors become thin builders
+that push `Check`s and set `context`; `Validator` becomes an interpreter over the uniform AST
+(one AST, many projections). This lands raggio exactly where effect-smol is.
+
+Consequences:
+- **Refinements (P1) and the codec (P2) become native, not bolt-ons.** A refinement *is* a
+  `Check`; the codec *is* the `encoding` chain. Adopting the uniform AST de-risks the rest of
+  the roadmap instead of piling onto the bespoke base. This **supersedes** the earlier
+  "grow the current model" framing (D1/D3) — those become *projections of* the uniform model.
+- **The P0 behavioral tests are the safety net.** They assert through the public API, so they
+  survive the engine swap; the JSON Schema adapter (reads `%Type{}` directly) is the one piece
+  that must be rewritten to walk the AST, gated by its own golden tests.
+- **The opt-in `use Raggio.Schema.Struct` macro (D8) is effect's `Schema.Class` analog** — the
+  single place effect itself reaches for a class. Combinators for the 95%, a Class-like macro
+  for named structs + `@type t`. Fully consistent.
+- **Cost:** a breaking *internal* rewrite (`Type` → `AST`, `Validator` → interpreter, rewrite
+  the BigQuery/Sheet/JSON-Schema readers). It lands as a **foundational task group (§3)** that
+  runs *before* P1/P2. Public surface + tests shield callers.
+
+### Revised priority (consumer-driven, D11-sequenced)
+```
+P0   done — tests + JSON Schema adapter (#7)
+F    FOUNDATIONAL — uniform-node + checks engine swap (§3, D11)          ← everything builds on this
+P1   refine + expanded checks (gt/lt/multiple_of/string-content)        ← now native Checks
+P2   codec: decode/encode + transforms via the encoding chain            ← now native encoding slot
+C    consumer table-stakes: struct-building decode, struct macro,        ← group 7, gated by
+     declarations, tagged unions, literal sets, OpenAPI-grade JSON          integration-hub tests
+P3   strictness, annotations, struct utilities, recursion (suspend)     ← ergonomics
+deferred  brand, template literals, ToEquivalence                        ← domain doesn't use them
+```
+
+### Out of scope here (lives in integration-hub)
+The actual swap — adding the `raggio_ex` dep, rewriting `Domain.Schema` as the shim, deleting
+the 8 engine modules, and the OpenAPI assembly — is a **separate change in integration-hub**
+(`back-domain-schema-with-raggio`) that depends on this one. Not captured in this repo.

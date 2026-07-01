@@ -22,6 +22,13 @@ Two gaps are strategic rather than cosmetic:
    `Raggio.Schema.Adapters.BigQuery` (`to_ddl/2`), so a JSON Schema exporter is tractable
    and high-value — and it doubles as the cleanest external contract for the whole library.
 
+There is now a **concrete consumer** that turns this from an abstract exercise into a gated
+one: `integration-hub` PR #60 (merged) built `Domain.Schema`, an effect-smol-shaped Elixir
+engine, and the intended end-state is for raggio to back a **thin macro shim** there rather
+than maintain a second engine. So parity is re-scoped to *what that consumer actually uses*,
+and "on par" gets a hard definition: **integration-hub's `Domain.Schema` test suite passes
+against a raggio-backed shim.** See design "Consumer-driven parity" (D8–D10) and task group 6.
+
 ## What Changes
 
 This change establishes a parity baseline and proposes a prioritized roadmap to close the

@@ -16,32 +16,86 @@
 - [x] 2.4 Target draft 2020-12; emit `$schema`; read annotations (`title`/`description`/`examples`) from the metadata channel
 - [x] 2.5 Structural golden tests of generated documents; runnable `examples/schema/adapters/json_schema_export.exs` (smoke-tested by `examples_test`)
 
-## 3. P1 — Custom refinements + expanded checks
+## 3. Foundational — uniform-node + checks engine (architecture pivot, D11)
 
-- [ ] 3.1 Add a `refine` node kind to `Type` and `Schema.refine/3` (predicate + message); evaluate after base validation in `validator.ex`, compatible with both modes
-- [ ] 3.2 Add checks: exclusive bounds (`greater_than`/`less_than`), `multiple_of`, `int`, `non_empty`, `starts_with`/`ends_with`/`includes`, case checks, grapheme `length`
-- [ ] 3.3 Promote `email`/`url`/`uuid` to named checks (good messages + JSON Schema `format`); keep regex helpers as the underlying patterns
-- [ ] 3.4 Tests (unit + property) for every new check and for custom refinements
+> **Do this before P1/P2.** Swap the internal engine from the bespoke `%Type{kind, constraints,
+> …}` model to an effect-smol-shaped **uniform node + checks** AST, while keeping the macro-less
+> combinator **surface** identical. This is what makes refinements (P1) and the codec (P2) native
+> instead of bolt-ons. The public API and the P0 tests are the safety net for the swap.
 
-## 4. P2 — Bidirectional transforms / codec
+- [ ] 3.1 Introduce `Raggio.Schema.AST`: one uniform node = `kind` + a single payload slot per
+      kind (`literal` / `element` / `fields` / `module` / `variants` / `discriminator`) + the four
+      uniform slots `checks: [%Check{}]`, `encoding: [%Link{}]`, `context: %Context{}`,
+      `annotations: %{}`. Reserve `:suspend`.
+- [ ] 3.2 Introduce `%Raggio.Schema.Check{}` (predicate + message + machine-readable JSON-Schema
+      `meta`) and `%Context{}` (per-field `optional?`/`default`); port existing `min/max/pattern/
+      unique` from `%Type{}` fields to Checks and move `optional`/`nullable`/`default` to `context`
+- [ ] 3.3 Keep the surface unchanged: `Schema.string(min: 1)`, `Schema.struct/1`, `Schema.list/2`,
+      `s |> Schema.optional()` build the new AST + push Checks / set context. **No public API change;
+      the P0 tests must stay green unmodified.**
+- [ ] 3.4 Rewrite `Validator` as an interpreter over the uniform AST (one AST, many projections);
+      preserve `{:ok, _} | {:error, [Error]}`, `:fail_fast`/`:all_errors`, and `partial: true`
+- [ ] 3.5 Rewrite the JSON Schema adapter to walk the uniform AST (fold `checks[].meta` into
+      keywords instead of reading `constraints`); its golden tests stay green
+- [ ] 3.6 Update the BigQuery + Sheet adapters that read `%Type{}` to read the AST (or add a
+      compatibility accessor); their tests stay green
+- [ ] 3.7 Full suite green through the swap; delete `%Type{}` once nothing references it
 
-- [ ] 4.1 Decide & document codec scope (per design D1); add a `transform` node carrying `decode`/`encode`
-- [ ] 4.2 Make `validate/2` run the decode direction through transforms; add an `encode/2` entrypoint
-- [ ] 4.3 Built-in transforms: `number_from_string`, `trim`, case transforms; transform composition
-- [ ] 4.4 Reconcile the 001 spec's coercion/transform claims with the implementation (update the archived note or the schema spec)
-- [ ] 4.5 Tests: decode coercion, decode-failure errors, and `encode |> decode == id` round-trip properties
+## 4. P1 — Checks + refinements (native to the uniform model)
 
-## 5. P3 — Composition, recursion, strictness, annotations
+- [ ] 4.1 `Schema.refine/3` (predicate + message) → a custom `%Check{}`; runs after the type matches, honors `:fail_fast`/`:all_errors` (mirrors effect's `Filter`)
+- [ ] 4.2 Check builders: exclusive bounds (`greater_than`/`less_than`), `multiple_of`, `int`, `non_empty`, `starts_with`/`ends_with`/`includes`, case checks, grapheme `length` — each carrying JSON-Schema `meta`
+- [ ] 4.3 Promote `email`/`url`/`uuid` to named checks (good messages + JSON Schema `format`); keep regex helpers as the underlying patterns
+- [ ] 4.4 Tests (unit + property) for every new check and for custom refinements
 
-- [ ] 5.1 Struct utilities: `pick`/`omit`/`partial`/`assign`/`rename_keys` (schema-level derivations)
-- [ ] 5.2 Recursive schemas: `Schema.suspend/1`; validation depth tests; JSON Schema `$defs`/`$ref` for recursive types
-- [ ] 5.3 Tagged/discriminated union with discriminant fast-path; `literal` list form (lift the 3-arg cap)
-- [ ] 5.4 Strict struct mode (`Schema.strict/1` or `:strict` option); default stays lenient
-- [ ] 5.5 `Schema.annotate/2` (`identifier`/`title`/`description`/`examples`) over the existing `metadata`; readable by JSON Schema + error formatting
-- [ ] 5.6 Tests for all of the above
+## 5. P2 — Codec: the encoding chain (decoded ↔ encoded)
 
-## 6. Wrap-up
+- [ ] 5.1 Populate the `encoding` slot: a `%Link{to, transformation}` chain with pure `decode`/`encode` getters (mirrors effect's `encoding`; no effect runtime)
+- [ ] 5.2 `validate/2` runs the decode direction; add an `encode/2` entrypoint; `to_type`/`to_encoded` walk the chain
+- [ ] 5.3 Built-in transforms: `number_from_string`, `trim`, case transforms, `datetime`; transform composition
+- [ ] 5.4 Reconcile the 001 spec's coercion/transform claims with the implementation (update the archived note or the schema spec)
+- [ ] 5.5 Tests: decode coercion, decode-failure issues, and `encode |> decode == id` round-trip properties
 
-- [ ] 6.1 Update the parity matrix in `design.md` to reflect shipped items; keep it as the living conformance reference
-- [ ] 6.2 README: document JSON Schema export, refinements, and transforms
-- [ ] 6.3 Confirm deferred items (brand, Symbol/BigInt, class-based, template literals, ToEquivalence) remain explicitly out of scope with rationale
+## 6. P3 — Composition, recursion, strictness, annotations
+
+- [ ] 6.1 Struct utilities: `pick`/`omit`/`partial`/`assign`/`rename_keys` (schema-level derivations)
+- [ ] 6.2 Recursive schemas: `Schema.suspend/1` (the reserved `:suspend` kind); JSON Schema `$defs`/`$ref` for recursive types
+- [ ] 6.3 Strict struct mode (`Schema.strict/1` or `:strict` option); default stays lenient
+- [ ] 6.4 `Schema.annotate/2` (`identifier`/`title`/`description`/`examples`) over the `annotations` slot; readable by JSON Schema + error formatting
+- [ ] 6.5 Tests for all of the above
+
+## 7. Consumer-driven parity — back integration-hub's `Domain.Schema`
+
+> Driver: `integration-hub` PR #60 (merged) built `Domain.Schema`, an effect-smol-shaped
+> Elixir engine (uniform AST + checks + encoding chain + Issue tree + tagged unions +
+> literals + declarations + transforms + JSON Schema/OpenAPI). The goal is for raggio to
+> back a **thin macro shim** there. These items are what that shim concretely needs; they
+> re-prioritize P1–P3 (declarations + tagged unions become table-stakes, not "someday").
+> **Acceptance gate:** integration-hub's `Domain.Schema` test suite (domain 150) stays green
+> against a raggio-backed shim.
+
+- [ ] 7.1 Struct-building decode (effect's Type projection): `:struct` node optionally carries a
+      bound `:module`; the interpreter returns `struct(Mod, decoded)` when bound, a map otherwise.
+      Map-based runtime API unchanged. (Resolves the "raggio builds the struct" decision.)
+- [ ] 7.2 Optional `use Raggio.Schema.Struct` macro (core stays macro-free): lowers an Ecto-like
+      `schema do field … end` to a runtime `Schema.struct/1` value bound to the module, and emits
+      `defstruct`, `@type t` (derived from field types), `__schema__/0`, `decode/encode` wrappers.
+      (This is the effect `Schema.Class` analog — the one place a macro is warranted.)
+- [ ] 7.3 Promote **Declarations / opaque custom types** out of the deferred tier (consumer uses
+      them, e.g. `Json`): a `:declaration` node referencing a module with `decode`/`encode`/`check`
+      + a JSON Schema override. (Mirrors Domain.Schema Decision 6.)
+- [ ] 7.4 **Tagged/discriminated unions** as core: `union` over struct schemas with a discriminator
+      literal field; decode dispatches on the discriminator; value = member struct.
+- [ ] 7.5 Normalizing literals (`decode: :downcase | :upcase`) + literal **set** form (lift the
+      3-arg cap).
+- [ ] 7.6 OpenAPI-grade JSON Schema coverage: unions → `oneOf`/`anyOf` (+ discriminator), literal
+      sets → `enum`, declarations → override, encoded-side walk. (Extends the P0 adapter; the OpenAPI
+      assembly itself stays in integration-hub's `:api`.)
+- [ ] 7.7 Acceptance: mirror representative `Domain.Schema` cases into raggio's suite (or run
+      integration-hub's domain tests against the shim) and confirm green.
+
+## 8. Wrap-up
+
+- [ ] 8.1 Update the parity matrix in `design.md` to reflect shipped items; keep it as the living conformance reference
+- [ ] 8.2 README: document JSON Schema export, refinements, transforms, and the optional struct macro
+- [ ] 8.3 Confirm deferred items (brand, Symbol/BigInt, template literals, `ToEquivalence`) remain explicitly out of scope with rationale — note these are *also* deferred by Domain.Schema (domain doesn't use them)
