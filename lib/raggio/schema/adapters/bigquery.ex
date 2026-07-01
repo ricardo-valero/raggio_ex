@@ -3,7 +3,7 @@ defmodule Raggio.Schema.Adapters.BigQuery do
   Export Raggio.Schema definitions to BigQuery Standard SQL DDL.
   """
 
-  alias Raggio.Schema.Type
+  alias Raggio.Schema.{AST, Context}
 
   @type_mapping %{
     string: "STRING",
@@ -18,7 +18,7 @@ defmodule Raggio.Schema.Adapters.BigQuery do
 
   def to_ddl(schema, table_name), do: to_ddl(schema, table_name, [])
 
-  def to_ddl(%Type{kind: :struct, fields: fields}, table_name, opts) do
+  def to_ddl(%AST{kind: :struct, fields: fields}, table_name, opts) do
     columns = build_columns(fields, "  ")
     partition = build_partition(opts)
     cluster = build_cluster(opts)
@@ -36,17 +36,18 @@ defmodule Raggio.Schema.Adapters.BigQuery do
     fields
     |> Enum.map(fn {name, schema} ->
       type_str = to_bq_type(schema)
-      nullable = if schema.optional or schema.nullable, do: "", else: " NOT NULL"
+      %Context{optional?: optional?, nullable?: nullable?} = schema.context
+      nullable = if optional? or nullable?, do: "", else: " NOT NULL"
       "#{indent}#{name} #{type_str}#{nullable}"
     end)
     |> Enum.join(",\n")
   end
 
-  defp to_bq_type(%Type{kind: :list, inner: inner}) do
+  defp to_bq_type(%AST{kind: :list, inner: inner}) do
     "ARRAY<#{to_bq_type(inner)}>"
   end
 
-  defp to_bq_type(%Type{kind: :struct, fields: fields}) do
+  defp to_bq_type(%AST{kind: :struct, fields: fields}) do
     field_defs =
       fields
       |> Enum.map(fn {name, schema} ->
@@ -58,7 +59,7 @@ defmodule Raggio.Schema.Adapters.BigQuery do
     "STRUCT<#{field_defs}>"
   end
 
-  defp to_bq_type(%Type{kind: kind}) do
+  defp to_bq_type(%AST{kind: kind}) do
     Map.get(@type_mapping, kind, "STRING")
   end
 

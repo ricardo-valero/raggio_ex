@@ -5,136 +5,99 @@ defmodule Raggio.Schema do
   Define schemas using type constructors and validate data against them.
   """
 
-  alias Raggio.Schema.{Type, Error, Validator}
+  alias Raggio.Schema.{AST, Check, Context, Error, Validator}
 
-  @type t :: Type.t()
+  @type t :: AST.t()
   @type validation_result :: {:ok, any()} | {:error, [Error.t()]}
 
-  def string(), do: %Type{kind: :string}
+  def string(), do: %AST{kind: :string}
 
   def string(opts) when is_list(opts),
-    do: %Type{kind: :string, constraints: Keyword.take(opts, [:min, :max, :pattern])}
+    do: %AST{kind: :string, checks: string_checks(opts)}
 
-  def string(default), do: %Type{kind: :string, default: default}
+  def string(default), do: %AST{kind: :string, context: %Context{default: default}}
 
   def string(default, opts),
-    do: %Type{
-      kind: :string,
-      constraints: Keyword.take(opts, [:min, :max, :pattern]),
-      default: default
-    }
+    do: %AST{kind: :string, checks: string_checks(opts), context: %Context{default: default}}
 
-  def integer(), do: %Type{kind: :integer}
+  def integer(), do: %AST{kind: :integer}
 
   def integer(opts) when is_list(opts),
-    do: %Type{kind: :integer, constraints: Keyword.take(opts, [:min, :max])}
+    do: %AST{kind: :integer, checks: number_checks(opts)}
 
-  def integer(default), do: %Type{kind: :integer, default: default}
+  def integer(default), do: %AST{kind: :integer, context: %Context{default: default}}
 
   def integer(default, opts),
-    do: %Type{kind: :integer, constraints: Keyword.take(opts, [:min, :max]), default: default}
+    do: %AST{kind: :integer, checks: number_checks(opts), context: %Context{default: default}}
 
-  def float(), do: %Type{kind: :float}
+  def float(), do: %AST{kind: :float}
 
   def float(opts) when is_list(opts),
-    do: %Type{kind: :float, constraints: Keyword.take(opts, [:min, :max])}
+    do: %AST{kind: :float, checks: number_checks(opts)}
 
-  def float(default), do: %Type{kind: :float, default: default}
+  def float(default), do: %AST{kind: :float, context: %Context{default: default}}
 
   def float(default, opts),
-    do: %Type{kind: :float, constraints: Keyword.take(opts, [:min, :max]), default: default}
+    do: %AST{kind: :float, checks: number_checks(opts), context: %Context{default: default}}
 
-  def boolean(), do: %Type{kind: :boolean}
-  def boolean(opts) when is_list(opts), do: %Type{kind: :boolean}
-  def boolean(default), do: %Type{kind: :boolean, default: default}
+  def boolean(), do: %AST{kind: :boolean}
+  def boolean(opts) when is_list(opts), do: %AST{kind: :boolean}
+  def boolean(default), do: %AST{kind: :boolean, context: %Context{default: default}}
 
-  def date(), do: %Type{kind: :date}
-  def date(opts) when is_list(opts), do: %Type{kind: :date}
-  def date(default), do: %Type{kind: :date, default: default}
+  def date(), do: %AST{kind: :date}
+  def date(opts) when is_list(opts), do: %AST{kind: :date}
+  def date(default), do: %AST{kind: :date, context: %Context{default: default}}
 
-  def datetime(), do: %Type{kind: :datetime}
-  def datetime(opts) when is_list(opts), do: %Type{kind: :datetime}
-  def datetime(default), do: %Type{kind: :datetime, default: default}
+  def datetime(), do: %AST{kind: :datetime}
+  def datetime(opts) when is_list(opts), do: %AST{kind: :datetime}
+  def datetime(default), do: %AST{kind: :datetime, context: %Context{default: default}}
 
-  def decimal(), do: %Type{kind: :decimal}
+  def decimal(), do: %AST{kind: :decimal}
+  def decimal(opts) when is_list(opts), do: %AST{kind: :decimal}
+  def decimal(default), do: %AST{kind: :decimal, context: %Context{default: default}}
+  def decimal(default, _opts), do: %AST{kind: :decimal, context: %Context{default: default}}
 
-  def decimal(opts) when is_list(opts),
-    do: %Type{kind: :decimal, constraints: Keyword.take(opts, [:min, :max])}
-
-  def decimal(default), do: %Type{kind: :decimal, default: default}
-
-  def decimal(default, opts),
-    do: %Type{kind: :decimal, constraints: Keyword.take(opts, [:min, :max]), default: default}
-
-  def atom(), do: %Type{kind: :atom}
-  def atom(opts) when is_list(opts), do: %Type{kind: :atom}
-  def atom(default), do: %Type{kind: :atom, default: default}
+  def atom(), do: %AST{kind: :atom}
+  def atom(opts) when is_list(opts), do: %AST{kind: :atom}
+  def atom(default), do: %AST{kind: :atom, context: %Context{default: default}}
 
   def struct(fields) when is_list(fields) do
-    %Type{
-      kind: :struct,
-      fields: fields
-    }
+    %AST{kind: :struct, fields: fields}
   end
 
   def list(inner_schema, opts \\ []) do
-    %Type{
+    %AST{
       kind: :list,
       inner: inner_schema,
-      constraints: Keyword.take(opts, [:min, :max, :unique]),
-      default: Keyword.get(opts, :default)
+      checks: list_checks(opts),
+      context: %Context{default: Keyword.get(opts, :default, :none)}
     }
   end
 
   def tuple(schemas) when is_list(schemas) do
-    %Type{
-      kind: :tuple,
-      elements: schemas
-    }
+    %AST{kind: :tuple, elements: schemas}
   end
 
   def union(schemas) when is_list(schemas) and length(schemas) >= 2 do
-    %Type{
-      kind: :union,
-      elements: schemas
-    }
+    %AST{kind: :union, elements: schemas}
   end
 
-  def literal(value) do
-    %Type{
-      kind: :literal,
-      values: [value]
-    }
-  end
+  def literal(value), do: %AST{kind: :literal, values: [value]}
+  def literal(value1, value2), do: %AST{kind: :literal, values: [value1, value2]}
 
-  def literal(value1, value2) do
-    %Type{
-      kind: :literal,
-      values: [value1, value2]
-    }
-  end
-
-  def literal(value1, value2, value3) do
-    %Type{
-      kind: :literal,
-      values: [value1, value2, value3]
-    }
-  end
+  def literal(value1, value2, value3),
+    do: %AST{kind: :literal, values: [value1, value2, value3]}
 
   def record(key_schema, value_schema) do
-    %Type{
-      kind: :record,
-      key_type: key_schema,
-      value_type: value_schema
-    }
+    %AST{kind: :record, key_type: key_schema, value_type: value_schema}
   end
 
-  def optional(%Type{} = schema) do
-    %{schema | optional: true}
+  def optional(%AST{context: ctx} = schema) do
+    %{schema | context: %{ctx | optional?: true}}
   end
 
-  def nullable(%Type{} = schema) do
-    %{schema | nullable: true}
+  def nullable(%AST{context: ctx} = schema) do
+    %{schema | context: %{ctx | nullable?: true}}
   end
 
   def email do
@@ -163,4 +126,29 @@ defmodule Raggio.Schema do
       {:error, errors} -> raise Raggio.Schema.ValidationError, errors: errors
     end
   end
+
+  # --- lowering: surface options → checks ----------------------------------
+
+  defp string_checks(opts) do
+    []
+    |> append_if(opts[:min], &Check.min_length/1)
+    |> append_if(opts[:max], &Check.max_length/1)
+    |> append_if(opts[:pattern], &Check.pattern/1)
+  end
+
+  defp number_checks(opts) do
+    []
+    |> append_if(opts[:min], &Check.min_value/1)
+    |> append_if(opts[:max], &Check.max_value/1)
+  end
+
+  defp list_checks(opts) do
+    []
+    |> append_if(opts[:min], &Check.min_items/1)
+    |> append_if(opts[:max], &Check.max_items/1)
+    |> then(fn checks -> if opts[:unique], do: checks ++ [Check.unique_items()], else: checks end)
+  end
+
+  defp append_if(checks, nil, _builder), do: checks
+  defp append_if(checks, value, builder), do: checks ++ [builder.(value)]
 end
