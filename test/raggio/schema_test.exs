@@ -224,6 +224,21 @@ defmodule Raggio.SchemaTest do
       assert Enum.map(errs, & &1.path) |> Enum.sort() == [[:a], [:b]]
     end
 
+    test ":all_errors reports failing list elements at their index (never prunes them)" do
+      schema = Schema.struct([{:items, Schema.list(Schema.struct([{:n, Schema.integer()}]))}])
+      input = %{"items" => [%{"n" => 1}, %{}, %{"n" => "x"}]}
+
+      errs = errors(schema, input, mode: :all_errors)
+      assert Enum.map(errs, & &1.path) |> Enum.sort() == [[:items, 1, :n], [:items, 2, :n]]
+    end
+
+    test ":all_errors collects scalar list element errors alongside sibling field errors" do
+      schema = Schema.struct([{:tags, Schema.list(Schema.string())}, {:name, Schema.string()}])
+
+      errs = errors(schema, %{"tags" => ["ok", 5]}, mode: :all_errors)
+      assert Enum.map(errs, & &1.path) |> Enum.sort() == [[:name], [:tags, 1]]
+    end
+
     test "partial: true skips missing fields" do
       schema = Schema.struct([{:a, Schema.string()}, {:b, Schema.string()}])
       assert {:ok, _} = Schema.validate(schema, %{a: "x"}, partial: true)

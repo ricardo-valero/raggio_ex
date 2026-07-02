@@ -353,22 +353,23 @@ defmodule Raggio.Schema.Validator do
   # --- lists ---------------------------------------------------------------
 
   defp validate_list_elements(inner_schema, value, path, mode) do
-    validate_list_elements_loop(inner_schema, value, path, mode, 0, [])
+    validate_list_elements_loop(inner_schema, value, path, mode, 0, [], [])
   end
 
-  defp validate_list_elements_loop(_inner, [], _path, _mode, _idx, acc),
-    do: {:ok, Enum.reverse(acc)}
+  defp validate_list_elements_loop(_inner, [], _path, _mode, _idx, acc, errors) do
+    if errors == [], do: {:ok, Enum.reverse(acc)}, else: {:error, errors}
+  end
 
-  defp validate_list_elements_loop(inner, [elem | rest], path, mode, idx, acc) do
+  defp validate_list_elements_loop(inner, [elem | rest], path, mode, idx, acc, errors) do
     case do_validate(inner, elem, path ++ [idx], mode, false) do
       {:ok, validated} ->
-        validate_list_elements_loop(inner, rest, path, mode, idx + 1, [validated | acc])
+        validate_list_elements_loop(inner, rest, path, mode, idx + 1, [validated | acc], errors)
 
-      {:error, errors} when mode == :fail_fast ->
-        {:error, errors}
+      {:error, elem_errors} when mode == :fail_fast ->
+        {:error, elem_errors}
 
-      {:error, _errors} ->
-        validate_list_elements_loop(inner, rest, path, mode, idx + 1, acc)
+      {:error, elem_errors} ->
+        validate_list_elements_loop(inner, rest, path, mode, idx + 1, acc, elem_errors ++ errors)
     end
   end
 
