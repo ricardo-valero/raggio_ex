@@ -7,7 +7,7 @@ defmodule Raggio.Schema.DefinitionTest do
     use Raggio.Schema
 
     schema do
-      literal(["on", "off"])
+      literal("on", "off")
     end
   end
 
@@ -15,13 +15,14 @@ defmodule Raggio.Schema.DefinitionTest do
     use Raggio.Schema
 
     schema do
-      literal(["low", "high"], decode: :downcase)
+      literal("low", "high", decode: :downcase)
     end
   end
 
   defmodule Mode do
     use Raggio.Schema
 
+    # list form still works
     schema do
       literal([:read, :write])
     end
@@ -32,51 +33,52 @@ defmodule Raggio.Schema.DefinitionTest do
 
     schema do
       struct(
-        name: Schema.string(min: 1),
-        age: Schema.integer(min: 0),
-        status: Schema.literal(:active, :inactive),
-        bio: Schema.string() |> Schema.optional()
+        name: string(min: 1),
+        age: integer(min: 0),
+        status: literal(:active, :inactive),
+        bio: string() |> optional()
       )
     end
   end
 
   # Exercises every branch of the @type t derivation — compiling this module IS the
-  # assertion that the generated typespec is well-formed.
+  # assertion that the generated typespec is well-formed. Combinators unqualified.
   defmodule Kitchen do
     use Raggio.Schema
 
     schema do
       struct(
-        count: Schema.number_from_string(),
-        tags: Schema.list(Schema.string()),
-        kind: Schema.union([Schema.string(), Schema.integer()]),
-        when: Schema.datetime_from_iso8601(),
-        price: Schema.decimal() |> Schema.nullable(),
-        even: Schema.integer() |> Schema.refine(&(rem(&1, 2) == 0), "must be even"),
-        meta: Schema.record(Schema.string(), Schema.integer())
+        count: number_from_string(),
+        tags: list(string()),
+        kind: union(string(), integer()),
+        when: datetime_from_iso8601(),
+        price: decimal() |> nullable(),
+        even: integer() |> refine(&(rem(&1, 2) == 0), "must be even"),
+        meta: record(string(), integer())
       )
     end
   end
 
-  # Module composition: literal-set field + embedded schema module.
+  # Module composition + inline nested struct.
   defmodule Device do
     use Raggio.Schema
 
     schema do
       struct(
-        name: Schema.string(min: 1),
+        name: string(min: 1),
         status: Status,
-        owner: User
+        owner: User,
+        extra: struct(foo: string(min: 1), bar: string(min: 2)) |> optional()
       )
     end
   end
 
-  # Generic head: the module IS a union of other schema modules (untagged).
+  # Generic head: the module IS a union of other schema modules (untagged, variadic).
   defmodule Actor do
     use Raggio.Schema
 
     schema do
-      union([User, Device])
+      union(User, Device)
     end
   end
 
@@ -154,8 +156,39 @@ defmodule Raggio.Schema.DefinitionTest do
     end
   end
 
+  describe "nested inline combinators" do
+    test "an inline nested struct validates and rebuilds" do
+      assert {:ok, %Device{extra: %{foo: "x", bar: "yy"}}} =
+               Device.decode(%{
+                 name: "lamp",
+                 status: "on",
+                 owner: %{name: "A", age: 1, status: :active},
+                 extra: %{foo: "x", bar: "yy"}
+               })
+    end
+
+    test "nested struct errors carry the full path" do
+      assert {:error, [%Raggio.Schema.Error{path: [:extra, :bar], constraint: :min}]} =
+               Device.decode(%{
+                 name: "lamp",
+                 status: "on",
+                 owner: %{name: "A", age: 1, status: :active},
+                 extra: %{foo: "x", bar: "y"}
+               })
+    end
+
+    test "optional inline struct may be absent" do
+      assert {:ok, %Device{extra: nil}} =
+               Device.decode(%{
+                 name: "lamp",
+                 status: "on",
+                 owner: %{name: "A", age: 1, status: :active}
+               })
+    end
+  end
+
   describe "schema do literal ... end" do
-    test "decodes a member and rejects a non-member" do
+    test "variadic form decodes a member and rejects a non-member" do
       assert {:ok, "on"} = Status.decode("on")
       assert {:error, [%Raggio.Schema.Error{constraint: :literal}]} = Status.decode("blue")
     end
@@ -164,12 +197,12 @@ defmodule Raggio.Schema.DefinitionTest do
       assert Status.values() == ["on", "off"]
     end
 
-    test "atom value sets work" do
+    test "list form still works (atom values)" do
       assert {:ok, :read} = Mode.decode(:read)
       assert {:error, _} = Mode.decode(:delete)
     end
 
-    test "decode: :downcase folds the wire value before matching" do
+    test "variadic with decode: :downcase folds the wire value" do
       assert {:ok, "high"} = Level.decode("HIGH")
       assert {:ok, "low"} = Level.decode("Low")
       assert {:error, [%Raggio.Schema.Error{constraint: :transform}]} = Level.decode("MEDIUM")
@@ -181,7 +214,7 @@ defmodule Raggio.Schema.DefinitionTest do
   end
 
   describe "schema do union ... end (generic head)" do
-    test "decodes to whichever member matches" do
+    test "variadic union decodes to whichever member matches" do
       assert {:ok, %User{}} = Actor.decode(%{name: "A", age: 1, status: :active})
 
       assert {:ok, %Device{}} =
@@ -228,6 +261,14 @@ defmodule Raggio.Schema.DefinitionTest do
     test "runtime combinators also accept modules" do
       schema = Raggio.Schema.list(Status)
       assert {:ok, ["on", "off"]} = Raggio.Schema.validate(schema, ["on", "off"])
+    end
+  end
+
+  describe "scoping fence" do
+    test "Kernel.struct/2 is untouched outside the schema block" do
+      # this test module `use`s Raggio.Schema — Kernel.struct must still work here
+      assert %User{name: "K"} = Kernel.struct(User, %{name: "K"})
+      assert %User{name: "K"} = struct(User, %{name: "K"})
     end
   end
 end
