@@ -75,6 +75,15 @@
 - [ ] 6.3 Strict struct mode (`Schema.strict/1` or `:strict` option); default stays lenient
 - [ ] 6.4 `Schema.annotate/2` (`identifier`/`title`/`description`/`examples`) over the `annotations` slot; readable by JSON Schema + error formatting
 - [ ] 6.5 Tests for all of the above
+- [ ] 6.6 **Issue tree (effect's `SchemaIssue` analog):** a structured error *tree* — leaves
+      (`InvalidType`/`InvalidValue`/`MissingKey`/`UnexpectedKey`) wrapped by structural nodes
+      (`Pointer`/`Composite`/`AnyOf`/`Filter`/`Encoding`) — plus a `Formatter` projection.
+      effect-smol ships this in the schema package (SchemaIssue + toFormatter), so long-term it
+      belongs in raggio, not in consumers; raggio's flat `%Error{path,…}` list stays as the
+      simple surface (a tree folds to it), and a tree adds what flat cannot express: which
+      union/AnyOf branch failed and why. Consumers' wire formats (e.g. integration-hub's 422
+      error map) remain app-owned folds/formatters. Deferred until a consumer needs branch
+      detail; the shim ships fine on flat errors (its domain suite is green).
 
 ## 7. Consumer-driven parity — back integration-hub's `Domain.Schema`
 
