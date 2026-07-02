@@ -100,17 +100,22 @@
       deliberately rejected (D8 amendments) — that opinion lives in integration-hub's shim. Plus:
       **any module exporting `__schema__/0` is usable as a schema** (module-typed fields compose,
       embedded modules decode to their own structs).
-- [ ] 7.3 Promote **Declarations / opaque custom types** out of the deferred tier (consumer uses
-      them, e.g. `Json`): a `:declaration` node referencing a module with `decode`/`encode`/`check`
-      + a JSON Schema override. (Mirrors Domain.Schema Decision 6.)
-- [ ] 7.4 **Tagged/discriminated unions** as core: `union` over struct schemas with a discriminator
-      literal field; decode dispatches on the discriminator; value = member struct.
+- [x] 7.3 **Declarations / opaque custom types**: `Raggio.Schema.Declaration` behaviour
+      (`decode/1`, `encode/1`, `json_schema/0` override) + `Schema.declare/1`; `use` provides
+      `__schema__/0` so declarations compose via the module convention. Errors carry the
+      `:declaration` constraint. (Mirrors Domain.Schema Decision 6.)
+- [x] 7.4 **Tagged/discriminated unions**: `Schema.union(:name, [Fedex, Imile])` (and the
+      `union(:name, [...])` schema-block head). Members MUST declare the discriminator as a
+      literal field (raises at construction — invalid pairs unrepresentable); decode dispatches
+      on the tag so errors come from the matched member; unknown tags report the allowed values
+      (`:discriminator` constraint); encode flattens the member struct back to a wire map.
 - [x] 7.5 Normalizing literals + literal set form: `Schema.literals(values)` (lifts the 3-arg cap)
       and `Schema.literals(values, decode: :downcase | :upcase)` (wire lenient, decoded canonical);
       surfaced as modules via `use Raggio.Schema.Literal`.
-- [ ] 7.6 OpenAPI-grade JSON Schema coverage: unions → `oneOf`/`anyOf` (+ discriminator), literal
-      sets → `enum`, declarations → override, encoded-side walk. (Extends the P0 adapter; the OpenAPI
-      assembly itself stays in integration-hub's `:api`.)
+- [ ] 7.6 OpenAPI-grade JSON Schema coverage — largely landed alongside 7.3/7.4: tagged unions →
+      `oneOf` + `discriminator`, untagged → `anyOf`, literal sets → `enum`, declarations → module
+      override, transforms → encoded-side. Remaining: `$defs`/`$ref` for named/recursive schemas
+      (pairs with P3 `suspend`). (The OpenAPI assembly itself stays in integration-hub's `:api`.)
 - [ ] 7.7 Acceptance: mirror representative `Domain.Schema` cases into raggio's suite (or run
       integration-hub's domain tests against the shim) and confirm green.
 
