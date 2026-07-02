@@ -91,17 +91,23 @@
       fields stay absent). `Schema.struct(fields, module: Mod)` binds a target struct — decode returns
       `%Mod{}` via `struct!/2` (loud on schema/struct mismatch, no silent drop). Also closes the P2
       gap: transforms now propagate through struct fields.
-- [ ] 7.2 Optional `use Raggio.Schema.Struct` macro (core stays macro-free): lowers an Ecto-like
-      `schema do field … end` to a runtime `Schema.struct/1` value bound to the module, and emits
-      `defstruct`, `@type t` (derived from field types), `__schema__/0`, `decode/encode` wrappers.
-      (This is the effect `Schema.Class` analog — the one place a macro is warranted.)
+- [x] 7.2 Module-backed schemas via one entry point (core stays macro-free): `use Raggio.Schema`
+      + `schema do <combinator> end` where the block holds ONE expression in raggio's own
+      vocabulary and the macro dispatches on its head — `struct fields` (defstruct + `@type t` +
+      bound decode), `literal values[, decode: :downcase|:upcase]` (`values/0` + `@type t`),
+      `union [A, B]` / any other expression (generic: the module IS that schema). Fields stay
+      data (the same keyword list `Schema.struct/1` takes); the Ecto-like `field` DSL was
+      deliberately rejected (D8 amendments) — that opinion lives in integration-hub's shim. Plus:
+      **any module exporting `__schema__/0` is usable as a schema** (module-typed fields compose,
+      embedded modules decode to their own structs).
 - [ ] 7.3 Promote **Declarations / opaque custom types** out of the deferred tier (consumer uses
       them, e.g. `Json`): a `:declaration` node referencing a module with `decode`/`encode`/`check`
       + a JSON Schema override. (Mirrors Domain.Schema Decision 6.)
 - [ ] 7.4 **Tagged/discriminated unions** as core: `union` over struct schemas with a discriminator
       literal field; decode dispatches on the discriminator; value = member struct.
-- [ ] 7.5 Normalizing literals (`decode: :downcase | :upcase`) + literal **set** form (lift the
-      3-arg cap).
+- [x] 7.5 Normalizing literals + literal set form: `Schema.literals(values)` (lifts the 3-arg cap)
+      and `Schema.literals(values, decode: :downcase | :upcase)` (wire lenient, decoded canonical);
+      surfaced as modules via `use Raggio.Schema.Literal`.
 - [ ] 7.6 OpenAPI-grade JSON Schema coverage: unions → `oneOf`/`anyOf` (+ discriminator), literal
       sets → `enum`, declarations → override, encoded-side walk. (Extends the P0 adapter; the OpenAPI
       assembly itself stays in integration-hub's `:api`.)
