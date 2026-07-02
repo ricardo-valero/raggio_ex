@@ -56,11 +56,17 @@
 
 ## 5. P2 — Codec: the encoding chain (decoded ↔ encoded)
 
-- [ ] 5.1 Populate the `encoding` slot: a `%Link{to, transformation}` chain with pure `decode`/`encode` getters (mirrors effect's `encoding`; no effect runtime)
-- [ ] 5.2 `validate/2` runs the decode direction; add an `encode/2` entrypoint; `to_type`/`to_encoded` walk the chain
-- [ ] 5.3 Built-in transforms: `number_from_string`, `trim`, case transforms, `datetime`; transform composition
-- [ ] 5.4 Reconcile the 001 spec's coercion/transform claims with the implementation (update the archived note or the schema spec)
-- [ ] 5.5 Tests: decode coercion, decode-failure issues, and `encode |> decode == id` round-trip properties
+- [x] 5.1 `encoding` slot populated: a `:transform` node carries a `%Transformation{decode, encode}`
+      (pure getters; no effect runtime). `Schema.transform/3` builds one.
+- [x] 5.2 `validate/2` (and `decode/2` alias) run the decode direction; `encode/2` (`Raggio.Schema.Encoder`)
+      reverses transforms, recursing through `:struct`/`:list`
+- [x] 5.3 Built-in transforms: `number_from_string`, `trim`, `downcase`/`upcase`, `datetime_from_iso8601`;
+      composition via nesting `Schema.transform/3`
+- [x] 5.4 Reconciled the 001 "coercion and bidirectional transforms" claim — now really implemented
+      (decode coercion + encode). Note: propagation **through struct fields** is gated on
+      struct-building decode (§7.1); top-level and list propagation work now.
+- [x] 5.5 Tests (`codec_test.exs`): decode coercion, structured `:transform` decode-failure,
+      list propagation, composition, JSON-Schema encoded-side, and `encode |> decode == id` property
 
 ## 6. P3 — Composition, recursion, strictness, annotations
 

@@ -122,6 +122,9 @@ defmodule Raggio.Schema.Adapters.JsonSchema do
     %{"type" => "object", "additionalProperties" => build(value_type)}
   end
 
+  # a transform's JSON Schema is its encoded (wire) side
+  defp base_for_kind(%AST{kind: :transform, inner: inner}), do: build(inner)
+
   # --- slots ---------------------------------------------------------------
 
   # Fold each check's machine-readable descriptor into the schema object — the adapter

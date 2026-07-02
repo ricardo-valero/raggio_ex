@@ -5,7 +5,7 @@ defmodule Raggio.Schema do
   Define schemas using type constructors and validate data against them.
   """
 
-  alias Raggio.Schema.{AST, Check, Context, Error, Validator}
+  alias Raggio.Schema.{AST, Check, Context, Encoder, Error, Transformation, Validator}
 
   @type t :: AST.t()
   @type validation_result :: {:ok, any()} | {:error, [Error.t()]}
@@ -134,9 +134,74 @@ defmodule Raggio.Schema do
     ~r/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
   end
 
+  @doc """
+  Build a bidirectional transform: `encoded` is the wire-side schema (validated on the raw
+  input), `decode` maps the encoded value to the typed value (`{:ok, typed} | {:error, msg}`),
+  and `encode` reverses it. Nest transforms to compose them.
+
+      Schema.transform(Schema.string(), &Integer.parse/1, &to_string/1)
+  """
+  def transform(%AST{} = encoded, decode, encode)
+      when is_function(decode, 1) and is_function(encode, 1) do
+    %AST{
+      kind: :transform,
+      inner: encoded,
+      encoding: [%Transformation{decode: decode, encode: encode}]
+    }
+  end
+
+  @doc "Decode a numeric string to an integer (or float); encodes back to a string."
+  def number_from_string do
+    transform(
+      string(),
+      fn s ->
+        case Integer.parse(s) do
+          {int, ""} ->
+            {:ok, int}
+
+          _ ->
+            case Float.parse(s) do
+              {float, ""} -> {:ok, float}
+              _ -> {:error, "is not a number"}
+            end
+        end
+      end,
+      &to_string/1
+    )
+  end
+
+  @doc "Trim surrounding whitespace on decode (encode is identity)."
+  def trim, do: transform(string(), &{:ok, String.trim(&1)}, & &1)
+
+  @doc "Downcase on decode (encode is identity)."
+  def downcase, do: transform(string(), &{:ok, String.downcase(&1)}, & &1)
+
+  @doc "Upcase on decode (encode is identity)."
+  def upcase, do: transform(string(), &{:ok, String.upcase(&1)}, & &1)
+
+  @doc "Decode an ISO-8601 string to a `DateTime`; encode back to ISO-8601."
+  def datetime_from_iso8601 do
+    transform(
+      string(),
+      fn s ->
+        case DateTime.from_iso8601(s) do
+          {:ok, dt, _offset} -> {:ok, dt}
+          {:error, _} -> {:error, "is not a valid ISO-8601 datetime"}
+        end
+      end,
+      fn %DateTime{} = dt -> DateTime.to_iso8601(dt) end
+    )
+  end
+
   def validate(schema, data) do
     Validator.validate(schema, data)
   end
+
+  @doc "Decode `data` against `schema` (alias for `validate/2` — the decode direction)."
+  def decode(schema, data), do: Validator.validate(schema, data)
+
+  @doc "Encode a typed value back to its wire representation (reverses transforms)."
+  def encode(schema, value), do: Encoder.encode(schema, value)
 
   def validate(schema, data, opts) do
     Validator.validate(schema, data, opts)
