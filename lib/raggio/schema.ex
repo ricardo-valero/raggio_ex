@@ -61,8 +61,16 @@ defmodule Raggio.Schema do
   def atom(opts) when is_list(opts), do: %AST{kind: :atom}
   def atom(default), do: %AST{kind: :atom, context: %Context{default: default}}
 
-  def struct(fields) when is_list(fields) do
-    %AST{kind: :struct, fields: fields}
+  @doc """
+  A struct (map) schema over ordered `{field, schema}` pairs.
+
+  Decoding **rebuilds** the value from the declared fields (effect's Type projection):
+  decoded/transformed field values and applied defaults are in the output; undeclared
+  keys are dropped; absent optional fields stay absent. Pass `module: Mod` to bind a
+  target struct — decode then returns `%Mod{}` instead of a plain map.
+  """
+  def struct(fields, opts \\ []) when is_list(fields) do
+    %AST{kind: :struct, fields: fields, module: Keyword.get(opts, :module)}
   end
 
   def list(inner_schema, opts \\ []) do
