@@ -372,3 +372,28 @@ Scope guardrails for §3 (keep it behavior-preserving):
 - **Error shape stays flat** (`%Error{path, message, value, constraint}`). The richer Issue
   *tree* is a later step, NOT part of §3 — this is what keeps the P0 tests green unmodified.
 - No public API change; `Type` deleted only once nothing reads it; adapters re-pointed to `AST`.
+
+### Decision D12 — `Schema.AST` is canonical; `Raggio.Syntax`'s schema nodes are superseded
+Raised mid-refactor: `Raggio.Syntax` (from 001) carries its own schema-shaped node types —
+`SchemaNode{name, fields}` / `FieldNode{name, field_type, required, default}` /
+`TypeNode{name, parameters}` — which model the same thing as the new uniform
+`%Raggio.Schema.AST{}`, in the older bespoke-fields shape (closer to the deleted `%Type{}`
+than to effect's model). The parity change's Non-Goals excluded touching Syntax but never
+analyzed this overlap; recording the relationship now so it is a decision, not an accident.
+
+Findings (as of the §3–P2 refactor):
+- `Raggio.Syntax` has **zero usage in `lib/`** (only `lib/raggio.ex` mentions it), **zero
+  tests**, and is exercised only by `examples/syntax/*`. The engine swap never touched it;
+  no conflict exists at the code level.
+- The living spec `openspec/specs/syntax/spec.md` (6 requirements) still asserts it as a
+  capability, so the repo currently documents two overlapping "schema tree" representations.
+
+**Decision:** `Raggio.Schema.AST` is the canonical schema representation. `Raggio.Syntax`'s
+schema-specific node types (`SchemaNode`/`FieldNode`/`TypeNode`) are **superseded** and must
+not grow new consumers. Retire-vs-repoint is deliberately **deferred to its own follow-up
+change** (do not expand this refactor's scope), with the preferred eventual direction being
+**re-point**: keep Syntax's generic layer (the `Node` protocol + `traverse`/`find`/`transform`)
+and implement the protocol for `%Schema.AST{}`, making Syntax the tree-utilities layer that
+derivations (JSON Schema, BigQuery, P3 §6.1 `pick`/`omit`) walk instead of each hand-rolling
+recursion — effect's "one AST, many projections" applied to traversal. That follow-up change
+also owns the `syntax` capability spec delta (Modified or Removed requirements).
