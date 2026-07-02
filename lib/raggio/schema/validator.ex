@@ -8,7 +8,7 @@ defmodule Raggio.Schema.Validator do
   decode-from-unknown / validate direction.)
   """
 
-  alias Raggio.Schema.{AST, Context, Error}
+  alias Raggio.Schema.{AST, Context, Error, Transformation}
 
   def validate(schema, data), do: validate(schema, data, [])
 
@@ -80,6 +80,8 @@ defmodule Raggio.Schema.Validator do
 
   defp validate_type(:union, value, _path), do: {:ok, value}
   defp validate_type(:literal, value, _path), do: {:ok, value}
+  # a transform accepts whatever its encoded-side schema accepts
+  defp validate_type(:transform, value, _path), do: {:ok, value}
 
   # --- per-kind node validation -------------------------------------------
 
@@ -125,9 +127,33 @@ defmodule Raggio.Schema.Validator do
     validate_record_entries(Map.to_list(value), key_schema, value_schema, path, mode, %{})
   end
 
+  # transform — decode the encoded side, then apply the transformation's decode getter
+  defp validate_node(
+         %AST{kind: :transform, inner: inner, encoding: [%Transformation{decode: decode}]},
+         value,
+         path,
+         mode,
+         partial
+       ) do
+    with {:ok, encoded} <- do_validate(inner, value, path, mode, partial),
+         {:ok, typed} <- run_decode(decode, encoded, path) do
+      {:ok, typed}
+    end
+  end
+
   # primitives — structural validation only; refinement checks run in do_validate/5
   defp validate_node(%AST{}, value, _path, _mode, _partial) do
     {:ok, value}
+  end
+
+  defp run_decode(decode, encoded, path) do
+    case decode.(encoded) do
+      {:ok, typed} ->
+        {:ok, typed}
+
+      {:error, message} ->
+        {:error, [%Error{path: path, message: message, value: encoded, constraint: :transform}]}
+    end
   end
 
   # --- checks --------------------------------------------------------------
