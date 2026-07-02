@@ -1,55 +1,71 @@
-defmodule Raggio.Schema.Struct do
+defmodule Raggio.Schema.Definition do
   @moduledoc """
-  Opt-in macro for module-backed schemas — the effect `Schema.Class` analog.
+  The `schema do … end` macro behind `use Raggio.Schema` — module-backed schemas
+  (the effect `Schema.Class` analog).
 
-  `Raggio.Schema`'s core is macro-less runtime values; this is the one place a macro is
-  warranted, because `defstruct` and `@type t` only exist at compile time. The surface is
-  **data-first**, mirroring effect's `Class` (fields as a record, not a DSL block): the
-  argument to `defschema` is the same keyword list `Raggio.Schema.struct/1` accepts.
+  The block holds **one schema expression** in raggio's own combinator vocabulary;
+  the macro dispatches on its head:
 
-      defmodule User do
-        use Raggio.Schema.Struct
+      defmodule Status do
+        use Raggio.Schema
 
-        defschema name: Schema.string(min: 1),
-                  age: Schema.integer(min: 0),
-                  status: Schema.literal(:active, :inactive),
-                  bio: Schema.string() |> Schema.optional()
+        schema do
+          literal ["on", "off"]                # Schema.literals/1,2 — decode: :downcase works
+        end
       end
 
-      User.decode(%{name: "A", age: 1, status: :active})
-      #=> {:ok, %User{name: "A", age: 1, status: :active}}
+      defmodule Device do
+        use Raggio.Schema
 
-  Generated for the module:
+        schema do
+          struct name: Schema.string(min: 1),  # Schema.struct/1 — fields as data
+                 status: Status,               # any module exporting __schema__/0 is a schema
+                 owner: User                   # embedded schema modules decode to their structs
+        end
+      end
 
-    * `defstruct` over the declared field names
-    * `@type t` derived from the field schemas (`Schema.string()` → `String.t()`,
-      `optional`/`nullable` add `| nil`, literals become a union of their values;
-      anything unrecognized falls back to `term()`)
-    * `__schema__/0` — the runtime `Raggio.Schema.struct/2` value bound to the module
-      (field expressions are evaluated when called, so checks/transforms work)
-    * `decode/1`, `decode!/1`, `encode/1` wrappers
+  Every module gets `__schema__/0` (the runtime AST), `decode/1`, `decode!/1`, `encode/1`.
+  Per head:
 
-  Field values are ordinary `Raggio.Schema` combinators — everything the runtime surface
-  can express (checks, refinements, transforms, nesting) works here. A field may also be
-  a **module** exporting `__schema__/0` (another `defschema` module, or a
-  `Raggio.Schema.Literal` enum), so schemas compose across modules:
+    * `struct fields` — also emits `defstruct` and `@type t` derived from the field
+      schemas (literals become value unions, `optional`/`nullable` add `| nil`,
+      unrecognized falls back to `term()`); decode returns `%__MODULE__{}`.
+    * `literal values[, decode: :downcase | :upcase]` — also emits `values/0` and a
+      `@type t` value union (atoms/integers) or the widened type (strings).
+    * any other expression (`union [A, B]`, `Schema.list(…)`, a pipe) — generic: the
+      module *is* that schema; `@type t :: term()`. Qualify combinators with `Schema.`
+      in this position.
 
-      defschema status: Status, owner: User
+  Field/argument values are ordinary `Raggio.Schema` combinators — checks, refinements,
+  transforms, and nesting all work.
   """
 
-  defmacro __using__(_opts) do
-    quote do
-      import Raggio.Schema.Struct, only: [defschema: 1]
-      alias Raggio.Schema
+  defmacro schema(do: block) do
+    case block do
+      {:struct, _, [fields]} when is_list(fields) ->
+        struct_codegen(fields)
+
+      {:literal, _, [values]} when is_list(values) ->
+        literal_codegen(values, [])
+
+      {:literal, _, [values, opts]} when is_list(values) and is_list(opts) ->
+        literal_codegen(values, opts)
+
+      {:union, _, [members]} when is_list(members) ->
+        generic_codegen(quote(do: Raggio.Schema.union(unquote(members))), union_type_of(members))
+
+      other ->
+        generic_codegen(other, quote(do: term()))
     end
   end
 
-  @doc "Declare the schema fields (a keyword list of `Raggio.Schema` expressions)."
-  defmacro defschema(fields) when is_list(fields) do
-    if fields == [] do
-      raise ArgumentError, "defschema requires at least one field"
-    end
+  # --- struct modules --------------------------------------------------------
 
+  defp struct_codegen([]) do
+    raise ArgumentError, "schema do struct ... end requires at least one field"
+  end
+
+  defp struct_codegen(fields) do
     field_names = Enum.map(fields, &elem(&1, 0))
     type_pairs = Enum.map(fields, fn {name, expr} -> {name, type_for(expr)} end)
 
@@ -63,13 +79,50 @@ defmodule Raggio.Schema.Struct do
         Raggio.Schema.struct(unquote(fields), module: __MODULE__)
       end
 
-      @doc "Decode (validate + build) data into `%#{inspect(__MODULE__)}{}`."
+      unquote(codec_wrappers())
+    end
+  end
+
+  # --- literal-set modules ----------------------------------------------------
+
+  defp literal_codegen(values, opts) do
+    type = literal_union(values)
+
+    quote do
+      @type t :: unquote(type)
+
+      @doc "The allowed values of this literal set."
+      def values, do: unquote(values)
+
+      @doc "The runtime `Raggio.Schema` value for this literal set."
+      def __schema__, do: Raggio.Schema.literals(unquote(values), unquote(opts))
+
+      unquote(codec_wrappers())
+    end
+  end
+
+  # --- generic: the module IS the given schema expression ----------------------
+
+  defp generic_codegen(expr, type) do
+    quote do
+      @type t :: unquote(type)
+
+      @doc "The runtime `Raggio.Schema` value for this module."
+      def __schema__, do: unquote(expr)
+
+      unquote(codec_wrappers())
+    end
+  end
+
+  defp codec_wrappers do
+    quote do
+      @doc "Decode (validate + build) a wire value into `t()`."
       def decode(data), do: Raggio.Schema.decode(__schema__(), data)
 
       @doc "Like `decode/1` but raises `Raggio.Schema.ValidationError` on failure."
       def decode!(data), do: Raggio.Schema.validate!(__schema__(), data)
 
-      @doc "Encode a `%#{inspect(__MODULE__)}{}` back to its wire representation."
+      @doc "Encode a `t()` back to its wire representation."
       def encode(value), do: Raggio.Schema.encode(__schema__(), value)
     end
   end
@@ -80,9 +133,6 @@ defmodule Raggio.Schema.Struct do
   # in and map it to a typespec; anything else is term(). Pipes into optional/nullable
   # add `| nil`; other pipes (refine/check) pass the inner type through. A bare module
   # (aliased) maps to its `t()`.
-
-  @doc false
-  def __type_for__(expr), do: type_for(expr)
 
   defp type_for({:|>, _, [inner, call]}) do
     case call_name(call) do
@@ -124,12 +174,9 @@ defmodule Raggio.Schema.Struct do
   defp base_type(:list, _), do: quote(do: list())
 
   defp base_type(:literal, args), do: literal_union(args)
-
   defp base_type(:literals, [values | _]) when is_list(values), do: literal_union(values)
 
-  defp base_type(:union, [members | _]) when is_list(members) do
-    members |> Enum.map(&type_for/1) |> union_type()
-  end
+  defp base_type(:union, [members | _]) when is_list(members), do: union_type_of(members)
 
   defp base_type(:refine, [inner | _]), do: type_for(inner)
   defp base_type(:check, [inner | _]), do: type_for(inner)
@@ -145,6 +192,8 @@ defmodule Raggio.Schema.Struct do
       true -> quote(do: term())
     end
   end
+
+  defp union_type_of(members), do: members |> Enum.map(&type_for/1) |> union_type()
 
   defp union_type([single]), do: single
   defp union_type([h | t]), do: quote(do: unquote(h) | unquote(union_type(t)))

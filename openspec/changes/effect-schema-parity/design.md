@@ -412,3 +412,19 @@ composition convention is: **any module exporting `__schema__/0` is a schema** �
 Consequence for the shim: integration-hub's `Domain.Schema` keeps its `schema do field … end`
 call-sites *in its own repo*, lowering to these data-first primitives. The Ecto-ish opinion
 lives with its owner; raggio ships unopinionated primitives shaped like effect's own.
+
+### D8 (second amendment) — one entry point: `use Raggio.Schema` + `schema do <combinator> end`
+User review of the `defschema`/`use ...Literal` split produced a better unification: a single
+`use Raggio.Schema`, and a `schema do … end` block holding **one schema expression in raggio's
+own combinator vocabulary** — the macro dispatches on its head:
+
+    schema do struct name: Schema.string(), status: Status end   # defstruct + @type t + bound decode
+    schema do literal ["on", "off"], decode: :downcase end       # values/0 + @type t
+    schema do union [User, Device] end                           # generic: module IS that schema
+
+This is still not an Ecto-ism: the vocabulary is `struct`/`literal`/`union` — raggio's runtime
+constructors, 1:1 (`literal args` ≡ `Schema.literals(args)`), with fields as data. The block is
+Elixir module-body idiom, not a borrowed DSL (`field` never appears). It supersedes `defschema`
+and `Raggio.Schema.Struct`/`Raggio.Schema.Literal` (both removed); the macro lives in
+`Raggio.Schema.Definition`. Generic heads mean any combinator can be module-backed — tagged
+unions (§7.4) will slot in as another head.

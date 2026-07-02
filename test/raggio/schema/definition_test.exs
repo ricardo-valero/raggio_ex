@@ -1,59 +1,86 @@
-defmodule Raggio.Schema.StructMacroTest do
+defmodule Raggio.Schema.DefinitionTest do
   use ExUnit.Case, async: true
 
   alias Raggio.Schema.AST
 
   defmodule Status do
-    use Raggio.Schema.Literal, values: ["on", "off"]
+    use Raggio.Schema
+
+    schema do
+      literal(["on", "off"])
+    end
   end
 
   defmodule Level do
-    use Raggio.Schema.Literal, values: ["low", "high"], decode: :downcase
+    use Raggio.Schema
+
+    schema do
+      literal(["low", "high"], decode: :downcase)
+    end
   end
 
   defmodule Mode do
-    use Raggio.Schema.Literal, values: [:read, :write]
+    use Raggio.Schema
+
+    schema do
+      literal([:read, :write])
+    end
   end
 
   defmodule User do
-    use Raggio.Schema.Struct
+    use Raggio.Schema
 
-    defschema(
-      name: Schema.string(min: 1),
-      age: Schema.integer(min: 0),
-      status: Schema.literal(:active, :inactive),
-      bio: Schema.string() |> Schema.optional()
-    )
+    schema do
+      struct(
+        name: Schema.string(min: 1),
+        age: Schema.integer(min: 0),
+        status: Schema.literal(:active, :inactive),
+        bio: Schema.string() |> Schema.optional()
+      )
+    end
   end
 
   # Exercises every branch of the @type t derivation — compiling this module IS the
   # assertion that the generated typespec is well-formed.
   defmodule Kitchen do
-    use Raggio.Schema.Struct
+    use Raggio.Schema
 
-    defschema(
-      count: Schema.number_from_string(),
-      tags: Schema.list(Schema.string()),
-      kind: Schema.union([Schema.string(), Schema.integer()]),
-      when: Schema.datetime_from_iso8601(),
-      price: Schema.decimal() |> Schema.nullable(),
-      even: Schema.integer() |> Schema.refine(&(rem(&1, 2) == 0), "must be even"),
-      meta: Schema.record(Schema.string(), Schema.integer())
-    )
+    schema do
+      struct(
+        count: Schema.number_from_string(),
+        tags: Schema.list(Schema.string()),
+        kind: Schema.union([Schema.string(), Schema.integer()]),
+        when: Schema.datetime_from_iso8601(),
+        price: Schema.decimal() |> Schema.nullable(),
+        even: Schema.integer() |> Schema.refine(&(rem(&1, 2) == 0), "must be even"),
+        meta: Schema.record(Schema.string(), Schema.integer())
+      )
+    end
   end
 
-  # Module composition: literal-set field + embedded defschema module.
+  # Module composition: literal-set field + embedded schema module.
   defmodule Device do
-    use Raggio.Schema.Struct
+    use Raggio.Schema
 
-    defschema(
-      name: Schema.string(min: 1),
-      status: Status,
-      owner: User
-    )
+    schema do
+      struct(
+        name: Schema.string(min: 1),
+        status: Status,
+        owner: User
+      )
+    end
   end
 
-  describe "defschema" do
+  # Generic head: the module IS a union of other schema modules (untagged).
+  defmodule Actor do
+    use Raggio.Schema
+
+    schema do
+      union([User, Device])
+    end
+  end
+
+  describe "schema do struct ... end" do
     test "defines the struct with the declared fields" do
       assert %User{} |> Map.keys() |> Enum.sort() == [:__struct__, :age, :bio, :name, :status]
     end
@@ -114,17 +141,20 @@ defmodule Raggio.Schema.StructMacroTest do
       refute Map.has_key?(encoded, :__struct__)
     end
 
-    test "empty defschema raises at compile time" do
+    test "empty struct raises at compile time" do
       assert_raise ArgumentError, ~r/at least one field/, fn ->
         defmodule Empty do
-          use Raggio.Schema.Struct
-          defschema([])
+          use Raggio.Schema
+
+          schema do
+            struct([])
+          end
         end
       end
     end
   end
 
-  describe "Raggio.Schema.Literal" do
+  describe "schema do literal ... end" do
     test "decodes a member and rejects a non-member" do
       assert {:ok, "on"} = Status.decode("on")
       assert {:error, [%Raggio.Schema.Error{constraint: :literal}]} = Status.decode("blue")
@@ -150,6 +180,23 @@ defmodule Raggio.Schema.StructMacroTest do
     end
   end
 
+  describe "schema do union ... end (generic head)" do
+    test "decodes to whichever member matches" do
+      assert {:ok, %User{}} = Actor.decode(%{name: "A", age: 1, status: :active})
+
+      assert {:ok, %Device{}} =
+               Actor.decode(%{
+                 name: "lamp",
+                 status: "on",
+                 owner: %{name: "A", age: 1, status: :active}
+               })
+    end
+
+    test "rejects a value matching no member" do
+      assert {:error, [%Raggio.Schema.Error{constraint: :union}]} = Actor.decode(%{})
+    end
+  end
+
   describe "module composition" do
     test "a literal-set module is usable as a field schema" do
       assert {:ok, %Device{status: "on"}} =
@@ -160,7 +207,7 @@ defmodule Raggio.Schema.StructMacroTest do
                })
     end
 
-    test "an embedded defschema module decodes to its own struct" do
+    test "an embedded schema module decodes to its own struct" do
       assert {:ok, %Device{owner: %User{name: "A"}}} =
                Device.decode(%{
                  name: "lamp",

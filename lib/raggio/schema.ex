@@ -2,10 +2,37 @@ defmodule Raggio.Schema do
   @moduledoc """
   Composable schema definition and data validation.
 
-  Define schemas using type constructors and validate data against them.
+  Define schemas using type constructors and validate data against them. For
+  module-backed schemas (a named struct, enum, or union with `@type t` and
+  `decode`/`encode` functions), `use Raggio.Schema` and declare one schema
+  expression — see `Raggio.Schema.Definition`:
+
+      defmodule Status do
+        use Raggio.Schema
+
+        schema do
+          literal ["on", "off"]
+        end
+      end
+
+      defmodule Device do
+        use Raggio.Schema
+
+        schema do
+          struct name: Schema.string(min: 1),
+                 status: Status
+        end
+      end
   """
 
   alias Raggio.Schema.{AST, Check, Context, Encoder, Error, Transformation, Validator}
+
+  defmacro __using__(_opts) do
+    quote do
+      import Raggio.Schema.Definition, only: [schema: 1]
+      alias Raggio.Schema
+    end
+  end
 
   @type t :: AST.t()
   @type validation_result :: {:ok, any()} | {:error, [Error.t()]}

@@ -91,14 +91,15 @@
       fields stay absent). `Schema.struct(fields, module: Mod)` binds a target struct — decode returns
       `%Mod{}` via `struct!/2` (loud on schema/struct mismatch, no silent drop). Also closes the P2
       gap: transforms now propagate through struct fields.
-- [x] 7.2 `use Raggio.Schema.Struct` macro (core stays macro-free): **data-first** `defschema
-      name: Schema.string(), …` — the argument is the same keyword list `Schema.struct/1` takes
-      (effect's `Class` shape; the Ecto-like `schema do field … end` block DSL was deliberately
-      rejected — that opinion lives in integration-hub's shim). Emits `defstruct`, `@type t`
-      (literals → value unions, optional/nullable → `| nil`, fallback `term()`), `__schema__/0`
-      (runtime AST bound to the module), `decode/1`/`decode!/1`/`encode/1`. Plus
-      `use Raggio.Schema.Literal, values: [...]` for named literal sets, and the convention that
-      **any module exporting `__schema__/0` is usable as a schema** (module-typed fields compose).
+- [x] 7.2 Module-backed schemas via one entry point (core stays macro-free): `use Raggio.Schema`
+      + `schema do <combinator> end` where the block holds ONE expression in raggio's own
+      vocabulary and the macro dispatches on its head — `struct fields` (defstruct + `@type t` +
+      bound decode), `literal values[, decode: :downcase|:upcase]` (`values/0` + `@type t`),
+      `union [A, B]` / any other expression (generic: the module IS that schema). Fields stay
+      data (the same keyword list `Schema.struct/1` takes); the Ecto-like `field` DSL was
+      deliberately rejected (D8 amendments) — that opinion lives in integration-hub's shim. Plus:
+      **any module exporting `__schema__/0` is usable as a schema** (module-typed fields compose,
+      embedded modules decode to their own structs).
 - [ ] 7.3 Promote **Declarations / opaque custom types** out of the deferred tier (consumer uses
       them, e.g. `Json`): a `:declaration` node referencing a module with `decode`/`encode`/`check`
       + a JSON Schema override. (Mirrors Domain.Schema Decision 6.)
