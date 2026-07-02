@@ -192,34 +192,47 @@ defmodule Raggio.Schema do
       Schema.literals(["on", "off"], decode: :downcase)  # "ON" decodes to "on"
   """
   def literals(values, opts \\ []) when is_list(values) and values != [] do
-    base = %AST{kind: :literal, values: values}
-
     case Keyword.get(opts, :decode) do
       nil ->
-        base
+        %AST{kind: :literal, values: values}
 
       fold when fold in [:downcase, :upcase] ->
         folder = if fold == :downcase, do: &String.downcase/1, else: &String.upcase/1
-        transform(string(), fn s -> check_membership(folder.(s), values) end, & &1)
+
+        # Non-lossy normalizing set: already-canonical values (atoms included) pass
+        # through; only string input is case-folded before matching. The base is any()
+        # so canonical atoms aren't rejected by a string type-check, and a meta-only
+        # check carries the closed set so JSON Schema projects a real enum.
+        transform(any(), fn v -> normalized_membership(v, values, folder) end, & &1)
+        |> check(enum_meta_check(values))
     end
   end
 
-  # Membership with the atom-wire convention: an atom member also matches its string
-  # wire form, decoding to the canonical atom (JSON has no atoms).
-  defp check_membership(value, values) do
+  defp normalized_membership(value, values, folder) do
     cond do
       value in values ->
         {:ok, value}
 
       is_binary(value) ->
-        case Enum.find(values, &(is_atom(&1) and Atom.to_string(&1) == value)) do
+        folded = folder.(value)
+
+        case Enum.find(values, &(to_string(&1) == folded)) do
           nil -> {:error, "must be one of: #{inspect(values)}"}
-          atom -> {:ok, atom}
+          found -> {:ok, found}
         end
 
       true ->
         {:error, "must be one of: #{inspect(values)}"}
     end
+  end
+
+  # Pure metadata: never fails, only carries the closed set for projections.
+  defp enum_meta_check(values) do
+    %Check{
+      constraint: :enum,
+      run: fn _ -> :ok end,
+      meta: %{"type" => "string", "enum" => Enum.map(values, &to_string/1)}
+    }
   end
 
   def record(key_schema, value_schema) do

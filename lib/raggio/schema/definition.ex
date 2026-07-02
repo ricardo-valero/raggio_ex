@@ -172,8 +172,13 @@ defmodule Raggio.Schema.Definition do
 
   defp codec_wrappers do
     quote do
-      @doc "Decode (validate + build) a wire value into `t()`."
-      def decode(data), do: Raggio.Schema.decode(__schema__(), data)
+      @doc """
+      Decode (validate + build) a wire value into `t()`.
+
+      Accepts the `Raggio.Schema.validate/3` options — e.g. `mode: :all_errors`
+      to collect every failure, or `errors: :tree` for the issue tree.
+      """
+      def decode(data, opts \\ []), do: Raggio.Schema.validate(__schema__(), data, opts)
 
       @doc "Like `decode/1` but raises `Raggio.Schema.ValidationError` on failure."
       def decode!(data), do: Raggio.Schema.validate!(__schema__(), data)

@@ -141,7 +141,7 @@
       the boundary (6.6, shipped); 7.8–7.11 propose moving the rest, informed by what the
       shim's production usage actually taught us.
 
-- [ ] 7.8 **Transforming struct-level refinement (cross-field `validate/1`, upstreamed):** honor
+- [x] 7.8 **Transforming struct-level refinement (cross-field `validate/1`, upstreamed):** honor
       an optional `validate/1` on struct-bound modules (the same module convention as
       `__schema__/0`), run by the interpreter after the struct's fields decode clean —
       effect's Class-level `filter`/`transformOrFail`. Contract (proven downstream):
@@ -155,12 +155,12 @@
       only runs when raggio fully succeeded, so a type error on one field *hides* a sibling
       struct's cross-field error. Interpreter-native placement fixes that aggregation gap
       for free.
-- [ ] 7.9 **Module decode in all-errors mode:** `Definition`-generated `decode/1` is fail-fast;
+- [x] 7.9 **Module decode in all-errors mode:** `Definition`-generated `decode/1` is fail-fast;
       422-building consumers always want every sibling error. Ship `decode/2` (opts pass through
       to `validate/3`: `Item.decode(data, mode: :all_errors)`) and/or a module-level default
       (`use Raggio.Schema, decode: [mode: :all_errors]`). Real consumer: integration-hub's
       `parse/1` wraps `Schema.validate(__schema__(), input, mode: :all_errors)` for exactly this.
-- [ ] 7.10 **Non-lossy normalizing literal sets:** `literals(vs, decode: :downcase)` lowers to a
+- [x] 7.10 **Non-lossy normalizing literal sets:** `literals(vs, decode: :downcase)` lowers to a
       transform over `string()`, which (a) rejects already-canonical input — `:kg` fails
       `"expected string"`, breaking re-parse of atom-keyed internal maps; (b) loses the enum in
       every meta-folding projection — the JSON Schema adapter emits a bare `{"type":"string"}`

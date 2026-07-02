@@ -222,9 +222,9 @@ defmodule Raggio.Schema.Validator do
   # Decoding rebuilds the value from the declared fields (effect's Type projection):
   # decoded/transformed values and applied defaults land in the output, undeclared keys
   # are dropped, absent optional fields stay absent. A bound `module` yields its struct.
-  defp validate_struct_fields([], _value, _mode, _partial, acc, issues, module) do
+  defp validate_struct_fields([], _value, _mode, partial, acc, issues, module) do
     case issues do
-      [] -> {:ok, finalize_struct(acc, module)}
+      [] -> acc |> finalize_struct(module) |> run_module_validate(module, partial)
       _ -> {:error, Issue.composite(Enum.reverse(issues))}
     end
   end
@@ -277,6 +277,34 @@ defmodule Raggio.Schema.Validator do
   # struct!/2 so a schema field the target struct lacks raises loudly instead of
   # silently dropping decoded data (Kernel.struct/2 ignores unknown keys).
   defp finalize_struct(acc, module), do: Kernel.struct!(module, acc)
+
+  # Interpreter-native cross-field refinement (effect's Class filter/transformOrFail):
+  # a bound module's optional `validate/1` runs on ITS decoded value as soon as its own
+  # fields are clean — so a sibling's failure elsewhere never hides this struct's
+  # cross-field error. It may transform ({:ok, updated}) and may target a field
+  # ({:error, field, msg}). Skipped in partial mode (the struct may be incomplete).
+  defp run_module_validate(value, nil, _partial), do: {:ok, value}
+  defp run_module_validate(value, _module, true), do: {:ok, value}
+
+  defp run_module_validate(value, module, _partial) do
+    if Code.ensure_loaded?(module) and function_exported?(module, :validate, 1) do
+      case module.validate(value) do
+        :ok ->
+          {:ok, value}
+
+        {:ok, %{__struct__: ^module} = updated} ->
+          {:ok, updated}
+
+        {:error, message} when is_binary(message) ->
+          {:error, Issue.invalid_value(message, value, :validate)}
+
+        {:error, field, message} when is_atom(field) and is_binary(message) ->
+          {:error, Issue.pointer(field, Issue.invalid_value(message, nil, :validate))}
+      end
+    else
+      {:ok, value}
+    end
+  end
 
   # Wire input may be atom- or string-keyed (JSON); atom keys win on conflict.
   defp fetch_wire(map, key) do
