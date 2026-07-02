@@ -100,6 +100,28 @@ defmodule Raggio.Schema do
     %{schema | context: %{ctx | nullable?: true}}
   end
 
+  @doc """
+  Attach a custom refinement: `predicate` runs after the type matches; on `false` the
+  validation fails with `message` (constraint tag `:refine`). Pipe-friendly:
+
+      Schema.integer() |> Schema.refine(&(rem(&1, 2) == 0), "must be even")
+  """
+  def refine(%AST{checks: checks} = schema, predicate, message)
+      when is_function(predicate, 1) and is_binary(message) do
+    check = %Check{
+      constraint: :refine,
+      meta: %{},
+      run: fn value -> if predicate.(value), do: :ok, else: {:error, message} end
+    }
+
+    %{schema | checks: checks ++ [check]}
+  end
+
+  @doc "Attach a prebuilt `Raggio.Schema.Check` to a schema."
+  def check(%AST{checks: checks} = schema, %Check{} = check) do
+    %{schema | checks: checks ++ [check]}
+  end
+
   def email do
     ~r/^[a-zA-Z0-9.!#$%&'*+\/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/
   end
@@ -134,21 +156,37 @@ defmodule Raggio.Schema do
     |> append_if(opts[:min], &Check.min_length/1)
     |> append_if(opts[:max], &Check.max_length/1)
     |> append_if(opts[:pattern], &Check.pattern/1)
+    |> append_if(opts[:length], &Check.exact_length/1)
+    |> append_if(opts[:starts_with], &Check.starts_with/1)
+    |> append_if(opts[:ends_with], &Check.ends_with/1)
+    |> append_if(opts[:includes], &Check.includes/1)
+    |> append_if(opts[:format], &Check.format/1)
+    |> append_flag(opts[:non_empty], &Check.non_empty_string/0)
+    |> append_flag(opts[:uppercase], &Check.uppercase/0)
+    |> append_flag(opts[:lowercase], &Check.lowercase/0)
   end
 
   defp number_checks(opts) do
     []
     |> append_if(opts[:min], &Check.min_value/1)
     |> append_if(opts[:max], &Check.max_value/1)
+    |> append_if(opts[:greater_than] || opts[:gt], &Check.greater_than/1)
+    |> append_if(opts[:less_than] || opts[:lt], &Check.less_than/1)
+    |> append_if(opts[:multiple_of], &Check.multiple_of/1)
+    |> append_flag(opts[:int], &Check.int/0)
   end
 
   defp list_checks(opts) do
     []
     |> append_if(opts[:min], &Check.min_items/1)
     |> append_if(opts[:max], &Check.max_items/1)
-    |> then(fn checks -> if opts[:unique], do: checks ++ [Check.unique_items()], else: checks end)
+    |> append_flag(opts[:unique], &Check.unique_items/0)
+    |> append_flag(opts[:non_empty], &Check.non_empty_list/0)
   end
 
   defp append_if(checks, nil, _builder), do: checks
   defp append_if(checks, value, builder), do: checks ++ [builder.(value)]
+
+  defp append_flag(checks, true, builder), do: checks ++ [builder.()]
+  defp append_flag(checks, _falsy, _builder), do: checks
 end

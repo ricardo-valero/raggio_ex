@@ -31,7 +31,10 @@ defmodule Raggio.Schema.Validator do
   end
 
   defp do_validate(%AST{kind: kind} = schema, value, path, mode, partial) do
+    # Type match, then refinement checks on the container/scalar (effect's Filter order —
+    # e.g. list `min_items` sees the full list), then recurse into elements/fields.
     with {:ok, value} <- validate_type(kind, value, path),
+         {:ok, value} <- run_checks(schema.checks, value, path),
          {:ok, value} <- validate_node(schema, value, path, mode, partial) do
       {:ok, value}
     end
@@ -84,11 +87,8 @@ defmodule Raggio.Schema.Validator do
     validate_struct_fields(fields, value, path, mode, partial, [])
   end
 
-  defp validate_node(%AST{kind: :list, inner: inner, checks: checks}, value, path, mode, _partial) do
-    with {:ok, _} <- run_checks(checks, value, path),
-         {:ok, validated} <- validate_list_elements(inner, value, path, mode) do
-      {:ok, validated}
-    end
+  defp validate_node(%AST{kind: :list, inner: inner}, value, path, mode, _partial) do
+    validate_list_elements(inner, value, path, mode)
   end
 
   defp validate_node(%AST{kind: :tuple, elements: schemas}, value, path, mode, _partial) do
@@ -125,9 +125,9 @@ defmodule Raggio.Schema.Validator do
     validate_record_entries(Map.to_list(value), key_schema, value_schema, path, mode, %{})
   end
 
-  # primitives — run the refinement checks
-  defp validate_node(%AST{checks: checks}, value, path, _mode, _partial) do
-    run_checks(checks, value, path)
+  # primitives — structural validation only; refinement checks run in do_validate/5
+  defp validate_node(%AST{}, value, _path, _mode, _partial) do
+    {:ok, value}
   end
 
   # --- checks --------------------------------------------------------------

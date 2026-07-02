@@ -44,10 +44,15 @@
 
 ## 4. P1 — Checks + refinements (native to the uniform model)
 
-- [ ] 4.1 `Schema.refine/3` (predicate + message) → a custom `%Check{}`; runs after the type matches, honors `:fail_fast`/`:all_errors` (mirrors effect's `Filter`)
-- [ ] 4.2 Check builders: exclusive bounds (`greater_than`/`less_than`), `multiple_of`, `int`, `non_empty`, `starts_with`/`ends_with`/`includes`, case checks, grapheme `length` — each carrying JSON-Schema `meta`
-- [ ] 4.3 Promote `email`/`url`/`uuid` to named checks (good messages + JSON Schema `format`); keep regex helpers as the underlying patterns
-- [ ] 4.4 Tests (unit + property) for every new check and for custom refinements
+- [x] 4.1 `Schema.refine/3` (predicate + message) → a custom `%Check{}` (constraint `:refine`);
+      runs after the type matches, honors `:fail_fast`/`:all_errors`. Also `Schema.check/2` to
+      attach a prebuilt `%Check{}`.
+- [x] 4.2 Check builders: exclusive bounds (`greater_than`/`less_than` + `gt`/`lt` aliases),
+      `multiple_of`, `int`, `non_empty` (string + list), `starts_with`/`ends_with`/`includes`,
+      `uppercase`/`lowercase`, grapheme `length` — each carrying JSON-Schema `meta`
+- [x] 4.3 `format: :email | :url | :uuid` named checks (good messages + JSON Schema `format`);
+      `email`/`url`/`uuid` regex helpers retained as the underlying patterns
+- [x] 4.4 Tests (unit + property) for every new check, custom refinements, and their JSON Schema meta
 
 ## 5. P2 — Codec: the encoding chain (decoded ↔ encoded)
 

@@ -115,4 +115,156 @@ defmodule Raggio.Schema.Check do
       end
     }
   end
+
+  @doc "Non-empty list."
+  def non_empty_list do
+    %__MODULE__{
+      constraint: :non_empty,
+      meta: %{"minItems" => 1},
+      run: fn v -> if v != [], do: :ok, else: {:error, "must not be empty"} end
+    }
+  end
+
+  # --- numbers (exclusive bounds + arithmetic) -----------------------------
+
+  @doc "Number strictly greater than n."
+  def greater_than(n) do
+    %__MODULE__{
+      constraint: :greater_than,
+      meta: %{"exclusiveMinimum" => n},
+      run: fn v -> if v > n, do: :ok, else: {:error, "must be greater than #{n}"} end
+    }
+  end
+
+  @doc "Number strictly less than n."
+  def less_than(n) do
+    %__MODULE__{
+      constraint: :less_than,
+      meta: %{"exclusiveMaximum" => n},
+      run: fn v -> if v < n, do: :ok, else: {:error, "must be less than #{n}"} end
+    }
+  end
+
+  @doc "Number is an exact multiple of n."
+  def multiple_of(n) do
+    %__MODULE__{
+      constraint: :multiple_of,
+      meta: %{"multipleOf" => n},
+      run: fn v -> if multiple?(v, n), do: :ok, else: {:error, "must be a multiple of #{n}"} end
+    }
+  end
+
+  @doc "Number is integral (no fractional part)."
+  def int do
+    %__MODULE__{
+      constraint: :int,
+      meta: %{"type" => "integer"},
+      run: fn v -> if integral?(v), do: :ok, else: {:error, "must be an integer"} end
+    }
+  end
+
+  # --- strings (content) ---------------------------------------------------
+
+  @doc "Non-empty string."
+  def non_empty_string do
+    %__MODULE__{
+      constraint: :non_empty,
+      meta: %{"minLength" => 1},
+      run: fn v -> if v != "", do: :ok, else: {:error, "must not be empty"} end
+    }
+  end
+
+  @doc "String starts with `prefix`."
+  def starts_with(prefix) do
+    %__MODULE__{
+      constraint: :starts_with,
+      meta: %{"pattern" => "^" <> Regex.escape(prefix)},
+      run: fn v ->
+        if String.starts_with?(v, prefix),
+          do: :ok,
+          else: {:error, "must start with #{inspect(prefix)}"}
+      end
+    }
+  end
+
+  @doc "String ends with `suffix`."
+  def ends_with(suffix) do
+    %__MODULE__{
+      constraint: :ends_with,
+      meta: %{"pattern" => Regex.escape(suffix) <> "$"},
+      run: fn v ->
+        if String.ends_with?(v, suffix),
+          do: :ok,
+          else: {:error, "must end with #{inspect(suffix)}"}
+      end
+    }
+  end
+
+  @doc "String includes `substring`."
+  def includes(substring) do
+    %__MODULE__{
+      constraint: :includes,
+      meta: %{"pattern" => Regex.escape(substring)},
+      run: fn v ->
+        if String.contains?(v, substring),
+          do: :ok,
+          else: {:error, "must include #{inspect(substring)}"}
+      end
+    }
+  end
+
+  @doc "String has exactly `n` graphemes."
+  def exact_length(n) do
+    %__MODULE__{
+      constraint: :length,
+      meta: %{"minLength" => n, "maxLength" => n},
+      run: fn v ->
+        if String.length(v) == n, do: :ok, else: {:error, "must be exactly #{n} character(s)"}
+      end
+    }
+  end
+
+  @doc "String is uppercase."
+  def uppercase do
+    %__MODULE__{
+      constraint: :uppercase,
+      meta: %{"pattern" => "^[^a-z]*$"},
+      run: fn v -> if v == String.upcase(v), do: :ok, else: {:error, "must be uppercase"} end
+    }
+  end
+
+  @doc "String is lowercase."
+  def lowercase do
+    %__MODULE__{
+      constraint: :lowercase,
+      meta: %{"pattern" => "^[^A-Z]*$"},
+      run: fn v -> if v == String.downcase(v), do: :ok, else: {:error, "must be lowercase"} end
+    }
+  end
+
+  @doc "String matches a named format (`:email` / `:url` / `:uuid`)."
+  def format(name) when name in [:email, :url, :uuid] do
+    regex = format_regex(name)
+
+    %__MODULE__{
+      constraint: :format,
+      meta: %{"format" => to_string(name)},
+      run: fn v ->
+        if Regex.match?(regex, v), do: :ok, else: {:error, "is not a valid #{name}"}
+      end
+    }
+  end
+
+  # --- helpers -------------------------------------------------------------
+
+  defp multiple?(v, n) when is_integer(v) and is_integer(n), do: rem(v, n) == 0
+  defp multiple?(v, n), do: abs(:math.fmod(v * 1.0, n * 1.0)) < 1.0e-9
+
+  defp integral?(v) when is_integer(v), do: true
+  defp integral?(v) when is_float(v), do: Float.floor(v) == v
+  defp integral?(_), do: false
+
+  defp format_regex(:email), do: Raggio.Schema.email()
+  defp format_regex(:url), do: Raggio.Schema.url()
+  defp format_regex(:uuid), do: Raggio.Schema.uuid()
 end
