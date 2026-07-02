@@ -397,3 +397,18 @@ and implement the protocol for `%Schema.AST{}`, making Syntax the tree-utilities
 derivations (JSON Schema, BigQuery, P3 §6.1 `pick`/`omit`) walk instead of each hand-rolling
 recursion — effect's "one AST, many projections" applied to traversal. That follow-up change
 also owns the `syntax` capability spec delta (Modified or Removed requirements).
+
+### D8 (amended) — data-first macro surface; the Ecto-ish DSL belongs to the consumer
+The first cut of the struct macro used an Ecto-like `schema do field … end` block. Rejected
+on review: **effect's `Schema.Class` takes fields as data** (a record), not a DSL block —
+the block form is an Ecto-ism inherited from mimicking Domain.Schema. The raggio-faithful
+surface is `defschema name: Schema.string(), …`, whose argument is literally the keyword
+list `Schema.struct/1` accepts (`defschema kw` ≡ `Schema.struct(kw, module: __MODULE__)` +
+compile-time codegen). Named literal sets follow the same one-liner pattern
+(`use Raggio.Schema.Literal, values: [...]`, optional `decode: :downcase|:upcase`), and the
+composition convention is: **any module exporting `__schema__/0` is a schema** — so
+`defschema status: Status, owner: User` embeds enum and struct modules alike.
+
+Consequence for the shim: integration-hub's `Domain.Schema` keeps its `schema do field … end`
+call-sites *in its own repo*, lowering to these data-first primitives. The Ecto-ish opinion
+lives with its owner; raggio ships unopinionated primitives shaped like effect's own.

@@ -1,21 +1,19 @@
 defmodule Raggio.Schema.Struct do
   @moduledoc """
-  Opt-in macro sugar for module-backed schemas — the effect `Schema.Class` analog.
+  Opt-in macro for module-backed schemas — the effect `Schema.Class` analog.
 
   `Raggio.Schema`'s core is macro-less runtime values; this is the one place a macro is
-  warranted, because `defstruct` and `@type t` only exist at compile time. Declare the
-  fields once and get the struct, its typespec, the bound runtime schema, and
-  `decode`/`encode` wrappers:
+  warranted, because `defstruct` and `@type t` only exist at compile time. The surface is
+  **data-first**, mirroring effect's `Class` (fields as a record, not a DSL block): the
+  argument to `defschema` is the same keyword list `Raggio.Schema.struct/1` accepts.
 
       defmodule User do
         use Raggio.Schema.Struct
 
-        schema do
-          field :name, Schema.string(min: 1)
-          field :age, Schema.integer(min: 0)
-          field :status, Schema.literal(:active, :inactive)
-          field :bio, Schema.string() |> Schema.optional()
-        end
+        defschema name: Schema.string(min: 1),
+                  age: Schema.integer(min: 0),
+                  status: Schema.literal(:active, :inactive),
+                  bio: Schema.string() |> Schema.optional()
       end
 
       User.decode(%{name: "A", age: 1, status: :active})
@@ -31,50 +29,29 @@ defmodule Raggio.Schema.Struct do
       (field expressions are evaluated when called, so checks/transforms work)
     * `decode/1`, `decode!/1`, `encode/1` wrappers
 
-  The field expressions are ordinary `Raggio.Schema` combinators — everything the
-  runtime surface can express (checks, refinements, transforms, nesting) works here.
+  Field values are ordinary `Raggio.Schema` combinators — everything the runtime surface
+  can express (checks, refinements, transforms, nesting) works here. A field may also be
+  a **module** exporting `__schema__/0` (another `defschema` module, or a
+  `Raggio.Schema.Literal` enum), so schemas compose across modules:
+
+      defschema status: Status, owner: User
   """
 
   defmacro __using__(_opts) do
     quote do
-      import Raggio.Schema.Struct, only: [schema: 1]
+      import Raggio.Schema.Struct, only: [defschema: 1]
       alias Raggio.Schema
-      Module.register_attribute(__MODULE__, :raggio_schema_fields, accumulate: true)
-      @before_compile Raggio.Schema.Struct
     end
   end
 
-  @doc "Declare the schema fields for this module."
-  defmacro schema(do: block) do
-    quote do
-      import Raggio.Schema.Struct, only: [field: 2]
-      unquote(block)
-    end
-  end
-
-  @doc "Declare one field: a name and a `Raggio.Schema` combinator expression."
-  defmacro field(name, schema_expr) when is_atom(name) do
-    quote do
-      @raggio_schema_fields {unquote(name), unquote(Macro.escape(schema_expr))}
-    end
-  end
-
-  defmacro __before_compile__(env) do
-    fields = env.module |> Module.get_attribute(:raggio_schema_fields) |> Enum.reverse()
-
+  @doc "Declare the schema fields (a keyword list of `Raggio.Schema` expressions)."
+  defmacro defschema(fields) when is_list(fields) do
     if fields == [] do
-      raise ArgumentError,
-            "#{inspect(env.module)} uses Raggio.Schema.Struct but declares no fields — " <>
-              "add a `schema do field ... end` block"
+      raise ArgumentError, "defschema requires at least one field"
     end
 
     field_names = Enum.map(fields, &elem(&1, 0))
-
-    quoted_pairs =
-      Enum.map(fields, fn {name, expr} -> {name, expr} end)
-
-    type_pairs =
-      Enum.map(fields, fn {name, expr} -> {name, type_for(expr)} end)
+    type_pairs = Enum.map(fields, fn {name, expr} -> {name, type_for(expr)} end)
 
     quote do
       defstruct unquote(field_names)
@@ -83,7 +60,7 @@ defmodule Raggio.Schema.Struct do
 
       @doc "The runtime `Raggio.Schema` value for this module (bound to the struct)."
       def __schema__ do
-        Raggio.Schema.struct(unquote(quoted_pairs), module: __MODULE__)
+        Raggio.Schema.struct(unquote(fields), module: __MODULE__)
       end
 
       @doc "Decode (validate + build) data into `%#{inspect(__MODULE__)}{}`."
@@ -101,13 +78,21 @@ defmodule Raggio.Schema.Struct do
   #
   # Best-effort: recognize the Raggio.Schema constructor the expression bottoms out
   # in and map it to a typespec; anything else is term(). Pipes into optional/nullable
-  # add `| nil`; other pipes (refine/check) pass the inner type through.
+  # add `| nil`; other pipes (refine/check) pass the inner type through. A bare module
+  # (aliased) maps to its `t()`.
+
+  @doc false
+  def __type_for__(expr), do: type_for(expr)
 
   defp type_for({:|>, _, [inner, call]}) do
     case call_name(call) do
       name when name in [:optional, :nullable] -> nilable(type_for(inner))
       _ -> type_for(inner)
     end
+  end
+
+  defp type_for({:__aliases__, _, _} = mod) do
+    quote(do: unquote(mod).t())
   end
 
   defp type_for({{:., _, [_mod, fun]}, _, args}), do: base_type(fun, args)
@@ -138,16 +123,12 @@ defmodule Raggio.Schema.Struct do
   defp base_type(:list, [inner | _]), do: quote(do: [unquote(type_for(inner))])
   defp base_type(:list, _), do: quote(do: list())
 
-  defp base_type(:literal, args) do
-    if Enum.all?(args, &literal_value?/1) do
-      union_type(args)
-    else
-      quote(do: term())
-    end
-  end
+  defp base_type(:literal, args), do: literal_union(args)
+
+  defp base_type(:literals, [values | _]) when is_list(values), do: literal_union(values)
 
   defp base_type(:union, [members | _]) when is_list(members) do
-    members |> Enum.map(&type_for/1) |> union_type_specs()
+    members |> Enum.map(&type_for/1) |> union_type()
   end
 
   defp base_type(:refine, [inner | _]), do: type_for(inner)
@@ -155,14 +136,18 @@ defmodule Raggio.Schema.Struct do
   defp base_type(:transform, _), do: quote(do: term())
   defp base_type(_fun, _args), do: quote(do: term())
 
-  defp literal_value?(v) when is_atom(v) or is_number(v) or is_binary(v), do: true
-  defp literal_value?(_), do: false
+  # Typespecs only support atom/integer literal types; strings/floats widen.
+  defp literal_union(values) do
+    cond do
+      Enum.all?(values, &(is_atom(&1) or is_integer(&1))) -> union_type(values)
+      Enum.all?(values, &is_binary/1) -> quote(do: String.t())
+      Enum.all?(values, &is_number/1) -> quote(do: number())
+      true -> quote(do: term())
+    end
+  end
 
   defp union_type([single]), do: single
   defp union_type([h | t]), do: quote(do: unquote(h) | unquote(union_type(t)))
-
-  defp union_type_specs([single]), do: single
-  defp union_type_specs([h | t]), do: quote(do: unquote(h) | unquote(union_type_specs(t)))
 
   defp nilable(type), do: quote(do: unquote(type) | nil)
 end

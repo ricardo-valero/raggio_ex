@@ -68,26 +68,30 @@ defmodule Raggio.Schema do
   decoded/transformed field values and applied defaults are in the output; undeclared
   keys are dropped; absent optional fields stay absent. Pass `module: Mod` to bind a
   target struct — decode then returns `%Mod{}` instead of a plain map.
+
+  A field's schema may be a **module** exporting `__schema__/0` (a `Raggio.Schema.Struct`
+  or `Raggio.Schema.Literal` module) — it is resolved on construction.
   """
   def struct(fields, opts \\ []) when is_list(fields) do
-    %AST{kind: :struct, fields: fields, module: Keyword.get(opts, :module)}
+    resolved = Enum.map(fields, fn {name, schema} -> {name, resolve(schema)} end)
+    %AST{kind: :struct, fields: resolved, module: Keyword.get(opts, :module)}
   end
 
   def list(inner_schema, opts \\ []) do
     %AST{
       kind: :list,
-      inner: inner_schema,
+      inner: resolve(inner_schema),
       checks: list_checks(opts),
       context: %Context{default: Keyword.get(opts, :default, :none)}
     }
   end
 
   def tuple(schemas) when is_list(schemas) do
-    %AST{kind: :tuple, elements: schemas}
+    %AST{kind: :tuple, elements: Enum.map(schemas, &resolve/1)}
   end
 
   def union(schemas) when is_list(schemas) and length(schemas) >= 2 do
-    %AST{kind: :union, elements: schemas}
+    %AST{kind: :union, elements: Enum.map(schemas, &resolve/1)}
   end
 
   def literal(value), do: %AST{kind: :literal, values: [value]}
@@ -96,9 +100,42 @@ defmodule Raggio.Schema do
   def literal(value1, value2, value3),
     do: %AST{kind: :literal, values: [value1, value2, value3]}
 
-  def record(key_schema, value_schema) do
-    %AST{kind: :record, key_type: key_schema, value_type: value_schema}
+  @doc """
+  A closed set of literal values (effect's `Literals`) — the list form of `literal`.
+
+  For string value sets, `decode: :downcase | :upcase` case-folds the incoming string
+  before matching, so the wire is lenient and the decoded value canonical:
+
+      Schema.literals(["on", "off"], decode: :downcase)  # "ON" decodes to "on"
+  """
+  def literals(values, opts \\ []) when is_list(values) and values != [] do
+    base = %AST{kind: :literal, values: values}
+
+    case Keyword.get(opts, :decode) do
+      nil ->
+        base
+
+      fold when fold in [:downcase, :upcase] ->
+        folder = if fold == :downcase, do: &String.downcase/1, else: &String.upcase/1
+        transform(string(), fn s -> check_membership(folder.(s), values) end, & &1)
+    end
   end
+
+  defp check_membership(value, values) do
+    if value in values do
+      {:ok, value}
+    else
+      {:error, "must be one of: #{inspect(values)}"}
+    end
+  end
+
+  def record(key_schema, value_schema) do
+    %AST{kind: :record, key_type: resolve(key_schema), value_type: resolve(value_schema)}
+  end
+
+  # Any module exporting __schema__/0 is usable wherever a schema is expected.
+  defp resolve(%AST{} = schema), do: schema
+  defp resolve(module) when is_atom(module), do: module.__schema__()
 
   def optional(%AST{context: ctx} = schema) do
     %{schema | context: %{ctx | optional?: true}}
@@ -149,11 +186,11 @@ defmodule Raggio.Schema do
 
       Schema.transform(Schema.string(), &Integer.parse/1, &to_string/1)
   """
-  def transform(%AST{} = encoded, decode, encode)
+  def transform(encoded, decode, encode)
       when is_function(decode, 1) and is_function(encode, 1) do
     %AST{
       kind: :transform,
-      inner: encoded,
+      inner: resolve(encoded),
       encoding: [%Transformation{decode: decode, encode: encode}]
     }
   end

@@ -3,15 +3,27 @@ defmodule Raggio.Schema.StructMacroTest do
 
   alias Raggio.Schema.AST
 
+  defmodule Status do
+    use Raggio.Schema.Literal, values: ["on", "off"]
+  end
+
+  defmodule Level do
+    use Raggio.Schema.Literal, values: ["low", "high"], decode: :downcase
+  end
+
+  defmodule Mode do
+    use Raggio.Schema.Literal, values: [:read, :write]
+  end
+
   defmodule User do
     use Raggio.Schema.Struct
 
-    schema do
-      field(:name, Schema.string(min: 1))
-      field(:age, Schema.integer(min: 0))
-      field(:status, Schema.literal(:active, :inactive))
-      field(:bio, Schema.string() |> Schema.optional())
-    end
+    defschema(
+      name: Schema.string(min: 1),
+      age: Schema.integer(min: 0),
+      status: Schema.literal(:active, :inactive),
+      bio: Schema.string() |> Schema.optional()
+    )
   end
 
   # Exercises every branch of the @type t derivation — compiling this module IS the
@@ -19,18 +31,29 @@ defmodule Raggio.Schema.StructMacroTest do
   defmodule Kitchen do
     use Raggio.Schema.Struct
 
-    schema do
-      field(:count, Schema.number_from_string())
-      field(:tags, Schema.list(Schema.string()))
-      field(:kind, Schema.union([Schema.string(), Schema.integer()]))
-      field(:when, Schema.datetime_from_iso8601())
-      field(:price, Schema.decimal() |> Schema.nullable())
-      field(:even, Schema.integer() |> Schema.refine(&(rem(&1, 2) == 0), "must be even"))
-      field(:meta, Schema.record(Schema.string(), Schema.integer()))
-    end
+    defschema(
+      count: Schema.number_from_string(),
+      tags: Schema.list(Schema.string()),
+      kind: Schema.union([Schema.string(), Schema.integer()]),
+      when: Schema.datetime_from_iso8601(),
+      price: Schema.decimal() |> Schema.nullable(),
+      even: Schema.integer() |> Schema.refine(&(rem(&1, 2) == 0), "must be even"),
+      meta: Schema.record(Schema.string(), Schema.integer())
+    )
   end
 
-  describe "generated module" do
+  # Module composition: literal-set field + embedded defschema module.
+  defmodule Device do
+    use Raggio.Schema.Struct
+
+    defschema(
+      name: Schema.string(min: 1),
+      status: Status,
+      owner: User
+    )
+  end
+
+  describe "defschema" do
     test "defines the struct with the declared fields" do
       assert %User{} |> Map.keys() |> Enum.sort() == [:__struct__, :age, :bio, :name, :status]
     end
@@ -40,19 +63,7 @@ defmodule Raggio.Schema.StructMacroTest do
       assert Keyword.keys(fields) == [:name, :age, :status, :bio]
     end
 
-    test "@type t is emitted" do
-      # The module compiled — the typespec is syntactically valid. Also check it's attached.
-      {:ok, types} = Code.Typespec.fetch_types(User)
-      assert Enum.any?(types, fn {:type, {name, _, _}} -> name == :t end)
-    rescue
-      # in-memory test modules may not expose beam chunks on all setups — compilation
-      # of User/Kitchen above is the primary assertion
-      _ -> :ok
-    end
-  end
-
-  describe "decode/1" do
-    test "builds the struct with validated values" do
+    test "decode builds the struct with validated values" do
       assert {:ok, %User{name: "A", age: 30, status: :active}} =
                User.decode(%{name: "A", age: 30, status: :active})
     end
@@ -78,18 +89,14 @@ defmodule Raggio.Schema.StructMacroTest do
       assert {:error, [%Raggio.Schema.Error{path: [:age], constraint: :min}]} =
                User.decode(%{name: "A", age: -1, status: :active})
     end
-  end
 
-  describe "decode!/1" do
-    test "raises on invalid data" do
+    test "decode!/1 raises on invalid data" do
       assert_raise Raggio.Schema.ValidationError, fn ->
         User.decode!(%{name: "A", age: -1, status: :active})
       end
     end
-  end
 
-  describe "encode/1" do
-    test "round-trips through the wire shape" do
+    test "encode round-trips through the wire shape" do
       wire = %{
         count: "42",
         tags: ["a"],
@@ -106,15 +113,74 @@ defmodule Raggio.Schema.StructMacroTest do
       assert encoded[:when] == "2026-07-02T12:00:00Z"
       refute Map.has_key?(encoded, :__struct__)
     end
-  end
 
-  describe "misuse" do
-    test "using the macro without fields raises at compile time" do
-      assert_raise ArgumentError, ~r/declares no fields/, fn ->
+    test "empty defschema raises at compile time" do
+      assert_raise ArgumentError, ~r/at least one field/, fn ->
         defmodule Empty do
           use Raggio.Schema.Struct
+          defschema([])
         end
       end
+    end
+  end
+
+  describe "Raggio.Schema.Literal" do
+    test "decodes a member and rejects a non-member" do
+      assert {:ok, "on"} = Status.decode("on")
+      assert {:error, [%Raggio.Schema.Error{constraint: :literal}]} = Status.decode("blue")
+    end
+
+    test "values/0 exposes the set" do
+      assert Status.values() == ["on", "off"]
+    end
+
+    test "atom value sets work" do
+      assert {:ok, :read} = Mode.decode(:read)
+      assert {:error, _} = Mode.decode(:delete)
+    end
+
+    test "decode: :downcase folds the wire value before matching" do
+      assert {:ok, "high"} = Level.decode("HIGH")
+      assert {:ok, "low"} = Level.decode("Low")
+      assert {:error, [%Raggio.Schema.Error{constraint: :transform}]} = Level.decode("MEDIUM")
+    end
+
+    test "encode is the canonical value" do
+      assert {:ok, "high"} = Level.encode("high")
+    end
+  end
+
+  describe "module composition" do
+    test "a literal-set module is usable as a field schema" do
+      assert {:ok, %Device{status: "on"}} =
+               Device.decode(%{
+                 name: "lamp",
+                 status: "on",
+                 owner: %{name: "A", age: 1, status: :active}
+               })
+    end
+
+    test "an embedded defschema module decodes to its own struct" do
+      assert {:ok, %Device{owner: %User{name: "A"}}} =
+               Device.decode(%{
+                 name: "lamp",
+                 status: "off",
+                 owner: %{name: "A", age: 1, status: :active}
+               })
+    end
+
+    test "nested errors carry the full path" do
+      assert {:error, [%Raggio.Schema.Error{path: [:owner, :age]}]} =
+               Device.decode(%{
+                 name: "lamp",
+                 status: "on",
+                 owner: %{name: "A", age: -1, status: :active}
+               })
+    end
+
+    test "runtime combinators also accept modules" do
+      schema = Raggio.Schema.list(Status)
+      assert {:ok, ["on", "off"]} = Raggio.Schema.validate(schema, ["on", "off"])
     end
   end
 end
