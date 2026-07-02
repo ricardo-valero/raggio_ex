@@ -57,7 +57,7 @@ defmodule Raggio.Schema.Definition do
   @combinators ~w(
     string integer float boolean atom date datetime decimal
     struct list tuple union literal literals record declare
-    optional nullable refine check transform
+    optional nullable default refine check transform
     trim downcase upcase number_from_string datetime_from_iso8601
     email url uuid
   )a

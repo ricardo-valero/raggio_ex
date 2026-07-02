@@ -190,11 +190,21 @@ defmodule Raggio.Schema do
     end
   end
 
+  # Membership with the atom-wire convention: an atom member also matches its string
+  # wire form, decoding to the canonical atom (JSON has no atoms).
   defp check_membership(value, values) do
-    if value in values do
-      {:ok, value}
-    else
-      {:error, "must be one of: #{inspect(values)}"}
+    cond do
+      value in values ->
+        {:ok, value}
+
+      is_binary(value) ->
+        case Enum.find(values, &(is_atom(&1) and Atom.to_string(&1) == value)) do
+          nil -> {:error, "must be one of: #{inspect(values)}"}
+          atom -> {:ok, atom}
+        end
+
+      true ->
+        {:error, "must be one of: #{inspect(values)}"}
     end
   end
 
@@ -212,6 +222,17 @@ defmodule Raggio.Schema do
 
   def nullable(%AST{context: ctx} = schema) do
     %{schema | context: %{ctx | nullable?: true}}
+  end
+
+  @doc """
+  Set a default on any schema (pipe-friendly). Used when the value is absent or nil:
+
+      Schema.boolean() |> Schema.default(false)
+      Style |> Schema.default(:solid)          # works on module schemas too
+  """
+  def default(schema, value) do
+    %AST{context: ctx} = resolved = resolve(schema)
+    %{resolved | context: %{ctx | default: value}}
   end
 
   @doc """

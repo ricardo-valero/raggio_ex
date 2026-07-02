@@ -20,9 +20,11 @@ defmodule Raggio.Schema.Encoder do
     do_encode(inner, encode.(value))
   end
 
+  # nil-valued fields are omitted from the wire (absent optional ≡ omitted key)
   defp do_encode(%AST{kind: :struct, fields: fields}, value) when is_map(value) do
     Enum.reduce(fields, %{}, fn {name, field_schema}, acc ->
       case fetch_field(value, name) do
+        {:ok, nil} -> acc
         {:ok, field_value} -> Map.put(acc, name, do_encode(field_schema, field_value))
         :error -> acc
       end
