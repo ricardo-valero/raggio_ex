@@ -16,6 +16,15 @@
           inherit (pkgs.python3Packages) uv;
         };
       };
+
+      # Lean shell for CI — just the toolchain needed to compile/format/credo/test,
+      # so CI doesn't build the full dev environment (nixd, alejandra, uv, gh).
+      ci = pkgs.mkShell {
+        packages = builtins.attrValues {
+          inherit (pkgs) git;
+          inherit (beam-pkgs) elixir;
+        };
+      };
     });
   };
 }
