@@ -115,7 +115,7 @@ defmodule Raggio.Schema.Validator do
        )
        when not is_nil(disc) do
     if is_map(value) do
-      tag = Map.get(value, disc)
+      tag = fetch_wire(value, disc)
 
       case Enum.find(members, &tagged_member_matches?(&1, disc, tag)) do
         nil ->
@@ -154,19 +154,23 @@ defmodule Raggio.Schema.Validator do
     end
   end
 
+  # A literal matches its exact values; an atom member also matches its string wire
+  # form and decodes to the canonical atom (JSON has no atoms).
   defp validate_node(%AST{kind: :literal, values: values}, value, path, _mode, _partial) do
-    if value in values do
-      {:ok, value}
-    else
-      {:error,
-       [
-         %Error{
-           path: path,
-           message: "must be one of: #{inspect(values)}",
-           value: value,
-           constraint: :literal
-         }
-       ]}
+    case literal_match(values, value) do
+      {:ok, canonical} ->
+        {:ok, canonical}
+
+      :error ->
+        {:error,
+         [
+           %Error{
+             path: path,
+             message: "must be one of: #{inspect(values)}",
+             value: value,
+             constraint: :literal
+           }
+         ]}
     end
   end
 
@@ -201,8 +205,24 @@ defmodule Raggio.Schema.Validator do
 
   defp tagged_member_matches?(%AST{kind: :struct, fields: fields}, disc, tag) do
     case List.keyfind(fields, disc, 0) do
-      {^disc, %AST{kind: :literal, values: values}} -> tag in values
+      {^disc, %AST{kind: :literal, values: values}} -> literal_match(values, tag) != :error
       _ -> false
+    end
+  end
+
+  defp literal_match(values, value) do
+    cond do
+      value in values ->
+        {:ok, value}
+
+      is_binary(value) ->
+        case Enum.find(values, &(is_atom(&1) and Atom.to_string(&1) == value)) do
+          nil -> :error
+          atom -> {:ok, atom}
+        end
+
+      true ->
+        :error
     end
   end
 
@@ -262,7 +282,7 @@ defmodule Raggio.Schema.Validator do
          errors,
          module
        ) do
-    field_value = Map.get(value, field_name)
+    field_value = fetch_wire(value, field_name)
     field_path = path ++ [field_name]
     %Context{} = ctx = field_schema.context
 
@@ -315,6 +335,14 @@ defmodule Raggio.Schema.Validator do
   # struct!/2 so a schema field the target struct lacks raises loudly instead of
   # silently dropping decoded data (Kernel.struct/2 ignores unknown keys).
   defp finalize_struct(acc, module), do: Kernel.struct!(module, acc)
+
+  # Wire input may be atom- or string-keyed (JSON); atom keys win on conflict.
+  defp fetch_wire(map, key) do
+    case Map.fetch(map, key) do
+      {:ok, v} -> v
+      :error -> Map.get(map, to_string(key))
+    end
+  end
 
   # --- lists ---------------------------------------------------------------
 

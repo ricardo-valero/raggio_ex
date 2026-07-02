@@ -116,8 +116,15 @@
       `oneOf` + `discriminator`, untagged → `anyOf`, literal sets → `enum`, declarations → module
       override, transforms → encoded-side. Remaining: `$defs`/`$ref` for named/recursive schemas
       (pairs with P3 `suspend`). (The OpenAPI assembly itself stays in integration-hub's `:api`.)
-- [ ] 7.7 Acceptance: mirror representative `Domain.Schema` cases into raggio's suite (or run
-      integration-hub's domain tests against the shim) and confirm green.
+- [x] 7.7 Acceptance: mirrored the consumer's full engine behaviour suite (40 cases) into
+      `test/raggio/schema/acceptance_test.exs` with **anonymized fixture names** — green.
+      Drove three wire-convention engine fixes: string-keyed input maps (`fetch_wire`), atom
+      literals decoding from their string wire form (incl. tagged-union dispatch + normalizing
+      sets), nil fields omitted on encode. Added `Schema.default/2` (pipe-friendly default for
+      any schema, incl. modules). **Deliberately shim-level (NOT raggio):** cross-field
+      `validate/1` refinement (runs post-decode around raggio in the consumer), `parse!`'s
+      flattened error-map format, and the Issue-*tree* error shape (raggio keeps flat
+      path-carrying errors; the shim can fold them into a tree).
 
 ## 8. Wrap-up
 
