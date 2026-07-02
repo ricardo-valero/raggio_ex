@@ -428,3 +428,52 @@ Elixir module-body idiom, not a borrowed DSL (`field` never appears). It superse
 and `Raggio.Schema.Struct`/`Raggio.Schema.Literal` (both removed); the macro lives in
 `Raggio.Schema.Definition`. Generic heads mean any combinator can be module-backed — tagged
 unions (§7.4) will slot in as another head.
+
+### Decision D13 — the consumer boundary, redrawn from production evidence (7.8–7.11)
+
+7.7 drew a line: cross-field `validate/1`, the flattened error map, and the Issue tree stay
+in consumers. Two months of the shim running in production (integration-hub
+`back-domain-schema-with-raggio`, merged) moved the evidence. The Issue tree already crossed
+(6.6). For the rest, the test is the same one 6.6 used: *is this an engine concern any
+consumer would rebuild, or an app's wire opinion?*
+
+**Crosses (engine concerns rebuilt downstream today):**
+
+1. **Transforming struct refinement (7.8).** effect has it (Class `filter` /
+   `transformOrFail`); Ecto has it (`validate_*` on changesets); the shim had to rebuild it
+   as a 60-line post-decode walk. And the downstream placement is *measurably worse*: the
+   walk runs only after a fully-clean decode, so
+   `%{"from" => bad_postal_pair, "to" => type_error}` reports only `to` — the interpreter
+   would have reported both. The module convention (`validate/1` next to `__schema__/0` on a
+   bound struct) keeps the core macro-free and costs nothing to schemas that don't define it.
+
+       # integration-hub, Ship.Address — normalize THEN cross-check, may transform:
+       def validate(%__MODULE__{} = a) do
+         a = %{a | province_code: a.province_code && String.upcase(a.province_code)}
+         cond do
+           a.province_code && not Country.supports_province?(a.country_code, a.province_code) ->
+             {:error, :province_code, "is not a valid province for country #{a.country_code}"}
+           not Country.valid_postal_code?(a.country_code, a.postal_code) ->
+             {:error, :postal_code, "does not match the expected format for country #{a.country_code}"}
+           true -> {:ok, a}
+         end
+       end
+
+2. **All-errors module decode (7.9).** Pure ergonomics gap: the engine supports the mode,
+   the generated `decode/1` can't reach it.
+
+3. **Non-lossy normalizing literals (7.10).** The current lowering is *observably wrong* for
+   the feature's own promise ("wire lenient, decoded canonical"): canonical atoms get
+   rejected, and the closed set projects as an open string. The downstream form (transform
+   over `any` + enum meta check) has a green OpenAPI golden behind it.
+
+**Undecided (a wire opinion with an ecosystem-standard argument):**
+
+4. **Changeset-style error map (7.11).** 6.6 said wire folds stay app-owned. But the fold in
+   question is the `Ecto.Changeset.traverse_errors` shape — the de-facto Elixir 422 idiom —
+   and the consumer's entire remaining `Issue` module is that one function. Accepting it
+   makes raggio "drop-in behind a Phoenix controller"; rejecting it keeps raggio strictly
+   format-neutral. Either is coherent; decide once, record it.
+
+**Still stays downstream:** the Ecto-ish `field` DSL (D8 stands), `parse!`'s raise-with-map
+convention, OpenAPI assembly, and the domain type vocabulary (`Domain.Type.*`).
