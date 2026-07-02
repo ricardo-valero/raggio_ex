@@ -36,7 +36,7 @@ defmodule Raggio.MixProject do
 
   defp deps do
     [
-      {:decimal, "~> 2.0"},
+      {:decimal, "~> 2.0 or ~> 3.0"},
       {:jason, "~> 1.4"},
       {:telemetry, "~> 1.0"},
 
