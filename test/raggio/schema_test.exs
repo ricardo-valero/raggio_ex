@@ -59,6 +59,25 @@ defmodule Raggio.SchemaTest do
     end
   end
 
+  describe "number/0,1 and any/0" do
+    test "number accepts integers and floats, preserving each" do
+      assert {:ok, 2} = Schema.validate(Schema.number(), 2)
+      assert {:ok, 2.5} = Schema.validate(Schema.number(), 2.5)
+      assert [%Error{constraint: :type}] = errors(Schema.number(), "x")
+    end
+
+    test "number honors bounds and exclusive bounds" do
+      assert {:ok, 5} = Schema.validate(Schema.number(min: 0, max: 10), 5)
+      assert [%Error{constraint: :greater_than}] = errors(Schema.number(greater_than: 0), 0)
+    end
+
+    test "any accepts everything" do
+      for v <- [1, "x", true, nil, %{}, [1]] do
+        assert {:ok, ^v} = Schema.validate(Schema.any(), v)
+      end
+    end
+  end
+
   describe "boolean / atom / date / datetime / decimal" do
     test "boolean" do
       assert {:ok, true} = Schema.validate(Schema.boolean(), true)

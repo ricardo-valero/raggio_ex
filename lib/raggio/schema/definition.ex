@@ -55,7 +55,7 @@ defmodule Raggio.Schema.Definition do
 
   # Names rewritten to Raggio.Schema.* inside the block (when they appear as calls).
   @combinators ~w(
-    string integer float boolean atom date datetime decimal
+    string integer float number boolean atom date datetime decimal any
     struct list tuple union literal literals record declare
     optional nullable default refine check transform
     trim downcase upcase number_from_string datetime_from_iso8601
@@ -241,6 +241,8 @@ defmodule Raggio.Schema.Definition do
   defp base_type(:string, _), do: quote(do: String.t())
   defp base_type(:integer, _), do: quote(do: integer())
   defp base_type(:float, _), do: quote(do: float())
+  defp base_type(:number, _), do: quote(do: number())
+  defp base_type(:any, _), do: quote(do: term())
   defp base_type(:boolean, _), do: quote(do: boolean())
   defp base_type(:atom, _), do: quote(do: atom())
   defp base_type(:date, _), do: quote(do: Date.t())

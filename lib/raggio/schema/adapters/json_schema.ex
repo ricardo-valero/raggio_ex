@@ -68,6 +68,9 @@ defmodule Raggio.Schema.Adapters.JsonSchema do
   defp base_for_kind(%AST{kind: :string}), do: %{"type" => "string"}
   defp base_for_kind(%AST{kind: :integer}), do: %{"type" => "integer"}
   defp base_for_kind(%AST{kind: :float}), do: %{"type" => "number"}
+  defp base_for_kind(%AST{kind: :number}), do: %{"type" => "number"}
+  # any/unknown — the empty schema accepts everything
+  defp base_for_kind(%AST{kind: :any}), do: %{}
   defp base_for_kind(%AST{kind: :boolean}), do: %{"type" => "boolean"}
   # atoms serialize as strings in JSON
   defp base_for_kind(%AST{kind: :atom}), do: %{"type" => "string"}

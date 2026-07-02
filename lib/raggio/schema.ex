@@ -67,6 +67,20 @@ defmodule Raggio.Schema do
   def float(default, opts),
     do: %AST{kind: :float, checks: number_checks(opts), context: %Context{default: default}}
 
+  @doc "Any number — accepts integers and floats, preserving each (effect's `Number`)."
+  def number(), do: %AST{kind: :number}
+
+  def number(opts) when is_list(opts),
+    do: %AST{kind: :number, checks: number_checks(opts)}
+
+  def number(default), do: %AST{kind: :number, context: %Context{default: default}}
+
+  def number(default, opts),
+    do: %AST{kind: :number, checks: number_checks(opts), context: %Context{default: default}}
+
+  @doc "Accepts anything (effect's `Any`/`Unknown`). Useful as a transform base or escape hatch."
+  def any(), do: %AST{kind: :any}
+
   def boolean(), do: %AST{kind: :boolean}
   def boolean(opts) when is_list(opts), do: %AST{kind: :boolean}
   def boolean(default), do: %AST{kind: :boolean, context: %Context{default: default}}
