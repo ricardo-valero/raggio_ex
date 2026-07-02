@@ -86,9 +86,11 @@
 > **Acceptance gate:** integration-hub's `Domain.Schema` test suite (domain 150) stays green
 > against a raggio-backed shim.
 
-- [ ] 7.1 Struct-building decode (effect's Type projection): `:struct` node optionally carries a
-      bound `:module`; the interpreter returns `struct(Mod, decoded)` when bound, a map otherwise.
-      Map-based runtime API unchanged. (Resolves the "raggio builds the struct" decision.)
+- [x] 7.1 Struct-building decode (effect's Type projection): struct decode **rebuilds** the output
+      (decoded/transformed field values + applied defaults; undeclared keys dropped; absent optional
+      fields stay absent). `Schema.struct(fields, module: Mod)` binds a target struct — decode returns
+      `%Mod{}` via `struct!/2` (loud on schema/struct mismatch, no silent drop). Also closes the P2
+      gap: transforms now propagate through struct fields.
 - [ ] 7.2 Optional `use Raggio.Schema.Struct` macro (core stays macro-free): lowers an Ecto-like
       `schema do field … end` to a runtime `Schema.struct/1` value bound to the module, and emits
       `defstruct`, `@type t` (derived from field types), `__schema__/0`, `decode/encode` wrappers.

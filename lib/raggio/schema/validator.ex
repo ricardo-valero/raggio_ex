@@ -85,8 +85,14 @@ defmodule Raggio.Schema.Validator do
 
   # --- per-kind node validation -------------------------------------------
 
-  defp validate_node(%AST{kind: :struct, fields: fields}, value, path, mode, partial) do
-    validate_struct_fields(fields, value, path, mode, partial, [])
+  defp validate_node(
+         %AST{kind: :struct, fields: fields, module: module},
+         value,
+         path,
+         mode,
+         partial
+       ) do
+    validate_struct_fields(fields, value, path, mode, partial, %{}, [], module)
   end
 
   defp validate_node(%AST{kind: :list, inner: inner}, value, path, mode, _partial) do
@@ -178,8 +184,11 @@ defmodule Raggio.Schema.Validator do
 
   # --- structs -------------------------------------------------------------
 
-  defp validate_struct_fields([], value, _path, _mode, _partial, errors) do
-    if errors == [], do: {:ok, value}, else: {:error, errors}
+  # Decoding rebuilds the value from the declared fields (effect's Type projection):
+  # decoded/transformed values and applied defaults land in the output, undeclared keys
+  # are dropped, absent optional fields stay absent. A bound `module` yields its struct.
+  defp validate_struct_fields([], _value, _path, _mode, _partial, acc, errors, module) do
+    if errors == [], do: {:ok, finalize_struct(acc, module)}, else: {:error, errors}
   end
 
   defp validate_struct_fields(
@@ -188,7 +197,9 @@ defmodule Raggio.Schema.Validator do
          path,
          mode,
          partial,
-         errors
+         acc,
+         errors,
+         module
        ) do
     field_value = Map.get(value, field_name)
     field_path = path ++ [field_name]
@@ -196,10 +207,10 @@ defmodule Raggio.Schema.Validator do
 
     cond do
       is_nil(field_value) and ctx.optional? ->
-        validate_struct_fields(rest, value, path, mode, partial, errors)
+        validate_struct_fields(rest, value, path, mode, partial, acc, errors, module)
 
       is_nil(field_value) and partial ->
-        validate_struct_fields(rest, value, path, mode, partial, errors)
+        validate_struct_fields(rest, value, path, mode, partial, acc, errors, module)
 
       is_nil(field_value) and not ctx.nullable? and ctx.default == :none ->
         error = %Error{
@@ -212,22 +223,37 @@ defmodule Raggio.Schema.Validator do
         if mode == :fail_fast do
           {:error, [error]}
         else
-          validate_struct_fields(rest, value, path, mode, partial, [error | errors])
+          validate_struct_fields(rest, value, path, mode, partial, acc, [error | errors], module)
         end
 
       true ->
         case do_validate(field_schema, field_value, field_path, mode, partial) do
-          {:ok, _validated} ->
-            validate_struct_fields(rest, value, path, mode, partial, errors)
+          {:ok, validated} ->
+            acc = Map.put(acc, field_name, validated)
+            validate_struct_fields(rest, value, path, mode, partial, acc, errors, module)
 
           {:error, field_errors} when mode == :fail_fast ->
             {:error, field_errors}
 
           {:error, field_errors} ->
-            validate_struct_fields(rest, value, path, mode, partial, field_errors ++ errors)
+            validate_struct_fields(
+              rest,
+              value,
+              path,
+              mode,
+              partial,
+              acc,
+              field_errors ++ errors,
+              module
+            )
         end
     end
   end
+
+  defp finalize_struct(acc, nil), do: acc
+  # struct!/2 so a schema field the target struct lacks raises loudly instead of
+  # silently dropping decoded data (Kernel.struct/2 ignores unknown keys).
+  defp finalize_struct(acc, module), do: Kernel.struct!(module, acc)
 
   # --- lists ---------------------------------------------------------------
 
