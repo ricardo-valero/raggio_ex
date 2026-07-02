@@ -111,3 +111,8 @@
 - [ ] 8.1 Update the parity matrix in `design.md` to reflect shipped items; keep it as the living conformance reference
 - [ ] 8.2 README: document JSON Schema export, refinements, transforms, and the optional struct macro
 - [ ] 8.3 Confirm deferred items (brand, Symbol/BigInt, template literals, `ToEquivalence`) remain explicitly out of scope with rationale — note these are *also* deferred by Domain.Schema (domain doesn't use them)
+- [ ] 8.4 **Revisit `Raggio.Syntax` (D12):** propose the follow-up change deciding retire-vs-repoint
+      for its superseded schema node types (`SchemaNode`/`FieldNode`/`TypeNode`) — preferred
+      direction: re-point the generic `Node` protocol + `traverse`/`find`/`transform` at
+      `%Schema.AST{}` as the shared traversal layer for derivations. Owns the `syntax` capability
+      spec delta. This change must NOT be archived with this box unchecked and no follow-up filed.
