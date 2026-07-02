@@ -121,6 +121,48 @@ defmodule Raggio.Schema do
     %AST{kind: :union, elements: Enum.map(schemas, &resolve/1)}
   end
 
+  @doc """
+  A **tagged** union over struct schemas, discriminated on `discriminator`
+  (effect's `Union |> toTaggedUnion`). Each member MUST declare the discriminator
+  as a literal field — an invalid member raises at construction. Decode reads the
+  discriminator from the input and dispatches to the single matching member, so
+  errors come from that member (not "tried them all").
+
+      Schema.union(:name, [Fedex, Imile])
+  """
+  def union(discriminator, members)
+      when is_atom(discriminator) and is_list(members) and length(members) >= 2 do
+    resolved = Enum.map(members, &resolve/1)
+    Enum.each(resolved, &validate_tagged_member!(&1, discriminator))
+    %AST{kind: :union, elements: resolved, discriminator: discriminator}
+  end
+
+  defp validate_tagged_member!(%AST{kind: :struct, fields: fields} = member, disc) do
+    case List.keyfind(fields || [], disc, 0) do
+      {^disc, %AST{kind: :literal}} ->
+        :ok
+
+      _ ->
+        raise ArgumentError,
+              "tagged union member #{inspect(member.module || member)} must declare " <>
+                "the discriminator #{inspect(disc)} as a literal field"
+    end
+  end
+
+  defp validate_tagged_member!(member, disc) do
+    raise ArgumentError,
+          "tagged union members must be struct schemas with a literal #{inspect(disc)} " <>
+            "field, got: #{inspect(member.kind)}"
+  end
+
+  @doc """
+  An opaque custom type backed by a module implementing the
+  `Raggio.Schema.Declaration` behaviour (`decode/1`, `encode/1`, `json_schema/0`).
+  """
+  def declare(module) when is_atom(module) do
+    %AST{kind: :declaration, module: module}
+  end
+
   def literal(value), do: %AST{kind: :literal, values: [value]}
   def literal(value1, value2), do: %AST{kind: :literal, values: [value1, value2]}
 

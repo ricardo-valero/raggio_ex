@@ -33,6 +33,18 @@ defmodule Raggio.Schema.Encoder do
     Enum.map(value, &do_encode(inner, &1))
   end
 
+  defp do_encode(%AST{kind: :declaration, module: module}, value) do
+    module.encode(value)
+  end
+
+  # union of bound-struct members — pick the member matching the value's struct
+  defp do_encode(%AST{kind: :union, elements: members}, %mod{} = value) do
+    case Enum.find(members, &match?(%AST{kind: :struct, module: ^mod}, &1)) do
+      nil -> value
+      member -> do_encode(member, Map.from_struct(value))
+    end
+  end
+
   defp do_encode(%AST{}, value), do: value
 
   defp fetch_field(map, name) do

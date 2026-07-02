@@ -82,6 +82,8 @@ defmodule Raggio.Schema.Validator do
   defp validate_type(:literal, value, _path), do: {:ok, value}
   # a transform accepts whatever its encoded-side schema accepts
   defp validate_type(:transform, value, _path), do: {:ok, value}
+  # a declaration delegates all type checking to its module's decode/1
+  defp validate_type(:declaration, value, _path), do: {:ok, value}
 
   # --- per-kind node validation -------------------------------------------
 
@@ -103,8 +105,53 @@ defmodule Raggio.Schema.Validator do
     validate_tuple_elements(schemas, Tuple.to_list(value), path, mode, 0, [])
   end
 
+  # tagged union — read the discriminator, dispatch to the single matching member
+  defp validate_node(
+         %AST{kind: :union, discriminator: disc, elements: members},
+         value,
+         path,
+         mode,
+         partial
+       )
+       when not is_nil(disc) do
+    if is_map(value) do
+      tag = Map.get(value, disc)
+
+      case Enum.find(members, &tagged_member_matches?(&1, disc, tag)) do
+        nil ->
+          tags = Enum.flat_map(members, &tagged_member_values(&1, disc))
+
+          {:error,
+           [
+             %Error{
+               path: path ++ [disc],
+               message: "must be one of: #{inspect(tags)}",
+               value: tag,
+               constraint: :discriminator
+             }
+           ]}
+
+        member ->
+          do_validate(member, value, path, mode, partial)
+      end
+    else
+      type_error(path, value, "map")
+    end
+  end
+
   defp validate_node(%AST{kind: :union, elements: schemas}, value, path, _mode, _partial) do
     validate_union(schemas, value, path)
+  end
+
+  # declaration — the module's decode/1 does the checking
+  defp validate_node(%AST{kind: :declaration, module: module}, value, path, _mode, _partial) do
+    case module.decode(value) do
+      {:ok, decoded} ->
+        {:ok, decoded}
+
+      {:error, message} ->
+        {:error, [%Error{path: path, message: message, value: value, constraint: :declaration}]}
+    end
   end
 
   defp validate_node(%AST{kind: :literal, values: values}, value, path, _mode, _partial) do
@@ -150,6 +197,20 @@ defmodule Raggio.Schema.Validator do
   # primitives — structural validation only; refinement checks run in do_validate/5
   defp validate_node(%AST{}, value, _path, _mode, _partial) do
     {:ok, value}
+  end
+
+  defp tagged_member_matches?(%AST{kind: :struct, fields: fields}, disc, tag) do
+    case List.keyfind(fields, disc, 0) do
+      {^disc, %AST{kind: :literal, values: values}} -> tag in values
+      _ -> false
+    end
+  end
+
+  defp tagged_member_values(%AST{kind: :struct, fields: fields}, disc) do
+    case List.keyfind(fields, disc, 0) do
+      {^disc, %AST{kind: :literal, values: values}} -> values
+      _ -> []
+    end
   end
 
   defp run_decode(decode, encoded, path) do

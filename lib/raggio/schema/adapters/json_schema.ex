@@ -107,8 +107,22 @@ defmodule Raggio.Schema.Adapters.JsonSchema do
     }
   end
 
+  # tagged union → oneOf + OpenAPI-style discriminator; untagged → anyOf
+  defp base_for_kind(%AST{kind: :union, discriminator: disc, elements: elements})
+       when not is_nil(disc) do
+    %{
+      "oneOf" => Enum.map(elements, &build/1),
+      "discriminator" => %{"propertyName" => to_string(disc)}
+    }
+  end
+
   defp base_for_kind(%AST{kind: :union, elements: elements}) do
     %{"anyOf" => Enum.map(elements, &build/1)}
+  end
+
+  # a declaration's JSON Schema is its module's override (empty = accepts anything)
+  defp base_for_kind(%AST{kind: :declaration, module: module}) do
+    module.json_schema()
   end
 
   defp base_for_kind(%AST{kind: :literal, values: values}) do
