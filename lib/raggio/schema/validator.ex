@@ -50,6 +50,12 @@ defmodule Raggio.Schema.Validator do
   defp validate_type(:float, value, _path) when is_integer(value), do: {:ok, value / 1}
   defp validate_type(:float, value, path), do: type_error(path, value, "float")
 
+  # :number preserves integers and floats as given (effect's Number)
+  defp validate_type(:number, value, _path) when is_number(value), do: {:ok, value}
+  defp validate_type(:number, value, path), do: type_error(path, value, "number")
+
+  defp validate_type(:any, value, _path), do: {:ok, value}
+
   defp validate_type(:boolean, value, _path) when is_boolean(value), do: {:ok, value}
   defp validate_type(:boolean, value, path), do: type_error(path, value, "boolean")
 
