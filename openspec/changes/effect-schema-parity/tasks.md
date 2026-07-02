@@ -91,10 +91,11 @@
       fields stay absent). `Schema.struct(fields, module: Mod)` binds a target struct — decode returns
       `%Mod{}` via `struct!/2` (loud on schema/struct mismatch, no silent drop). Also closes the P2
       gap: transforms now propagate through struct fields.
-- [ ] 7.2 Optional `use Raggio.Schema.Struct` macro (core stays macro-free): lowers an Ecto-like
-      `schema do field … end` to a runtime `Schema.struct/1` value bound to the module, and emits
-      `defstruct`, `@type t` (derived from field types), `__schema__/0`, `decode/encode` wrappers.
-      (This is the effect `Schema.Class` analog — the one place a macro is warranted.)
+- [x] 7.2 `use Raggio.Schema.Struct` macro (core stays macro-free): `schema do field … end` over
+      ordinary Raggio combinators, emitting `defstruct`, `@type t` (derived from the quoted field
+      exprs — literals become value unions, optional/nullable add `| nil`, fallback `term()`),
+      `__schema__/0` (runtime AST bound to the module), and `decode/1`/`decode!/1`/`encode/1`.
+      Field exprs are stored quoted and re-injected (closures can't live in attributes).
 - [ ] 7.3 Promote **Declarations / opaque custom types** out of the deferred tier (consumer uses
       them, e.g. `Json`): a `:declaration` node referencing a module with `decode`/`encode`/`check`
       + a JSON Schema override. (Mirrors Domain.Schema Decision 6.)
