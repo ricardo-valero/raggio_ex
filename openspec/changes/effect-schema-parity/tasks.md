@@ -73,7 +73,11 @@
 - [ ] 6.1 Struct utilities: `pick`/`omit`/`partial`/`assign`/`rename_keys` (schema-level derivations)
 - [ ] 6.2 Recursive schemas: `Schema.suspend/1` (the reserved `:suspend` kind); JSON Schema `$defs`/`$ref` for recursive types
 - [ ] 6.3 Strict struct mode (`Schema.strict/1` or `:strict` option); default stays lenient
-- [ ] 6.4 `Schema.annotate/2` (`identifier`/`title`/`description`/`examples`) over the `annotations` slot; readable by JSON Schema + error formatting
+- [ ] 6.4 `Schema.annotate/2` (`identifier`/`title`/`description`/`examples` — plus `format` and
+      free-form keys) over the metadata slot; readable by JSON Schema + error formatting. Real
+      consumer need: integration-hub's `Domain.Type.DateTime` is a string-based transform that
+      must project `"format": "date-time"` — today its shim pokes `%{node | metadata: %{format:
+      "date-time"}}` directly because no combinator sets metadata (AST-internals leak)
 - [ ] 6.5 Tests for all of the above
 - [x] 6.6 **Issue tree (effect's `SchemaIssue` analog):** a structured error *tree* — leaves
       (`InvalidType`/`InvalidValue`/`MissingKey`/`UnexpectedKey`) wrapped by structural nodes
@@ -131,10 +135,51 @@
       Drove three wire-convention engine fixes: string-keyed input maps (`fetch_wire`), atom
       literals decoding from their string wire form (incl. tagged-union dispatch + normalizing
       sets), nil fields omitted on encode. Added `Schema.default/2` (pipe-friendly default for
-      any schema, incl. modules). **Deliberately shim-level (NOT raggio):** cross-field
-      `validate/1` refinement (runs post-decode around raggio in the consumer), `parse!`'s
-      flattened error-map format, and the Issue-*tree* error shape (raggio keeps flat
-      path-carrying errors; the shim can fold them into a tree).
+      any schema, incl. modules). **Deliberately shim-level (NOT raggio)** *(as first
+      drawn — since revised)*: cross-field `validate/1` refinement, `parse!`'s flattened
+      error-map format, and the Issue-*tree* error shape. The Issue tree has since crossed
+      the boundary (6.6, shipped); 7.8–7.11 propose moving the rest, informed by what the
+      shim's production usage actually taught us.
+
+- [ ] 7.8 **Transforming struct-level refinement (cross-field `validate/1`, upstreamed):** honor
+      an optional `validate/1` on struct-bound modules (the same module convention as
+      `__schema__/0`), run by the interpreter after the struct's fields decode clean —
+      effect's Class-level `filter`/`transformOrFail`. Contract (proven downstream):
+      `:ok | {:ok, updated} | {:error, message} | {:error, field, message}`; `{:ok, updated}`
+      may *transform* (normalize) the struct; errors point at the struct or
+      `Pointer(field, …)`, constraint `:validate`. Real consumers (integration-hub):
+      `Ship.Address.validate/1` upcases `province_code` *then* cross-checks it against the
+      country registry (`{:error, :province_code, "is not a valid province for country MX"}`);
+      `Ship.Parcel.validate/1` requires `value`/`currency` set together. Today the shim
+      re-implements this as a bottom-up post-decode walk (`Domain.Schema.refine/2`) — which
+      only runs when raggio fully succeeded, so a type error on one field *hides* a sibling
+      struct's cross-field error. Interpreter-native placement fixes that aggregation gap
+      for free.
+- [ ] 7.9 **Module decode in all-errors mode:** `Definition`-generated `decode/1` is fail-fast;
+      422-building consumers always want every sibling error. Ship `decode/2` (opts pass through
+      to `validate/3`: `Item.decode(data, mode: :all_errors)`) and/or a module-level default
+      (`use Raggio.Schema, decode: [mode: :all_errors]`). Real consumer: integration-hub's
+      `parse/1` wraps `Schema.validate(__schema__(), input, mode: :all_errors)` for exactly this.
+- [ ] 7.10 **Non-lossy normalizing literal sets:** `literals(vs, decode: :downcase)` lowers to a
+      transform over `string()`, which (a) rejects already-canonical input — `:kg` fails
+      `"expected string"`, breaking re-parse of atom-keyed internal maps; (b) loses the enum in
+      every meta-folding projection — the JSON Schema adapter emits a bare `{"type":"string"}`
+      for what is a closed set (a real OpenAPI regression downstream); (c) reports the
+      `inspect`-form message. Fix: lower to a transform over `any()` whose decode does the
+      case-folding membership check *preserving value type* (atoms stay atoms, strings stay
+      strings), and attach a meta-only check `%{"type" => "string", "enum" => wire_forms}` so
+      any projection that folds check meta emits the enum. Port from integration-hub's
+      `Domain.Schema.build_normalized_literal/2` — production-proven, OpenAPI-golden-verified
+      (`Domain.Type.{MassUnit, DistanceUnit, Currency, CountryCode}`, `Ship.Track.Status`).
+- [ ] 7.11 **(decision needed — partially overturns 6.6's wire-format stance) changeset-style
+      error-map projection:** `Issue.to_error_map/1` folding errors into the nested,
+      field-keyed map Phoenix consumers expect (`Ecto.Changeset.traverse_errors` shape):
+      `%{from: %{postal_code: ["bad"]}}` — atom segments nest maps, integer segments nest
+      index maps, pathless errors land under `:base`. 6.6 kept wire formats app-owned; the
+      counter-argument is that this specific shape is ecosystem-standard, not app-specific —
+      integration-hub's whole `Domain.Schema.Issue` module is now just this one fold, and any
+      Phoenix-adjacent consumer will re-write it. If accepted, the downstream module deletes
+      outright; if rejected, record why so the next consumer doesn't re-ask.
 
 ## 8. Wrap-up
 
