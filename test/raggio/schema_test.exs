@@ -186,6 +186,18 @@ defmodule Raggio.SchemaTest do
     test "rejects a disallowed value" do
       assert [%Error{constraint: :literal}] = errors(Schema.literal(:active), :nope)
     end
+
+    test "a list argument means a closed set (unified literal)" do
+      schema = Schema.literal([:pdf, :zpl])
+      assert {:ok, :pdf} = Schema.validate(schema, :pdf)
+      assert [%Error{constraint: :literal}] = errors(schema, :png)
+    end
+
+    test "normalizing set via literal/2" do
+      schema = Schema.literal(["on", "off"], decode: :downcase)
+      assert {:ok, "on"} = Schema.validate(schema, "ON")
+      assert {:ok, "off"} = Schema.validate(schema, "off")
+    end
   end
 
   describe "record/2" do

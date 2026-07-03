@@ -177,21 +177,24 @@ defmodule Raggio.Schema do
     %AST{kind: :declaration, module: module}
   end
 
-  def literal(value), do: %AST{kind: :literal, values: [value]}
-  def literal(value1, value2), do: %AST{kind: :literal, values: [value1, value2]}
-
-  def literal(value1, value2, value3),
-    do: %AST{kind: :literal, values: [value1, value2, value3]}
-
   @doc """
-  A closed set of literal values (effect's `Literals`) — the list form of `literal`.
+  A literal value or a closed set of them (effect's `Literal`/`Literals`, unified).
 
-  For string value sets, `decode: :downcase | :upcase` case-folds the incoming string
-  before matching, so the wire is lenient and the decoded value canonical:
+    * `literal(:active)` — exactly that value
+    * `literal([:pdf, :zpl])` or `literal(:pdf, :zpl)` — one of the set
+    * `literal(["on", "off"], decode: :downcase | :upcase)` — normalizing set:
+      already-canonical values pass through; string input is case-folded before
+      matching, so the wire is lenient and the decoded value canonical.
 
-      Schema.literals(["on", "off"], decode: :downcase)  # "ON" decodes to "on"
+  Note: a list argument always means a *set* — a literal whose value is itself a
+  list is not representable (no known use).
   """
-  def literals(values, opts \\ []) when is_list(values) and values != [] do
+  def literal(values) when is_list(values) and values != [],
+    do: %AST{kind: :literal, values: values}
+
+  def literal(value), do: %AST{kind: :literal, values: [value]}
+
+  def literal(values, opts) when is_list(values) and values != [] and is_list(opts) do
     case Keyword.get(opts, :decode) do
       nil ->
         %AST{kind: :literal, values: values}
@@ -207,6 +210,9 @@ defmodule Raggio.Schema do
         |> check(enum_meta_check(values))
     end
   end
+
+  def literal(value1, value2), do: %AST{kind: :literal, values: [value1, value2]}
+  def literal(value1, value2, value3), do: %AST{kind: :literal, values: [value1, value2, value3]}
 
   defp normalized_membership(value, values, folder) do
     cond do

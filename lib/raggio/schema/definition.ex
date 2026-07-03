@@ -56,7 +56,7 @@ defmodule Raggio.Schema.Definition do
   # Names rewritten to Raggio.Schema.* inside the block (when they appear as calls).
   @combinators ~w(
     string integer float number boolean atom date datetime decimal any
-    struct list tuple union literal literals record declare
+    struct list tuple union literal record declare
     optional nullable default refine check transform
     trim downcase upcase number_from_string datetime_from_iso8601
     email url uuid
@@ -151,7 +151,7 @@ defmodule Raggio.Schema.Definition do
       def values, do: unquote(values)
 
       @doc "The runtime `Raggio.Schema` value for this literal set."
-      def __schema__, do: Raggio.Schema.literals(unquote(values), unquote(opts))
+      def __schema__, do: Raggio.Schema.literal(unquote(values), unquote(opts))
 
       unquote(codec_wrappers())
     end
@@ -197,7 +197,7 @@ defmodule Raggio.Schema.Definition do
     Macro.prewalk(ast, fn
       {:literal, meta, args} when is_list(args) and args != [] ->
         {values, opts} = literal_args(args)
-        qualified(:literals, meta, [values, opts])
+        qualified(:literal, meta, [values, opts])
 
       {:union, meta, [disc, members]} when is_atom(disc) and is_list(members) ->
         qualified(:union, meta, [disc, members])
@@ -269,8 +269,6 @@ defmodule Raggio.Schema.Definition do
     {values, _opts} = literal_args(args)
     literal_union(values)
   end
-
-  defp base_type(:literals, [values | _]) when is_list(values), do: literal_union(values)
 
   defp base_type(:union, [disc, members]) when is_atom(disc) and is_list(members) do
     union_type_of(members)
