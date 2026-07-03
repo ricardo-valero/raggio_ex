@@ -35,9 +35,11 @@ defmodule Raggio.Schema.Validator do
   defp do_validate(%AST{context: %Context{nullable?: true}}, nil, _mode, _partial),
     do: {:ok, nil}
 
+  # a 0-arity function default is a lazy thunk, evaluated per decode
+  # (effect's withDecodingDefault)
   defp do_validate(%AST{context: %Context{default: default}}, nil, _mode, _partial)
        when default != :none do
-    {:ok, default}
+    if is_function(default, 0), do: {:ok, default.()}, else: {:ok, default}
   end
 
   defp do_validate(%AST{kind: kind} = schema, value, mode, partial) do

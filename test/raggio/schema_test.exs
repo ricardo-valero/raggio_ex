@@ -220,6 +220,18 @@ defmodule Raggio.SchemaTest do
       assert {:ok, nil} = Schema.validate(Schema.nullable(Schema.string()), nil)
     end
 
+    test "a 0-arity function default is a lazy thunk, evaluated per decode" do
+      schema =
+        Schema.struct([
+          {:tick,
+           Schema.integer() |> Schema.default(fn -> System.unique_integer([:positive]) end)}
+        ])
+
+      {:ok, %{tick: a}} = Schema.validate(schema, %{})
+      {:ok, %{tick: b}} = Schema.validate(schema, %{})
+      assert is_integer(a) and is_integer(b) and a != b
+    end
+
     test "default is returned when value is nil (top-level)" do
       assert {:ok, 0} = Schema.validate(Schema.integer(0), nil)
       assert {:ok, "active"} = Schema.validate(Schema.string("active"), nil)
