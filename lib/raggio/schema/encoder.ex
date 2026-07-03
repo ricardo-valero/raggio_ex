@@ -14,9 +14,15 @@ defmodule Raggio.Schema.Encoder do
   def encode(%AST{} = schema, value), do: {:ok, do_encode(schema, value)}
 
   defp do_encode(
-         %AST{kind: :transform, inner: inner, encoding: [%Transformation{encode: encode}]},
+         %AST{
+           kind: :transform,
+           inner: inner,
+           value_type: target,
+           encoding: [%Transformation{encode: encode}]
+         },
          value
        ) do
+    value = if target, do: do_encode(target, value), else: value
     do_encode(inner, encode.(value))
   end
 
