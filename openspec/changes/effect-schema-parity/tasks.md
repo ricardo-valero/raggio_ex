@@ -214,6 +214,15 @@
       metadata, resolves module schemas, rewritten inside schema blocks. Real consumer:
       integration-hub's OpenAPI derivation folds `node.metadata` into JSON-Schema
       (`format`), previously reachable only via struct-update syntax on the AST.
+- [x] 7.15 **Decimal codec + float docs (D16):** `decimal()` was unusable on any wire
+      (validator accepted only `%Decimal{}` structs while the JSON-Schema projection
+      declares `{"type": "string"}`) and `decimal(opts)` silently dropped its checks.
+      Now: Ecto-style cast on decode (Decimal | fully-numeric string | integer | float →
+      `Decimal`), bounds via `Decimal.compare/2` (`min`/`max` inclusive, `gt`/`lt`
+      exclusive; Kernel comparison on Decimal structs is structural and wrong), encode
+      keeps the type-checked `%Decimal{}` leaf (consistent with date/datetime). `float()`
+      documented: integers coerce (`2` → `2.0`) — use `number()` to preserve ints
+      (the `{:float, gt: 0}` → `number(gt: 0)` rewrite trap, now stated at the source).
 
 ## 8. Wrap-up
 
