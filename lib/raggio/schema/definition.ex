@@ -57,7 +57,7 @@ defmodule Raggio.Schema.Definition do
   @combinators ~w(
     string integer float number boolean atom date datetime decimal any
     struct list tuple union literal record declare
-    optional nullable default refine check transform
+    optional nullable default refine check transform decode_to
     trim downcase upcase number_from_string datetime_from_iso8601
     email url uuid
   )a
@@ -225,8 +225,9 @@ defmodule Raggio.Schema.Definition do
   # (aliased) maps to its `t()`.
 
   defp type_for({:|>, _, [inner, call]}) do
-    case call_name(call) do
-      name when name in [:optional, :nullable] -> nilable(type_for(inner))
+    case {call_name(call), call} do
+      {name, _} when name in [:optional, :nullable] -> nilable(type_for(inner))
+      {:decode_to, {_, _, [target | _]}} -> type_for(target)
       _ -> type_for(inner)
     end
   end
@@ -281,6 +282,7 @@ defmodule Raggio.Schema.Definition do
   defp base_type(:refine, [inner | _]), do: type_for(inner)
   defp base_type(:check, [inner | _]), do: type_for(inner)
   defp base_type(:transform, _), do: quote(do: term())
+  defp base_type(:decode_to, [_enc, target | _]), do: type_for(target)
   defp base_type(_fun, _args), do: quote(do: term())
 
   # Typespecs only support atom/integer literal types; strings/floats widen.

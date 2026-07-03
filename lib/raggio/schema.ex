@@ -318,6 +318,27 @@ defmodule Raggio.Schema do
     }
   end
 
+  @doc """
+  Pipe a decode step **between two schemas** (effect's `decodeTo`): validate the
+  encoded side, apply `decode`, then validate the result against `target` — so the
+  typed side is schema-checked too, and normalizations compose by nesting:
+
+      # "  ON  " → trim → downcase → member of the set
+      Schema.string()
+      |> Schema.decode_to(Schema.literal(["on", "off"]), &{:ok, &1 |> String.trim() |> String.downcase()})
+
+  `encode` defaults to identity; the target may be a module schema.
+  """
+  def decode_to(encoded, target, decode, encode \\ & &1)
+      when is_function(decode, 1) and is_function(encode, 1) do
+    %AST{
+      kind: :transform,
+      inner: resolve(encoded),
+      value_type: resolve(target),
+      encoding: [%Transformation{decode: decode, encode: encode}]
+    }
+  end
+
   @doc "Decode a numeric string to an integer (or float); encodes back to a string."
   def number_from_string do
     transform(

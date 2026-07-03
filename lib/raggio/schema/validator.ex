@@ -178,16 +178,22 @@ defmodule Raggio.Schema.Validator do
     validate_record_entries(Map.to_list(value), key_schema, value_schema, mode, %{})
   end
 
-  # transform — decode the encoded side, then apply the transformation's decode getter
+  # transform — decode the encoded side, apply the transformation's decode getter,
+  # then (decode_to) validate the result against the target schema if one is set
   defp validate_node(
-         %AST{kind: :transform, inner: inner, encoding: [%Transformation{decode: decode}]},
+         %AST{
+           kind: :transform,
+           inner: inner,
+           value_type: target,
+           encoding: [%Transformation{decode: decode}]
+         },
          value,
          mode,
          partial
        ) do
     with {:ok, encoded} <- do_validate(inner, value, mode, partial),
          {:ok, typed} <- run_decode(decode, encoded) do
-      {:ok, typed}
+      if target, do: do_validate(target, typed, mode, partial), else: {:ok, typed}
     end
   end
 

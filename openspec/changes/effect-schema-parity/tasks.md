@@ -68,6 +68,12 @@
 - [x] 5.5 Tests (`codec_test.exs`): decode coercion, structured `:transform` decode-failure,
       list propagation, composition, JSON-Schema encoded-side, and `encode |> decode == id` property
 
+- [x] 5.6 `Schema.decode_to/3,4` (effect's `decodeTo`): pipe a decode step **between two
+      schemas** — encoded side validated, getter applied, result validated against the
+      target schema (module schemas resolve; full Issue structure preserved; encode
+      reverses through the chain). This is the *general* mechanism; `literal(vs,
+      decode: :downcase)` remains sugar for the common case.
+
 ## 6. P3 — Composition, recursion, strictness, annotations
 
 - [ ] 6.1 Struct utilities: `pick`/`omit`/`partial`/`assign`/`rename_keys` (schema-level derivations)
