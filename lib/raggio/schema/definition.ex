@@ -43,9 +43,10 @@ defmodule Raggio.Schema.Definition do
     * `struct fields` — also emits `defstruct` and `@type t` derived from the field
       schemas (literals become value unions, `optional`/`nullable` add `| nil`,
       unrecognized falls back to `term()`); decode returns `%__MODULE__{}`.
-    * `literal v1, v2, …[, decode: :downcase | :upcase]` (or a single list) — also
-      emits `values/0` and a `@type t` value union (atoms/integers) or the widened
-      type (strings).
+    * `literal v1, v2, …` (or a single list) — also emits `values/0` and a `@type t`
+      value union (atoms/integers) or the widened type (strings). For a wire-lenient
+      set, `any() |> decode_to(literal([...]), &fold/1)` gets the same `values/0` +
+      `@type t` (derived from the target) plus the codec.
     * anything else (`union A, B`, `list(string())`, a pipe) — generic: the module
       *is* that schema; `@type t` is derived where possible.
 
@@ -68,8 +69,8 @@ defmodule Raggio.Schema.Definition do
         struct_codegen(fields)
 
       {:literal, _, args} when is_list(args) ->
-        {values, opts} = literal_args(args)
-        literal_codegen(values, opts)
+        {values, _opts} = literal_args(args)
+        literal_codegen(values)
 
       {:union, _, [disc, members]} when is_atom(disc) and is_list(members) ->
         generic_codegen(
@@ -85,8 +86,33 @@ defmodule Raggio.Schema.Definition do
           union_type_of(members)
         )
 
+      {:|>, _, [_enc, {:decode_to, _, [{:literal, _, [values]} | _]}]} = expr
+      when is_list(values) ->
+        normalizing_codegen(expr, values)
+
+      {:decode_to, _, [_enc, {:literal, _, [values]} | _]} = expr when is_list(values) ->
+        normalizing_codegen(expr, values)
+
       other ->
         generic_codegen(rewrite(other), type_for(other))
+    end
+  end
+
+  # A decode_to whose target is a literal set: the module is the codec, but the
+  # closed set is compile-time known — emit values/0 and the value-union @type.
+  defp normalizing_codegen(expr, values) do
+    type = literal_union(values)
+
+    quote do
+      @type t :: unquote(type)
+
+      @doc "The canonical values of this set."
+      def values, do: unquote(values)
+
+      @doc "The runtime `Raggio.Schema` value for this module."
+      def __schema__, do: unquote(rewrite(expr))
+
+      unquote(codec_wrappers())
     end
   end
 
@@ -141,7 +167,7 @@ defmodule Raggio.Schema.Definition do
 
   # --- literal-set modules ----------------------------------------------------
 
-  defp literal_codegen(values, opts) do
+  defp literal_codegen(values) do
     type = literal_union(values)
 
     quote do
@@ -151,7 +177,7 @@ defmodule Raggio.Schema.Definition do
       def values, do: unquote(values)
 
       @doc "The runtime `Raggio.Schema` value for this literal set."
-      def __schema__, do: Raggio.Schema.literal(unquote(values), unquote(opts))
+      def __schema__, do: Raggio.Schema.literal(unquote(values))
 
       unquote(codec_wrappers())
     end
@@ -196,8 +222,15 @@ defmodule Raggio.Schema.Definition do
   defp rewrite(ast) do
     Macro.prewalk(ast, fn
       {:literal, meta, args} when is_list(args) and args != [] ->
-        {values, opts} = literal_args(args)
-        qualified(:literal, meta, [values, opts])
+        case literal_args(args) do
+          {values, []} ->
+            qualified(:literal, meta, [values])
+
+          {_values, opts} ->
+            raise ArgumentError,
+                  "literal no longer takes options (got #{inspect(opts)}) — compose the " <>
+                    "general form instead: any() |> decode_to(literal(values), &fold/1)"
+        end
 
       {:union, meta, [disc, members]} when is_atom(disc) and is_list(members) ->
         qualified(:union, meta, [disc, members])

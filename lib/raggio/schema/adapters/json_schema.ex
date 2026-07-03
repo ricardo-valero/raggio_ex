@@ -139,7 +139,19 @@ defmodule Raggio.Schema.Adapters.JsonSchema do
     %{"type" => "object", "additionalProperties" => build(value_type)}
   end
 
-  # a transform's JSON Schema is its encoded (wire) side
+  # a transform's JSON Schema is its encoded (wire) side; when the decode target
+  # is a literal set (decode_to), the closed set IS the wire contract — project it
+  defp base_for_kind(%AST{
+         kind: :transform,
+         inner: inner,
+         value_type: %AST{kind: :literal, values: values}
+       }) do
+    inner
+    |> build()
+    |> Map.put("type", "string")
+    |> Map.put("enum", Enum.map(values, &to_string/1))
+  end
+
   defp base_for_kind(%AST{kind: :transform, inner: inner}), do: build(inner)
 
   # --- slots ---------------------------------------------------------------

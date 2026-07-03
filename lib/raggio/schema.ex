@@ -182,9 +182,9 @@ defmodule Raggio.Schema do
 
     * `literal(:active)` — exactly that value
     * `literal([:pdf, :zpl])` or `literal(:pdf, :zpl)` — one of the set
-    * `literal(["on", "off"], decode: :downcase | :upcase)` — normalizing set:
-      already-canonical values pass through; string input is case-folded before
-      matching, so the wire is lenient and the decoded value canonical.
+    * for a wire-lenient (normalizing) set, compose the general form:
+      `any() |> decode_to(literal([:on, :off]), &{:ok, fold(&1)})` — the target
+      literal validates membership (atoms match their string wire form).
 
   Note: a list argument always means a *set* — a literal whose value is itself a
   list is not representable (no known use).
@@ -194,52 +194,8 @@ defmodule Raggio.Schema do
 
   def literal(value), do: %AST{kind: :literal, values: [value]}
 
-  def literal(values, opts) when is_list(values) and values != [] and is_list(opts) do
-    case Keyword.get(opts, :decode) do
-      nil ->
-        %AST{kind: :literal, values: values}
-
-      fold when fold in [:downcase, :upcase] ->
-        folder = if fold == :downcase, do: &String.downcase/1, else: &String.upcase/1
-
-        # Non-lossy normalizing set: already-canonical values (atoms included) pass
-        # through; only string input is case-folded before matching. The base is any()
-        # so canonical atoms aren't rejected by a string type-check, and a meta-only
-        # check carries the closed set so JSON Schema projects a real enum.
-        transform(any(), fn v -> normalized_membership(v, values, folder) end, & &1)
-        |> check(enum_meta_check(values))
-    end
-  end
-
   def literal(value1, value2), do: %AST{kind: :literal, values: [value1, value2]}
   def literal(value1, value2, value3), do: %AST{kind: :literal, values: [value1, value2, value3]}
-
-  defp normalized_membership(value, values, folder) do
-    cond do
-      value in values ->
-        {:ok, value}
-
-      is_binary(value) ->
-        folded = folder.(value)
-
-        case Enum.find(values, &(to_string(&1) == folded)) do
-          nil -> {:error, "must be one of: #{inspect(values)}"}
-          found -> {:ok, found}
-        end
-
-      true ->
-        {:error, "must be one of: #{inspect(values)}"}
-    end
-  end
-
-  # Pure metadata: never fails, only carries the closed set for projections.
-  defp enum_meta_check(values) do
-    %Check{
-      constraint: :enum,
-      run: fn _ -> :ok end,
-      meta: %{"type" => "string", "enum" => Enum.map(values, &to_string/1)}
-    }
-  end
 
   def record(key_schema, value_schema) do
     %AST{kind: :record, key_type: resolve(key_schema), value_type: resolve(value_schema)}

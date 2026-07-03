@@ -193,8 +193,11 @@ defmodule Raggio.SchemaTest do
       assert [%Error{constraint: :literal}] = errors(schema, :png)
     end
 
-    test "normalizing set via literal/2" do
-      schema = Schema.literal(["on", "off"], decode: :downcase)
+    test "normalizing set via the unsugared decode_to form" do
+      schema =
+        Schema.any()
+        |> Schema.decode_to(Schema.literal(["on", "off"]), &{:ok, String.downcase(&1)})
+
       assert {:ok, "on"} = Schema.validate(schema, "ON")
       assert {:ok, "off"} = Schema.validate(schema, "off")
     end
