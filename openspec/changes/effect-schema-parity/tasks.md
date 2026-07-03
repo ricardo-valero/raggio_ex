@@ -171,7 +171,7 @@
       any projection that folds check meta emits the enum. Port from integration-hub's
       `Domain.Schema.build_normalized_literal/2` — production-proven, OpenAPI-golden-verified
       (`Domain.Type.{MassUnit, DistanceUnit, Currency, CountryCode}`, `Ship.Track.Status`).
-- [ ] 7.11 **(decision needed — partially overturns 6.6's wire-format stance) changeset-style
+- [x] 7.11 **DECLINED (2026-07-03)** — changeset-style
       error-map projection:** `Issue.to_error_map/1` folding errors into the nested,
       field-keyed map Phoenix consumers expect (`Ecto.Changeset.traverse_errors` shape):
       `%{from: %{postal_code: ["bad"]}}` — atom segments nest maps, integer segments nest
@@ -180,6 +180,9 @@
       integration-hub's whole `Domain.Schema.Issue` module is now just this one fold, and any
       Phoenix-adjacent consumer will re-write it. If accepted, the downstream module deletes
       outright; if rejected, record why so the next consumer doesn't re-ask.
+      **Rejected: the 6.6 boundary holds.** Wire formats are consumer folds over raggio's
+      flat errors / Issue tree; raggio ships the tree + `Formatter`, not any one wire idiom.
+      The fold is ~30 lines a consumer writes once against a stable surface.
 
 ## 8. Wrap-up
 
