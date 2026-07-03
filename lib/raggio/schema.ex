@@ -72,6 +72,11 @@ defmodule Raggio.Schema do
   def integer(default, opts),
     do: %AST{kind: :integer, checks: number_checks(opts), context: %Context{default: default}}
 
+  @doc """
+  An Elixir float. Integers are accepted on decode and coerced (`2` → `2.0`), so
+  the decoded value is always a `float()`; use `number/0` to preserve integers
+  as integers (int-preserving is what a JSON `number` usually wants).
+  """
   def float(), do: %AST{kind: :float}
 
   def float(opts) when is_list(opts),
@@ -108,10 +113,23 @@ defmodule Raggio.Schema do
   def datetime(opts) when is_list(opts), do: %AST{kind: :datetime}
   def datetime(default), do: %AST{kind: :datetime, context: %Context{default: default}}
 
+  @doc """
+  An arbitrary-precision decimal (`t:Decimal.t/0`) — for values where float
+  rounding is unacceptable (money). Decode casts like `Ecto.Type`'s `:decimal`:
+  accepts a `Decimal`, a fully-numeric string, an integer, or a float
+  (shortest-representation `Decimal.from_float/1`); the decoded value is always
+  a `Decimal`. Bounds compare via `Decimal.compare/2` (Kernel `<`/`>` on
+  `Decimal` structs is structural, not numeric): `min:`/`max:` (inclusive),
+  `gt:`/`lt:` (exclusive) — a bound may be a number, a string, or a `Decimal`.
+
+      Schema.validate(Schema.decimal(min: 0), "12.30")   # {:ok, Decimal.new("12.30")}
+  """
   def decimal(), do: %AST{kind: :decimal}
-  def decimal(opts) when is_list(opts), do: %AST{kind: :decimal}
+  def decimal(opts) when is_list(opts), do: %AST{kind: :decimal, checks: decimal_checks(opts)}
   def decimal(default), do: %AST{kind: :decimal, context: %Context{default: default}}
-  def decimal(default, _opts), do: %AST{kind: :decimal, context: %Context{default: default}}
+
+  def decimal(default, opts),
+    do: %AST{kind: :decimal, checks: decimal_checks(opts), context: %Context{default: default}}
 
   def atom(), do: %AST{kind: :atom}
   def atom(opts) when is_list(opts), do: %AST{kind: :atom}
@@ -424,6 +442,14 @@ defmodule Raggio.Schema do
     |> append_if(opts[:less_than] || opts[:lt], &Check.less_than/1)
     |> append_if(opts[:multiple_of], &Check.multiple_of/1)
     |> append_flag(opts[:int], &Check.int/0)
+  end
+
+  defp decimal_checks(opts) do
+    []
+    |> append_if(opts[:min], &Check.decimal_min/1)
+    |> append_if(opts[:max], &Check.decimal_max/1)
+    |> append_if(opts[:greater_than] || opts[:gt], &Check.decimal_greater_than/1)
+    |> append_if(opts[:less_than] || opts[:lt], &Check.decimal_less_than/1)
   end
 
   defp list_checks(opts) do

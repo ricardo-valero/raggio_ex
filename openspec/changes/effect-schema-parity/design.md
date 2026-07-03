@@ -537,3 +537,31 @@ the shim guaranteed:
 
 Also: `validate!/2` gained an optional `opts` argument so `decode!/1` can honor the module
 defaults (a `ValidationError` from an all-errors module carries every failure).
+
+### Decision D16 — decimal is an Ecto-cast codec; float coerces (documented)
+
+Found auditing float/number/decimal semantics for the downstream DSL removal. `decimal()`
+as shipped was incoherent: the validator accepted **only** `%Decimal{}` structs while its
+own JSON-Schema projection declares the wire form a string (`{"type": "string", "format":
+"decimal"}`) — unusable on any wire — and `decimal(opts)` silently **dropped** its checks
+(likely because Kernel `<`/`>` on `%Decimal{}` structs compares structurally and can't
+implement them).
+
+**Design:**
+- Decode casts like `Ecto.Type`'s `:decimal` (the ecosystem convention consumers already
+  know): `Decimal` as-is; a fully-numeric string via `Decimal.parse` (whole-string match);
+  an integer via `Decimal.new`; a float via shortest-representation `Decimal.from_float`.
+  Decoded values are always `Decimal`.
+- Checks (`min`/`max` inclusive, `gt`/`lt` exclusive) compare via `Decimal.compare/2`;
+  bounds accept a number, a fully-numeric string, or a `Decimal`. Check meta projects the
+  usual `minimum`/`maximum`/`exclusive*` keywords.
+- Encode keeps the `%Decimal{}` leaf (type-checked, per D14), consistent with
+  `:date`/`:datetime` — JSON serialization is the JSON layer's concern. Noted tension,
+  deferred until a consumer forces it: Jason emits `Decimal` as a raw JSON number while
+  the JSON-Schema projection says `string` — resolving that (string-encode leaf vs
+  `{"type": "number"}` projection) is a wire-contract decision for the first real
+  decimal consumer (integration-hub money fields are `{:float, min: 0}` today).
+- `float()` keeps its semantics (integers coerce, `2` → `2.0`, decoded values always
+  `float()`) — now documented, with the pointer to `number()` for int-preserving JSON
+  numbers. `float` vs `number` is exactly the trap the downstream rewrite hit
+  (`{:float, gt: 0}` must lower to `number(gt: 0)` to avoid encoded-wire drift).

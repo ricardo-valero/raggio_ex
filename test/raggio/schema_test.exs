@@ -96,9 +96,11 @@ defmodule Raggio.SchemaTest do
       assert [%Error{constraint: :type}] = errors(Schema.date(), "2026-06-30")
     end
 
-    test "decimal" do
+    test "decimal casts strings and numbers to Decimal (see DecimalTest)" do
       assert {:ok, _} = Schema.validate(Schema.decimal(), Decimal.new("1.5"))
-      assert [%Error{constraint: :type}] = errors(Schema.decimal(), 1.5)
+      assert {:ok, %Decimal{}} = Schema.validate(Schema.decimal(), "1.5")
+      assert {:ok, %Decimal{}} = Schema.validate(Schema.decimal(), 1.5)
+      assert [%Error{constraint: :type}] = errors(Schema.decimal(), :nope)
     end
   end
 
