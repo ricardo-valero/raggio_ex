@@ -81,6 +81,82 @@ defmodule Raggio.Schema.Check do
     }
   end
 
+  # --- decimals --------------------------------------------------------------
+  #
+  # Bounds go through Decimal.compare/2 — Kernel comparison operators on
+  # %Decimal{} structs compare structurally, not numerically. A bound may be a
+  # number, a fully-numeric string, or a Decimal.
+
+  @doc "Decimal ≥ n (inclusive)."
+  def decimal_min(n) do
+    bound = to_decimal(n)
+
+    %__MODULE__{
+      constraint: :min,
+      meta: %{"minimum" => decimal_meta(bound)},
+      run: fn v ->
+        if Decimal.compare(v, bound) in [:gt, :eq],
+          do: :ok,
+          else: {:error, "must be at least #{bound}"}
+      end
+    }
+  end
+
+  @doc "Decimal ≤ n (inclusive)."
+  def decimal_max(n) do
+    bound = to_decimal(n)
+
+    %__MODULE__{
+      constraint: :max,
+      meta: %{"maximum" => decimal_meta(bound)},
+      run: fn v ->
+        if Decimal.compare(v, bound) in [:lt, :eq],
+          do: :ok,
+          else: {:error, "must be at most #{bound}"}
+      end
+    }
+  end
+
+  @doc "Decimal strictly greater than n."
+  def decimal_greater_than(n) do
+    bound = to_decimal(n)
+
+    %__MODULE__{
+      constraint: :greater_than,
+      meta: %{"exclusiveMinimum" => decimal_meta(bound)},
+      run: fn v ->
+        if Decimal.compare(v, bound) == :gt,
+          do: :ok,
+          else: {:error, "must be greater than #{bound}"}
+      end
+    }
+  end
+
+  @doc "Decimal strictly less than n."
+  def decimal_less_than(n) do
+    bound = to_decimal(n)
+
+    %__MODULE__{
+      constraint: :less_than,
+      meta: %{"exclusiveMaximum" => decimal_meta(bound)},
+      run: fn v ->
+        if Decimal.compare(v, bound) == :lt,
+          do: :ok,
+          else: {:error, "must be less than #{bound}"}
+      end
+    }
+  end
+
+  defp to_decimal(%Decimal{} = d), do: d
+  defp to_decimal(n) when is_integer(n), do: Decimal.new(n)
+  defp to_decimal(n) when is_float(n), do: Decimal.from_float(n)
+  defp to_decimal(n) when is_binary(n), do: Decimal.new(n)
+
+  # JSON-Schema numeric keywords take numbers; exact integers stay integers
+  defp decimal_meta(%Decimal{} = d) do
+    if Decimal.integer?(d), do: Decimal.to_integer(d), else: Decimal.to_float(d)
+  end
+
   # --- lists ---------------------------------------------------------------
 
   @doc "List length ≥ n."

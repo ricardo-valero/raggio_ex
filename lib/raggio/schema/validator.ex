@@ -81,7 +81,19 @@ defmodule Raggio.Schema.Validator do
   defp validate_type(:datetime, %NaiveDateTime{} = value), do: {:ok, value}
   defp validate_type(:datetime, value), do: type_error(value, "datetime")
 
+  # :decimal casts like Ecto's :decimal — Decimal as-is; a fully-numeric string,
+  # an integer, or a float (shortest representation) become Decimals
   defp validate_type(:decimal, %Decimal{} = value), do: {:ok, value}
+
+  defp validate_type(:decimal, value) when is_binary(value) do
+    case Decimal.parse(value) do
+      {%Decimal{} = decimal, ""} -> {:ok, decimal}
+      _ -> type_error(value, "decimal")
+    end
+  end
+
+  defp validate_type(:decimal, value) when is_integer(value), do: {:ok, Decimal.new(value)}
+  defp validate_type(:decimal, value) when is_float(value), do: {:ok, Decimal.from_float(value)}
   defp validate_type(:decimal, value), do: type_error(value, "decimal")
 
   defp validate_type(:struct, value) when is_map(value), do: {:ok, value}
