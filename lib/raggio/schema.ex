@@ -348,8 +348,17 @@ defmodule Raggio.Schema do
   @doc "Decode `data` against `schema` (alias for `validate/2` — the decode direction)."
   def decode(schema, data), do: Validator.validate(schema, data)
 
-  @doc "Encode a typed value back to its wire representation (reverses transforms)."
-  def encode(schema, value), do: Encoder.encode(schema, value)
+  @doc """
+  Encode a typed value back to its wire representation (reverses transforms).
+
+  Fallible, mirroring `validate/3` (D14): returns `{:ok, encoded}` or
+  `{:error, [Error.t()]}` — pass `errors: :tree` for the Issue tree,
+  `mode: :all_errors` to collect every failure.
+  """
+  def encode(schema, value, opts \\ []), do: Encoder.encode(schema, value, opts)
+
+  @doc "Like `encode/3` but raises `Raggio.Schema.ValidationError` on failure."
+  def encode!(schema, value), do: Encoder.encode!(schema, value)
 
   def validate(schema, data, opts) do
     Validator.validate(schema, data, opts)

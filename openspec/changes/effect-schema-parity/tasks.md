@@ -76,7 +76,7 @@
       the schema-block macro derives `values/0` + `@type t` from a `decode_to` literal target,
       and JSON Schema projects the closed set from the target.
 
-- [ ] 5.7 **Fallible encode (D14):** rewrite the Encoder as an Issue-producing walker —
+- [x] 5.7 **Fallible encode (D14):** rewrite the Encoder as an Issue-producing walker —
       `encode/3` returns `{:ok,_} | {:error, [Error]}` (`errors: :tree`, `mode:` mirror
       `validate/3`), `encode!/2` raises; getter→checks symmetry; type-side validation before
       getters; bare-value getters stay trusted, `{:ok,_}/{:error,msg}` returns become
