@@ -214,10 +214,13 @@ defmodule Raggio.Schema do
   end
 
   @doc """
-  Set a default on any schema (pipe-friendly). Used when the value is absent or nil:
+  Set a default on any schema (pipe-friendly). Used when the value is absent or nil.
+  A 0-arity function is a **lazy thunk**, evaluated fresh on each decode
+  (effect's `withDecodingDefault`):
 
       Schema.boolean() |> Schema.default(false)
-      Style |> Schema.default(:solid)          # works on module schemas too
+      Style |> Schema.default(:solid)                          # module schemas too
+      Schema.datetime() |> Schema.default(fn -> DateTime.utc_now() end)
   """
   def default(schema, value) do
     %AST{context: ctx} = resolved = resolve(schema)
