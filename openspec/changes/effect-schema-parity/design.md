@@ -565,3 +565,27 @@ implement them).
   `float()`) — now documented, with the pointer to `number()` for int-preserving JSON
   numbers. `float` vs `number` is exactly the trap the downstream rewrite hit
   (`{:float, gt: 0}` must lower to `number(gt: 0)` to avoid encoded-wire drift).
+
+### Decision D17 — Raggio.Tabular: augment later; a rules engine module: build later
+The procurement-etl P2 audit (2026-07-03) compared `Raggio.Tabular` against its descendant-
+in-production, procurement-etl's `sheet_schema` stack. Findings: parity on declaration/
+unions/errors; **major gaps** in ranges, build-time validation, regex headers, and the
+recognizer (header auto-detection + type inference + JSON export); and the downstream
+**transform engine is absent** here (12 ops incl. split/drop row fan-out, field refs with
+defaults, `match` blocks with composable predicate trees, DB-stored versioned JSON with
+legacy migration — ~850 LOC + ~930 test LOC).
+
+Rulings:
+1. **Raggio.Tabular stays and gets augmented in the future** (not deprecated): the gap
+   list above is its roadmap — ranges, `Validator`-style build-time checks, regex header
+   matching, recognizer. Trigger: when procurement-etl's sheet stack (or a second
+   consumer) is ready to converge; until then their superset stays app-side.
+2. **The transform engine becomes a future raggio module — `Raggio.Rules` (name TBD;
+   alternatives considered: `Raggio.Morph` after the ancestral Morphix DSL,
+   `Raggio.Workflow` — rejected-ish as it implies orchestration).** Scope when built:
+   sheet-agnostic serializable transformation programs over maps — atomic ops, literal/
+   field-ref inputs, predicate-tree `match` branching, multi-row fan-out, format
+   versioning. It is deliberately NOT part of Raggio.Schema (it consumes parsed rows;
+   it is not a codec). Trigger: a second ETL consumer, or procurement-etl P4+ wanting
+   the engine shared. Until then the production engine stays in procurement-etl,
+   unmodified.

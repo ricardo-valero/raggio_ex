@@ -234,3 +234,9 @@
       direction: re-point the generic `Node` protocol + `traverse`/`find`/`transform` at
       `%Schema.AST{}` as the shared traversal layer for derivations. Owns the `syntax` capability
       spec delta. This change must NOT be archived with this box unchecked and no follow-up filed.
+
+- [ ] 8.5 **(future, D17)** Augment `Raggio.Tabular` to its audited gap list (ranges,
+      build-time validator, regex headers, recognizer) when a consumer converges
+- [ ] 8.6 **(future, D17)** `Raggio.Rules` (name TBD): serializable transformation programs
+      over maps — ops, field refs, predicate-tree match blocks, row fan-out, versioning.
+      Build on the second-consumer trigger; procurement-etl's engine is the reference
