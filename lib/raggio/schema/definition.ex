@@ -58,12 +58,18 @@ defmodule Raggio.Schema.Definition do
   @combinators ~w(
     string integer float number boolean atom date datetime decimal any
     struct list tuple union literal record declare
-    optional nullable default refine check transform decode_to
+    optional nullable default refine check annotate transform decode_to
     trim downcase upcase number_from_string datetime_from_iso8601
     email url uuid
   )a
 
   defmacro schema(do: block) do
+    # `use Raggio.Schema` registers the decode-defaults attribute; ensure it
+    # exists for modules importing this macro directly.
+    unless Module.has_attribute?(__CALLER__.module, :raggio_decode_defaults) do
+      Module.put_attribute(__CALLER__.module, :raggio_decode_defaults, [])
+    end
+
     case block do
       {:struct, _, [fields]} when is_list(fields) ->
         struct_codegen(fields)
@@ -87,10 +93,11 @@ defmodule Raggio.Schema.Definition do
         )
 
       {:|>, _, [_enc, {:decode_to, _, [{:literal, _, [values]} | _]}]} = expr
-      when is_list(values) ->
+      when is_list(values) or is_tuple(values) ->
         normalizing_codegen(expr, values)
 
-      {:decode_to, _, [_enc, {:literal, _, [values]} | _]} = expr when is_list(values) ->
+      {:decode_to, _, [_enc, {:literal, _, [values]} | _]} = expr
+      when is_list(values) or is_tuple(values) ->
         normalizing_codegen(expr, values)
 
       other ->
@@ -120,6 +127,15 @@ defmodule Raggio.Schema.Definition do
 
   # literal(["a","b"]) | literal(["a","b"], opts) | literal("a","b") | literal("a","b", decode: :downcase)
   defp literal_args([values]) when is_list(values), do: {values, []}
+
+  defp literal_args([single]) when is_atom(single) or is_binary(single) or is_number(single),
+    do: {[single], []}
+
+  # a single non-literal expression (a call, variable, sigil, …) evaluating to a
+  # value or value list at runtime — passed through verbatim; Raggio.Schema.literal/1
+  # dispatches on the runtime shape. E.g. literal(Carrier.services(:fedex)).
+  defp literal_args([expr]) when is_tuple(expr), do: {expr, []}
+
   defp literal_args([values, opts]) when is_list(values) and is_list(opts), do: {values, opts}
 
   defp literal_args(args) do
@@ -202,12 +218,15 @@ defmodule Raggio.Schema.Definition do
       Decode (validate + build) a wire value into `t()`.
 
       Accepts the `Raggio.Schema.validate/3` options — e.g. `mode: :all_errors`
-      to collect every failure, or `errors: :tree` for the issue tree.
+      to collect every failure, or `errors: :tree` for the issue tree — merged
+      over the module's `use Raggio.Schema, decode: [...]` defaults.
       """
-      def decode(data, opts \\ []), do: Raggio.Schema.validate(__schema__(), data, opts)
+      def decode(data, opts \\ []),
+        do:
+          Raggio.Schema.validate(__schema__(), data, Keyword.merge(@raggio_decode_defaults, opts))
 
       @doc "Like `decode/1` but raises `Raggio.Schema.ValidationError` on failure."
-      def decode!(data), do: Raggio.Schema.validate!(__schema__(), data)
+      def decode!(data), do: Raggio.Schema.validate!(__schema__(), data, @raggio_decode_defaults)
 
       @doc "Encode a `t()` back to its wire representation."
       def encode(value), do: Raggio.Schema.encode(__schema__(), value)
@@ -314,11 +333,15 @@ defmodule Raggio.Schema.Definition do
 
   defp base_type(:refine, [inner | _]), do: type_for(inner)
   defp base_type(:check, [inner | _]), do: type_for(inner)
+  defp base_type(:annotate, [inner | _]), do: type_for(inner)
   defp base_type(:transform, _), do: quote(do: term())
   defp base_type(:decode_to, [_enc, target | _]), do: type_for(target)
   defp base_type(_fun, _args), do: quote(do: term())
 
   # Typespecs only support atom/integer literal types; strings/floats widen.
+  # A runtime-computed set (non-list AST) has no compile-time values to derive from.
+  defp literal_union(values) when not is_list(values), do: quote(do: term())
+
   defp literal_union(values) do
     cond do
       Enum.all?(values, &(is_atom(&1) or is_integer(&1))) -> union_type(values)

@@ -512,3 +512,28 @@ returned `{:ok,_}/{:error,_}` from encode before the shim forced totality.
   appear only where today raises or passes garbage, so existing `{:ok, _} =` call-sites
   are unaffected. This unblocks procurement-etl P4's encode swap (Transformer's defensive
   behavior maps 1:1).
+
+### Decision D15 — DSL-removal enablers (consumer-driven, integration-hub `remove-domain-schema-dsl`)
+
+Integration-hub is deleting its Ecto-ish `Domain.Schema` DSL and writing schemas directly
+in raggio's `use Raggio.Schema` + `schema do … end` surface. Auditing that rewrite against
+production behavior surfaced three gaps where the Definition surface couldn't express what
+the shim guaranteed:
+
+1. **Module-level decode defaults.** 7.9 shipped `decode/2` (opts pass through) but not
+   the "and/or" module default. Downstream, every 422-building call site does a bare
+   `Mod.decode(attrs)` and the shim silently supplied `mode: :all_errors`; a straight
+   rewrite regresses 422s to first-error-only. `use Raggio.Schema, decode: [...]` stores
+   defaults the generated `decode/1,2` and `decode!/1` merge under call-site opts.
+2. **Runtime-computed literal sets.** `literal(Carrier.services(:fedex))` (and
+   `literal(~w(usd mxn))`) inside a schema block was miswrapped by the macro's argument
+   normalization into `literal([expr])` — a set whose single member is a *list*, silently
+   accepting the whole list as a value. A single non-literal expression now passes through
+   verbatim; `Raggio.Schema.literal/1` dispatches on the runtime shape.
+3. **`annotate/2`.** The AST has carried a `metadata` slot since D4, and downstream
+   OpenAPI derivation reads it (`format: "date-time"`), but there was no public setter —
+   the shim used struct-update syntax. `annotate(schema, meta)` merges annotations,
+   resolves module schemas, and is rewritten inside schema blocks like any combinator.
+
+Also: `validate!/2` gained an optional `opts` argument so `decode!/1` can honor the module
+defaults (a `ValidationError` from an all-errors module carries every failure).

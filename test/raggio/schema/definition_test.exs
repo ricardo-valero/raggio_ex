@@ -275,4 +275,130 @@ defmodule Raggio.Schema.DefinitionTest do
       assert %User{name: "K"} = struct(User, %{name: "K"})
     end
   end
+
+  defmodule AllErrors do
+    use Raggio.Schema, decode: [mode: :all_errors]
+
+    schema do
+      struct(
+        name: string(min: 1),
+        age: integer(min: 0)
+      )
+    end
+  end
+
+  describe "use Raggio.Schema, decode: [...] defaults" do
+    test "the module default applies to bare decode/1" do
+      assert {:error, errors} = AllErrors.decode(%{name: "", age: -1})
+      assert length(errors) == 2
+    end
+
+    test "call-site options win over the module default" do
+      assert {:error, [_single]} = AllErrors.decode(%{name: "", age: -1}, mode: :fail_fast)
+    end
+
+    test "decode!/1 carries the default too" do
+      error =
+        assert_raise Raggio.Schema.ValidationError, fn ->
+          AllErrors.decode!(%{name: "", age: -1})
+        end
+
+      assert length(error.errors) == 2
+    end
+
+    test "without the option, decode stays fail-fast" do
+      assert {:error, [_single]} = User.decode(%{name: "", age: -1, status: :active})
+    end
+  end
+
+  defmodule ServiceCatalog do
+    def services, do: [:priority, :ground]
+  end
+
+  defmodule ComputedSet do
+    use Raggio.Schema
+
+    schema do
+      literal(ServiceCatalog.services())
+    end
+  end
+
+  defmodule SigilSet do
+    use Raggio.Schema
+
+    schema do
+      literal(~w(usd mxn))
+    end
+  end
+
+  defmodule ComputedField do
+    use Raggio.Schema
+
+    schema do
+      struct(service: literal(ServiceCatalog.services()))
+    end
+  end
+
+  defmodule ComputedNormalizing do
+    use Raggio.Schema
+
+    schema do
+      any()
+      |> decode_to(
+        literal(ServiceCatalog.services()),
+        &{:ok, if(is_binary(&1), do: String.downcase(&1), else: &1)}
+      )
+    end
+  end
+
+  describe "runtime-computed literal sets" do
+    test "a computed list is the set, not a one-list literal" do
+      assert {:ok, :priority} = ComputedSet.decode(:priority)
+      assert {:error, _} = ComputedSet.decode(:overnight)
+      # regression: the miswrapped form accepted the whole list as one literal value
+      assert {:error, _} = ComputedSet.decode([:priority, :ground])
+    end
+
+    test "values/0 evaluates the expression" do
+      assert ComputedSet.values() == [:priority, :ground]
+    end
+
+    test "a sigil list is the set" do
+      assert {:ok, "usd"} = SigilSet.decode("usd")
+      assert {:error, _} = SigilSet.decode("eur")
+      assert SigilSet.values() == ~w(usd mxn)
+    end
+
+    test "computed sets work as inline struct fields" do
+      assert {:ok, %ComputedField{service: :ground}} = ComputedField.decode(%{service: :ground})
+      assert {:error, _} = ComputedField.decode(%{service: :express})
+    end
+
+    test "computed sets work as a decode_to target (normalizing set)" do
+      assert {:ok, :priority} = ComputedNormalizing.decode("PRIORITY")
+      assert {:error, _} = ComputedNormalizing.decode("EXPRESS")
+      assert ComputedNormalizing.values() == [:priority, :ground]
+    end
+  end
+
+  defmodule Annotated do
+    use Raggio.Schema
+
+    schema do
+      datetime_from_iso8601() |> annotate(%{format: "date-time"})
+    end
+  end
+
+  describe "annotate/2" do
+    test "merges metadata onto the node without touching validation" do
+      assert Annotated.__schema__().metadata == %{format: "date-time"}
+      assert {:ok, %DateTime{}} = Annotated.decode("2026-07-02T12:00:00Z")
+      assert {:error, _} = Annotated.decode("not-a-date")
+    end
+
+    test "merges over existing metadata and resolves modules" do
+      node = Raggio.Schema.annotate(Annotated, %{title: "When"})
+      assert node.metadata == %{format: "date-time", title: "When"}
+    end
+  end
 end

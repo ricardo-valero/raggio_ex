@@ -27,10 +27,25 @@ defmodule Raggio.Schema do
 
   alias Raggio.Schema.{AST, Check, Context, Encoder, Error, Transformation, Validator}
 
-  defmacro __using__(_opts) do
+  @doc """
+  Sets up the module-backed schema surface: imports `schema/1` and aliases
+  `Raggio.Schema`.
+
+  ## Options
+
+    * `:decode` — default options merged into every call of the generated
+      `decode/1,2` and `decode!/1` (call-site options win). For modules whose
+      consumers always want the same validate options, e.g. collect-all-errors
+      for 422 responses:
+
+          use Raggio.Schema, decode: [mode: :all_errors]
+
+  """
+  defmacro __using__(opts) do
     quote do
       import Raggio.Schema.Definition, only: [schema: 1]
       alias Raggio.Schema
+      @raggio_decode_defaults Keyword.get(unquote(opts), :decode, [])
     end
   end
 
@@ -249,6 +264,19 @@ defmodule Raggio.Schema do
     %{schema | checks: checks ++ [check]}
   end
 
+  @doc """
+  Merge `meta` into the node's `metadata` — advisory annotations read by
+  projections (JSON Schema's `title`/`description`/`examples`, an OpenAPI
+  derivation's `format`), ignored by validation and encoding. Pipe-friendly;
+  the schema may be a module:
+
+      Schema.datetime_from_iso8601() |> Schema.annotate(%{format: "date-time"})
+  """
+  def annotate(schema, meta) when is_map(meta) do
+    %AST{metadata: metadata} = resolved = resolve(schema)
+    %{resolved | metadata: Map.merge(metadata, meta)}
+  end
+
   def email do
     ~r/^[a-zA-Z0-9.!#$%&'*+\/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/
   end
@@ -364,8 +392,8 @@ defmodule Raggio.Schema do
     Validator.validate(schema, data, opts)
   end
 
-  def validate!(schema, data) do
-    case validate(schema, data) do
+  def validate!(schema, data, opts \\ []) do
+    case validate(schema, data, opts) do
       {:ok, result} -> result
       {:error, errors} -> raise Raggio.Schema.ValidationError, errors: errors
     end

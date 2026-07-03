@@ -197,6 +197,23 @@
       **Rejected: the 6.6 boundary holds.** Wire formats are consumer folds over raggio's
       flat errors / Issue tree; raggio ships the tree + `Formatter`, not any one wire idiom.
       The fold is ~30 lines a consumer writes once against a stable surface.
+- [x] 7.12 **Module-level decode defaults (D15):** `use Raggio.Schema, decode: [mode: :all_errors]`
+      — defaults merged under call-site opts by the generated `decode/1,2` and `decode!/1`
+      (`validate!` gains an opts argument for the latter). Completes 7.9's "and/or": the
+      shim supplied `mode: :all_errors` implicitly at every one of integration-hub's
+      bare `Mod.decode(attrs)` 422 call sites; without a module default, deleting the
+      shim silently regresses 422 responses to first-error-only.
+- [x] 7.13 **Runtime-computed literal sets in Definition blocks (D15):**
+      `literal(Carrier.services(:fedex))` / `literal(~w(usd mxn))` were miswrapped into a
+      one-member set whose value is the whole *list* — silently wrong. A single
+      non-literal argument now passes through verbatim (runtime dispatch by
+      `Schema.literal/1`); works at the schema head (with `values/0`, `@type t :: term()`),
+      as an inline field, and as a `decode_to` target (normalizing set keeps `values/0`).
+- [x] 7.14 **`annotate/2` (D15):** public setter for the AST `metadata` slot (D4's channel) —
+      `datetime_from_iso8601() |> annotate(%{format: "date-time"})`; merges over existing
+      metadata, resolves module schemas, rewritten inside schema blocks. Real consumer:
+      integration-hub's OpenAPI derivation folds `node.metadata` into JSON-Schema
+      (`format`), previously reachable only via struct-update syntax on the AST.
 
 ## 8. Wrap-up
 
