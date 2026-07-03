@@ -15,7 +15,11 @@ defmodule Raggio.Schema.DefinitionTest do
     use Raggio.Schema
 
     schema do
-      literal("low", "high", decode: :downcase)
+      any()
+      |> decode_to(
+        literal(["low", "high"]),
+        &{:ok, if(is_binary(&1), do: String.downcase(&1), else: &1)}
+      )
     end
   end
 
@@ -202,10 +206,10 @@ defmodule Raggio.Schema.DefinitionTest do
       assert {:error, _} = Mode.decode(:delete)
     end
 
-    test "variadic with decode: :downcase folds the wire value" do
+    test "unsugared normalizing set folds the wire value" do
       assert {:ok, "high"} = Level.decode("HIGH")
       assert {:ok, "low"} = Level.decode("Low")
-      assert {:error, [%Raggio.Schema.Error{constraint: :transform}]} = Level.decode("MEDIUM")
+      assert {:error, [%Raggio.Schema.Error{constraint: :literal}]} = Level.decode("MEDIUM")
     end
 
     test "encode is the canonical value" do

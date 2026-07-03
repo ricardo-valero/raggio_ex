@@ -12,7 +12,11 @@ defmodule Raggio.Schema.ShimUpstreamTest do
     use Raggio.Schema
 
     schema do
-      literal([:small, :large], decode: :downcase)
+      any()
+      |> decode_to(
+        literal([:small, :large]),
+        &{:ok, if(is_binary(&1), do: String.downcase(&1), else: &1)}
+      )
     end
   end
 
@@ -20,7 +24,11 @@ defmodule Raggio.Schema.ShimUpstreamTest do
     use Raggio.Schema
 
     schema do
-      literal(["USD", "MXN"], decode: :upcase)
+      any()
+      |> decode_to(
+        literal(["USD", "MXN"]),
+        &{:ok, if(is_binary(&1), do: String.upcase(&1), else: &1)}
+      )
     end
   end
 
@@ -81,8 +89,8 @@ defmodule Raggio.Schema.ShimUpstreamTest do
     end
 
     test "non-members still fail" do
-      assert {:error, [%Error{constraint: :transform}]} = Size.decode("tiny")
-      assert {:error, [%Error{constraint: :transform}]} = Size.decode(42)
+      assert {:error, [%Error{constraint: :literal}]} = Size.decode("tiny")
+      assert {:error, [%Error{constraint: :literal}]} = Size.decode(42)
     end
 
     test "JSON Schema projects the closed set, not a bare string" do

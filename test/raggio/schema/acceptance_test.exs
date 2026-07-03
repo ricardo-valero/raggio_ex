@@ -135,7 +135,11 @@ defmodule Raggio.Schema.AcceptanceTest do
     use Raggio.Schema
 
     schema do
-      literal([:small, :medium, :large], decode: :downcase)
+      any()
+      |> decode_to(
+        literal([:small, :medium, :large]),
+        &{:ok, if(is_binary(&1), do: String.downcase(&1), else: &1)}
+      )
     end
   end
 
@@ -143,7 +147,11 @@ defmodule Raggio.Schema.AcceptanceTest do
     use Raggio.Schema
 
     schema do
-      literal(["AA", "BB"], decode: :upcase)
+      any()
+      |> decode_to(
+        literal(["AA", "BB"]),
+        &{:ok, if(is_binary(&1), do: String.upcase(&1), else: &1)}
+      )
     end
   end
 
@@ -296,13 +304,13 @@ defmodule Raggio.Schema.AcceptanceTest do
     test "downcase folds the incoming string before matching (atom values)" do
       assert {:ok, :small} = SizeCode.decode("SMALL")
       assert {:ok, :small} = SizeCode.decode("small")
-      assert {:error, [%Error{constraint: :transform}]} = SizeCode.decode("tiny")
+      assert {:error, [%Error{constraint: :literal}]} = SizeCode.decode("tiny")
     end
 
     test "upcase folds the incoming string and preserves the string value" do
       assert {:ok, "AA"} = RegionCode.decode("aa")
       assert {:ok, "AA"} = RegionCode.decode("AA")
-      assert {:error, [%Error{constraint: :transform}]} = RegionCode.decode("zz")
+      assert {:error, [%Error{constraint: :literal}]} = RegionCode.decode("zz")
     end
 
     test "is reusable as a field type, normalizing each element on decode" do

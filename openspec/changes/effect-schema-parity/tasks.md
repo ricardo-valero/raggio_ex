@@ -71,8 +71,10 @@
 - [x] 5.6 `Schema.decode_to/3,4` (effect's `decodeTo`): pipe a decode step **between two
       schemas** — encoded side validated, getter applied, result validated against the
       target schema (module schemas resolve; full Issue structure preserved; encode
-      reverses through the chain). This is the *general* mechanism; `literal(vs,
-      decode: :downcase)` remains sugar for the common case.
+      reverses through the chain). This is the *general* mechanism. The `literal(vs, decode:)`
+      sugar was subsequently REMOVED (2026-07-03, per review): one mechanism, no option-enum —
+      the schema-block macro derives `values/0` + `@type t` from a `decode_to` literal target,
+      and JSON Schema projects the closed set from the target.
 
 ## 6. P3 — Composition, recursion, strictness, annotations
 
