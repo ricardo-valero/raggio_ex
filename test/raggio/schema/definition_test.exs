@@ -266,6 +266,18 @@ defmodule Raggio.Schema.DefinitionTest do
       schema = Raggio.Schema.list(Status)
       assert {:ok, ["on", "off"]} = Raggio.Schema.validate(schema, ["on", "off"])
     end
+
+    test "optional/nullable/default resolve module schemas (pipe-friendly)" do
+      schema =
+        Raggio.Schema.struct(
+          a: Raggio.Schema.optional(Status),
+          b: Raggio.Schema.nullable(Status),
+          c: Raggio.Schema.default(Status, "on")
+        )
+
+      assert {:ok, %{b: nil, c: "on"}} = Raggio.Schema.validate(schema, %{b: nil})
+      assert {:ok, %{a: "off"}} = Raggio.Schema.validate(schema, %{a: "off", b: nil})
+    end
   end
 
   describe "scoping fence" do

@@ -238,12 +238,16 @@ defmodule Raggio.Schema do
   defp resolve(%AST{} = schema), do: schema
   defp resolve(module) when is_atom(module), do: module.__schema__()
 
-  def optional(%AST{context: ctx} = schema) do
-    %{schema | context: %{ctx | optional?: true}}
+  @doc "Mark a struct-field slot optional (pipe-friendly; the schema may be a module, like `default/2`)."
+  def optional(schema) do
+    %AST{context: ctx} = resolved = resolve(schema)
+    %{resolved | context: %{ctx | optional?: true}}
   end
 
-  def nullable(%AST{context: ctx} = schema) do
-    %{schema | context: %{ctx | nullable?: true}}
+  @doc "Accept `nil` for this slot (pipe-friendly; the schema may be a module, like `default/2`)."
+  def nullable(schema) do
+    %AST{context: ctx} = resolved = resolve(schema)
+    %{resolved | context: %{ctx | nullable?: true}}
   end
 
   @doc """
