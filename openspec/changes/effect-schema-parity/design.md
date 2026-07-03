@@ -477,3 +477,38 @@ consumer would rebuild, or an app's wire opinion?*
 
 **Still stays downstream:** the Ecto-ish `field` DSL (D8 stands), `parse!`'s raise-with-map
 convention, OpenAPI assembly, and the domain type vocabulary (`Domain.Type.*`).
+
+### Decision D14 — fallible encode (effect sides with defensive)
+Raggio currently has the asymmetry backwards relative to effect-smol: errors-as-values on
+decode, crash-on-contract-violation on encode. effect-smol treats encode exactly like
+decode — the core returns `Exit<Encoded, SchemaIssue>` (the Issue tree has a dedicated
+`Encoding` node), `transformOrFail` has a *fallible encode getter*, checks run in both
+directions, and the throwing `encodeSync` is a thin wrapper. Downstream confirms the need:
+data_schema's Transformer is defensive (encode gets called on data that never went through
+decode — DB rows, `new/1` constructions), and integration-hub's declarations originally
+returned `{:ok,_}/{:error,_}` from encode before the shim forced totality.
+
+**Design:**
+- `Schema.encode(schema, value, opts \\ [])` → `{:ok, encoded} | {:error, [Error.t()]}`;
+  `errors: :tree` returns the Issue tree; `mode: :all_errors` collects (both exactly
+  mirroring `validate/3`). New `Schema.encode!/2` raises `ValidationError` (encodeSync).
+- The Encoder becomes an Issue-producing walker mirroring the Validator:
+  `do_encode(ast, value) :: {:ok, encoded} | {:error, Issue.t()}` with `Pointer`/
+  `Composite` for location/grouping; the flat list is the same `Issue.to_errors/1` fold.
+- **Symmetry rule:** decode runs checks → getter; encode runs getter → checks (a node's
+  checks describe its encoded side at decode time, so on encode they re-validate the
+  getter's output).
+- **Type-side validation before getters:** `decode_to`'s target schema validates the value
+  before the encode getter runs (so getters keep their pattern-match contracts);
+  wrong-shaped input to struct/list/tuple/union nodes yields `InvalidType` instead of a
+  raise or silent identity pass-through; a union value matching no member yields the
+  union issue instead of pass-through.
+- **Getter protocol (backwards compatible):** encode getters may return a bare value
+  (today's contract, trusted — effect's infallible `transform`) or `{:ok, v}` /
+  `{:error, msg}` (effect's `transformOrFail`); `{:error, msg}` becomes an `Encoding`
+  issue. Declarations' `encode/1` gets the same tolerance, letting integration-hub's
+  original fallible-declaration convention return.
+- **Compatibility:** valid input keeps returning `{:ok, encoded}` — new error returns
+  appear only where today raises or passes garbage, so existing `{:ok, _} =` call-sites
+  are unaffected. This unblocks procurement-etl P4's encode swap (Transformer's defensive
+  behavior maps 1:1).
