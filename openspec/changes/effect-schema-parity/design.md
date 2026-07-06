@@ -589,3 +589,58 @@ Rulings:
    it is not a codec). Trigger: a second ETL consumer, or procurement-etl P4+ wanting
    the engine shared. Until then the production engine stays in procurement-etl,
    unmodified.
+
+### Decision D18 — encode presence semantics: nullable emits, optional omits, required errors
+
+**Problem (found 2026-07-06, while pinning procurement-etl's Decision-6 deviations):** the
+struct encoder drops *any* nil field and *any* absent key unconditionally
+(`encoder.ex` — `{:ok, nil} -> omit`, `:error -> omit`). This collapses three distinct
+cases that effect-smol keeps separate, and it makes raggio contradict its own JSON Schema
+adapter: for `struct(label: string(), tracking: string() |> nullable())` the adapter
+publishes `required: ["label", "tracking"]` with `tracking: ["string", "null"]`, yet
+`encode(%Shipment{tracking: nil})` omits the key and `encode(%Shipment{label: nil})`
+silently emits a document with no `label` at all — output that fails validation against
+the schema raggio itself published. Verified by experiment (2026-07-06).
+
+**Ruling — align with effect-smol, driven by the field's `Context`:**
+
+| field context            | value nil               | key absent (map input) |
+|--------------------------|-------------------------|------------------------|
+| `optional?` or default   | **omit** (nil ≡ absent on the typed side; Elixir structs cannot drop keys) | omit |
+| `nullable?`              | **emit `key => nil`** (effect `NullOr` emits null) | n/a (validator refills nil) |
+| plain required           | **issue** (defensive encode, D14) | **`MissingKey` issue** |
+
+Precedence: `nullable` wins over `optional` when both are set (nil is a legitimate value
+of the type — matches effect encoding a present-but-null `optionalKey(NullOr(...))`).
+
+**Implementation shape (minimal):** the struct branch stops special-casing nil. If the
+field is `optional?`/defaulted and the value is nil (or key absent) → omit; otherwise
+**route the value — including nil — through `do_encode(field_schema, ...)`**: the existing
+`nullable?` clause emits nil, scalar clauses produce `InvalidType`, `any()` legitimately
+passes nil through (effect: unknown admits null), and consumer "must be present" checks
+fire naturally. Absent required key → `MissingKey`. The root-level
+`default != :none, nil -> {:ok, nil}` clause is removed (defaults are decode-side only,
+effect's `withDecodingDefault`); the `nullable?, nil -> {:ok, nil}` clause stays.
+
+**Why this is the professional line (evidence):** JSON Merge Patch (RFC 7396) — absent =
+leave unchanged, null = clear — is inexpressible under collapse-to-omit; GraphQL/GitHub/
+Stripe response shapes emit `null` with stable keys (generated clients type `string | null`
+and break on missing keys); serde/Jackson/System.Text.Json all emit null by default with
+omit as *opt-in*; proto3 collapsed presence and had to re-add `optional` in 3.15. Encode
+is the last checkpoint before data leaves the process — an error there points at the bug,
+an omission points nowhere (D14's reasoning, applied consistently).
+
+**Compatibility:** decode(encode(x)) round-trips today *and* after (validator refills nil
+for missing nullable keys — that decode-side leniency vs effect's stricter `NullOr` stays
+as a documented divergence; tightening it would break integration-hub for no consumer
+value). The downstream nil-omission conventions came from optional/defaulted fields —
+those still omit. The breaking edge is nil in a required non-nullable field (silent drop →
+issue) and absent required keys on plain-map input (silent drop → MissingKey): that is the
+corruption-catching feature. Downstream suites must run against the branch SHA before
+merge; consumers with intentional nils declare `optional()`/`nullable()` — the schema
+telling the truth. Version bumps 0.1.1 → 0.2.0 (behavior change).
+
+Related, out of scope: consumer "coerce" (procurement-etl) stays app-side — its typed side
+is deliberately `any()` (leniency by construction, documented in their builders). The
+effect-shaped answer, if ever wanted in raggio, is named bidirectional codecs with real
+typed targets (`decimal_from_string` etc., cf. shipped 5.3 transforms), not a coerce flag.

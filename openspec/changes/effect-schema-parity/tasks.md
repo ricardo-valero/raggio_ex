@@ -82,6 +82,19 @@
       getters; bare-value getters stay trusted, `{:ok,_}/{:error,msg}` returns become
       `Encoding` issues. Unblocks procurement-etl P4.
 
+- [x] 5.8 **Encode presence semantics (D18):** struct encode three-way split — `optional?`/
+      defaulted nil (or absent key) → omit; otherwise route the value (incl. nil) through
+      `do_encode` so `nullable?` emits `key => nil`, scalars/checks issue, `any()` passes;
+      absent required key → `MissingKey`. Remove the root `default != :none, nil` clause.
+- [x] 5.9 Tests: the full context × (nil | absent | value) matrix; nullable nil round-trips
+      (`decode(encode(x)) == x` **and** the wire carries `key => nil`); encoded output
+      carries every key the JSON Schema adapter marks `required`; required-nil and
+      absent-required-key produce pointered issues in both modes; update any test pinning
+      the old drop behavior.
+- [ ] 5.10 Rollout: bump 0.1.1 → 0.2.0; README/CHANGELOG note; run integration-hub and
+      procurement-etl suites against the branch SHA, record fallout in this change before
+      merging (consumers pin the old ref until adapted if fallout is non-trivial).
+
 ## 6. P3 — Composition, recursion, strictness, annotations
 
 - [ ] 6.1 Struct utilities: `pick`/`omit`/`partial`/`assign`/`rename_keys` (schema-level derivations)
