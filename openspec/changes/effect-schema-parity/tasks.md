@@ -91,9 +91,12 @@
       carries every key the JSON Schema adapter marks `required`; required-nil and
       absent-required-key produce pointered issues in both modes; update any test pinning
       the old drop behavior.
-- [ ] 5.10 Rollout: bump 0.1.1 → 0.2.0; README/CHANGELOG note; run integration-hub and
-      procurement-etl suites against the branch SHA, record fallout in this change before
-      merging (consumers pin the old ref until adapted if fallout is non-trivial).
+- [x] 5.10 Rollout: bumped 0.1.1 → 0.2.0 + CHANGELOG. Downstream verification against the
+      branch SHA (2026-07-06): procurement-etl 1054 tests / 0 failures; integration-hub
+      domain 106 + api 256 + provider 235, all 0 failures. **Zero fallout** — every
+      downstream nil already sits behind `optional()`/defaults or `any()`-typed fields,
+      so only the new strict edge (required nil / absent required key) changed and no
+      consumer exercises it. Pin bumps can proceed normally.
 
 ## 6. P3 — Composition, recursion, strictness, annotations
 

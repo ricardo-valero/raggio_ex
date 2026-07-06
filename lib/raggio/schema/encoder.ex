@@ -233,7 +233,7 @@ defmodule Raggio.Schema.Encoder do
     end
   end
 
-  defp collect_issue(issue, acc, issues, :fail_fast), do: {:halt, {acc, [issue]}}
+  defp collect_issue(issue, acc, _issues, :fail_fast), do: {:halt, {acc, [issue]}}
   defp collect_issue(issue, acc, issues, _mode), do: {:cont, {acc, [issue | issues]}}
 
   defp encode_target(nil, value, _mode), do: {:ok, value}
