@@ -46,9 +46,8 @@ defmodule Raggio.Schema.Encoder do
     end
   end
 
-  # nil is its own wire form for nullable/defaulted slots
+  # nil is its own wire form for nullable slots (defaults are decode-side only, D18)
   defp do_encode(%AST{context: %Context{nullable?: true}}, nil, _mode), do: {:ok, nil}
-  defp do_encode(%AST{context: %Context{default: d}}, nil, _mode) when d != :none, do: {:ok, nil}
 
   defp do_encode(%AST{} = schema, value, mode) do
     # getter → checks: node checks re-validate the encoded output (see moduledoc)
@@ -84,28 +83,25 @@ defmodule Raggio.Schema.Encoder do
 
   # --- composites --------------------------------------------------------------
 
+  # D18 presence semantics: optional/defaulted nil (or absent key) is omitted; everything
+  # else — including nil — routes through the field schema, so nullable emits `key => nil`,
+  # scalars/checks issue, and `any()` passes nil through. Absent required key → MissingKey.
   defp encode_node(%AST{kind: :struct, fields: fields}, value, mode) when is_map(value) do
     {encoded, issues} =
       Enum.reduce_while(fields, {%{}, []}, fn {name, field_schema}, {acc, issues} ->
         case fetch_field(value, name) do
           {:ok, nil} ->
-            {:cont, {acc, issues}}
+            if omit_nil?(field_schema.context),
+              do: {:cont, {acc, issues}},
+              else: encode_field(field_schema, nil, name, acc, issues, mode)
 
           {:ok, field_value} ->
-            case do_encode(field_schema, field_value, mode) do
-              {:ok, v} ->
-                {:cont, {Map.put(acc, name, v), issues}}
-
-              {:error, issue} ->
-                issue = Issue.pointer(name, issue)
-
-                if mode == :fail_fast,
-                  do: {:halt, {acc, [issue]}},
-                  else: {:cont, {acc, [issue | issues]}}
-            end
+            encode_field(field_schema, field_value, name, acc, issues, mode)
 
           :error ->
-            {:cont, {acc, issues}}
+            if absent_ok?(field_schema.context),
+              do: {:cont, {acc, issues}},
+              else: collect_issue(Issue.pointer(name, Issue.missing_key()), acc, issues, mode)
         end
       end)
 
@@ -220,6 +216,25 @@ defmodule Raggio.Schema.Encoder do
   defp encode_node(%AST{kind: :any}, v, _), do: {:ok, v}
 
   # --- helpers ------------------------------------------------------------------
+
+  # D18: nullable wins — nil is a legitimate value of the type, emit it. Optional/
+  # defaulted nil represents absence on the typed side (structs cannot drop keys) — omit.
+  defp omit_nil?(%Context{nullable?: true}), do: false
+  defp omit_nil?(%Context{optional?: true}), do: true
+  defp omit_nil?(%Context{default: default}), do: default != :none
+
+  defp absent_ok?(%Context{optional?: true}), do: true
+  defp absent_ok?(%Context{default: default}), do: default != :none
+
+  defp encode_field(field_schema, field_value, name, acc, issues, mode) do
+    case do_encode(field_schema, field_value, mode) do
+      {:ok, v} -> {:cont, {Map.put(acc, name, v), issues}}
+      {:error, issue} -> collect_issue(Issue.pointer(name, issue), acc, issues, mode)
+    end
+  end
+
+  defp collect_issue(issue, acc, _issues, :fail_fast), do: {:halt, {acc, [issue]}}
+  defp collect_issue(issue, acc, issues, _mode), do: {:cont, {acc, [issue | issues]}}
 
   defp encode_target(nil, value, _mode), do: {:ok, value}
   defp encode_target(%AST{} = target, value, mode), do: do_encode(target, value, mode)
