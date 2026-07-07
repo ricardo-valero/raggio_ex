@@ -244,7 +244,7 @@ defmodule Raggio.Schema.Validator do
   # are dropped, absent optional fields stay absent. A bound `module` yields its struct.
   defp validate_struct_fields([], _value, _mode, partial, acc, issues, module) do
     case issues do
-      [] -> acc |> finalize_struct(module) |> run_module_validate(module, partial)
+      [] -> acc |> finalize_struct(module, partial) |> run_module_validate(module, partial)
       _ -> {:error, Issue.composite(Enum.reverse(issues))}
     end
   end
@@ -293,10 +293,20 @@ defmodule Raggio.Schema.Validator do
     end
   end
 
-  defp finalize_struct(acc, nil), do: acc
+  defp finalize_struct(acc, nil, _partial), do: acc
+
   # struct!/2 so a schema field the target struct lacks raises loudly instead of
   # silently dropping decoded data (Kernel.struct/2 ignores unknown keys).
-  defp finalize_struct(acc, module), do: Kernel.struct!(module, acc)
+  defp finalize_struct(acc, module, false), do: Kernel.struct!(module, acc)
+
+  # Partial decode may legitimately omit fields the target struct lists in
+  # @enforce_keys (schema modules enforce their required fields), so build
+  # without enforcement — Map.replace!/3 keeps the loud raise on unknown keys.
+  defp finalize_struct(acc, module, true) do
+    Enum.reduce(acc, Kernel.struct(module), fn {key, value}, struct ->
+      Map.replace!(struct, key, value)
+    end)
+  end
 
   # Interpreter-native cross-field refinement (effect's Class filter/transformOrFail):
   # a bound module's optional `validate/1` runs on ITS decoded value as soon as its own

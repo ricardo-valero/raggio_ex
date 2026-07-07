@@ -88,7 +88,8 @@ defmodule Raggio.Schema.DefinitionTest do
 
   describe "schema do struct ... end" do
     test "defines the struct with the declared fields" do
-      assert %User{} |> Map.keys() |> Enum.sort() == [:__struct__, :age, :bio, :name, :status]
+      assert %User{name: "A", age: 1, status: :active} |> Map.keys() |> Enum.sort() ==
+               [:__struct__, :age, :bio, :name, :status]
     end
 
     test "__schema__/0 returns the runtime schema bound to the module" do

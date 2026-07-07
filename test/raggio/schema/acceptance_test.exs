@@ -212,8 +212,8 @@ defmodule Raggio.Schema.AcceptanceTest do
   ## Struct
 
   describe "struct fields" do
-    test "emits a struct with nil defaults for the declared fields" do
-      assert %Item{weight: nil, scale: nil, memo: nil} = %Item{}
+    test "emits a struct with baked defaults, nil optionals, and enforced required fields" do
+      assert %Item{memo: nil, marked: false} = %Item{weight: 1.0, scale: :metric}
     end
 
     test "applies a default when the field is absent" do
