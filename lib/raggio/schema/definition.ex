@@ -43,6 +43,10 @@ defmodule Raggio.Schema.Definition do
     * `struct fields` — also emits `defstruct` and `@type t` derived from the field
       schemas (literals become value unions, `optional`/`nullable` add `| nil`,
       unrecognized falls back to `term()`); decode returns `%__MODULE__{}`.
+      `default:` values are baked into the defstruct and fields with no default
+      that are neither `optional()` nor `nullable()` become `@enforce_keys` — so
+      `%__MODULE__{...}` literals get the defaults and compile-time
+      required-field checking. Decode/encode are unaffected.
     * `literal v1, v2, …` (or a single list) — also emits `values/0` and a `@type t`
       value union (atoms/integers) or the widened type (strings). For a wire-lenient
       set, `any() |> decode_to(literal([...]), &fold/1)` gets the same `values/0` +
@@ -163,12 +167,21 @@ defmodule Raggio.Schema.Definition do
   end
 
   defp struct_codegen(fields) do
-    field_names = Enum.map(fields, &elem(&1, 0))
+    slots = Enum.map(fields, fn {name, expr} -> {name, slot_of(expr)} end)
     type_pairs = Enum.map(fields, fn {name, expr} -> {name, type_for(expr)} end)
     rewritten = Enum.map(fields, fn {name, expr} -> {name, rewrite(expr)} end)
 
+    struct_fields =
+      Enum.map(slots, fn
+        {name, {:default, value}} -> {name, value}
+        {name, _slot} -> name
+      end)
+
+    enforced = for {name, :required} <- slots, do: name
+
     quote do
-      defstruct unquote(field_names)
+      @enforce_keys unquote(enforced)
+      defstruct unquote(struct_fields)
 
       @type t :: %__MODULE__{unquote_splicing(type_pairs)}
 
@@ -268,6 +281,86 @@ defmodule Raggio.Schema.Definition do
   defp qualified(fun, meta, args) do
     {{:., meta, [{:__aliases__, meta, [:Raggio, :Schema]}, fun]}, meta, args}
   end
+
+  # --- struct-literal slot derivation (defstruct defaults + @enforce_keys) ---
+  #
+  # Mirror, syntactically, the runtime `Context` each field expression produces so
+  # struct literals work without going through decode:
+  #
+  #   * a `default:` value is baked into the defstruct (a 0-arity thunk cannot be —
+  #     functions are not compile-time struct values — so it stays `nil` in the
+  #     struct and only applies on decode);
+  #   * fields with no default that are neither `optional()` nor `nullable()` are
+  #     required → listed in `@enforce_keys`;
+  #   * `optional()` fields always bake `nil`, even with a default: decode skips an
+  #     absent optional field entirely (the default never applies), and the struct
+  #     literal mirrors that.
+  #
+  # Best-effort like the @type t derivation: an unrecognized expression (a bare
+  # module, an inline struct/union, a transform) has no default → required.
+
+  # constructors whose 1st argument, when not an options list, is a default value
+  @defaultable ~w(string integer float number boolean date datetime decimal atom)a
+
+  defp slot_of(expr) do
+    flags = slot_flags(expr, %{optional?: false, nullable?: false, default: :none})
+
+    cond do
+      flags.optional? -> :optional
+      match?({:fn, _, _}, flags.default) -> :lazy_default
+      match?({:&, _, _}, flags.default) -> :lazy_default
+      flags.default != :none -> {:default, flags.default}
+      flags.nullable? -> :nullable
+      true -> :required
+    end
+  end
+
+  defp slot_flags({:|>, _, [inner, call]}, acc) do
+    case {call_name(call), call_args(call)} do
+      {:default, [value]} -> slot_flags(inner, put_default(acc, value))
+      {:optional, []} -> slot_flags(inner, %{acc | optional?: true})
+      {:nullable, []} -> slot_flags(inner, %{acc | nullable?: true})
+      {name, _} when name in [:refine, :check, :annotate] -> slot_flags(inner, acc)
+      # decode_to/transform/… build a fresh node: the inner context is lost
+      _ -> acc
+    end
+  end
+
+  defp slot_flags({{:., _, [_mod, fun]}, _, args}, acc) when is_list(args),
+    do: slot_call(fun, args, acc)
+
+  defp slot_flags({fun, _, args}, acc) when is_atom(fun) and is_list(args),
+    do: slot_call(fun, args, acc)
+
+  defp slot_flags(_expr, acc), do: acc
+
+  defp slot_call(:default, [inner, value], acc), do: slot_flags(inner, put_default(acc, value))
+  defp slot_call(:optional, [inner], acc), do: slot_flags(inner, %{acc | optional?: true})
+  defp slot_call(:nullable, [inner], acc), do: slot_flags(inner, %{acc | nullable?: true})
+
+  defp slot_call(fun, [inner | _], acc) when fun in [:refine, :check, :annotate],
+    do: slot_flags(inner, acc)
+
+  # string("x"), integer(0), boolean(false), … — 1st non-list argument is the default
+  defp slot_call(fun, [first | _], acc) when fun in @defaultable and not is_list(first),
+    do: put_default(acc, first)
+
+  # list(inner, default: [...])
+  defp slot_call(:list, [_inner, opts], acc) when is_list(opts) do
+    case List.keyfind(opts, :default, 0) do
+      {:default, value} -> put_default(acc, value)
+      nil -> acc
+    end
+  end
+
+  defp slot_call(_fun, _args, acc), do: acc
+
+  # the outermost default/2 wins at runtime; we walk outermost-first, so first set wins
+  defp put_default(%{default: :none} = acc, value), do: %{acc | default: value}
+  defp put_default(acc, _value), do: acc
+
+  defp call_args({_fun, _, args}) when is_list(args), do: args
+  defp call_args(_), do: []
 
   # --- @type t derivation from the quoted expressions -----------------------
   #
