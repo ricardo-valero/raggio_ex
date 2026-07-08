@@ -37,6 +37,16 @@ defmodule Raggio.Schema.Definition do
         end
       end
 
+  Tagged unions take a bare-atom discriminator and a member list — literal
+  (`union(:kind, [Push, Webhook])`, derives a precise `@type t`) or **any
+  expression** evaluating to one (schemas are first-class values, as in effect):
+
+      schema do
+        union(:name, Enum.map(@catalog, fn {animal, sounds} ->
+          struct(name: literal(animal), sound: literal(sounds))
+        end))
+      end
+
   Every module gets `__schema__/0` (the runtime AST), `decode/1`, `decode!/1`, `encode/1`.
   The top-level head decides the extra codegen:
 
@@ -86,6 +96,16 @@ defmodule Raggio.Schema.Definition do
         generic_codegen(
           quote(do: Raggio.Schema.union(unquote(disc), unquote(rewrite(members)))),
           union_type_of(members)
+        )
+
+      # tagged union over a *computed* member list (Enum.map, a comprehension, …):
+      # a bare atom first argument is unambiguous — module aliases appear as
+      # {:__aliases__, _, _} nodes, never bare atoms — so route to the runtime
+      # union/2 and widen @type t (no compile-time members to derive from).
+      {:union, _, [disc, members]} when is_atom(disc) ->
+        generic_codegen(
+          quote(do: Raggio.Schema.union(unquote(disc), unquote(rewrite(members)))),
+          quote(do: term())
         )
 
       {:union, _, args} when is_list(args) and args != [] ->
@@ -264,7 +284,10 @@ defmodule Raggio.Schema.Definition do
                     "general form instead: any() |> decode_to(literal(values), &fold/1)"
         end
 
-      {:union, meta, [disc, members]} when is_atom(disc) and is_list(members) ->
+      # tagged: bare-atom discriminator + members (literal list or any computed
+      # expression). Prewalk descends into `members` afterwards, so combinator
+      # calls inside an Enum.map body or comprehension still get rewritten.
+      {:union, meta, [disc, members]} when is_atom(disc) ->
         qualified(:union, meta, [disc, members])
 
       {:union, meta, args} when is_list(args) and args != [] ->
@@ -419,6 +442,9 @@ defmodule Raggio.Schema.Definition do
   defp base_type(:union, [disc, members]) when is_atom(disc) and is_list(members) do
     union_type_of(members)
   end
+
+  # tagged union over a computed member list — nothing to derive from
+  defp base_type(:union, [disc, _members]) when is_atom(disc), do: quote(do: term())
 
   defp base_type(:union, args) when args != [] do
     args |> union_args() |> union_type_of()
