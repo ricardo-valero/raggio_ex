@@ -78,10 +78,14 @@ defmodule Raggio.Schema.Definition do
   )a
 
   defmacro schema(do: block) do
-    # `use Raggio.Schema` registers the decode-defaults attribute; ensure it
-    # exists for modules importing this macro directly.
+    # `use Raggio.Schema` registers the decode-defaults attribute; modules
+    # importing this macro directly still get the app-config defaults.
     unless Module.has_attribute?(__CALLER__.module, :raggio_decode_defaults) do
-      Module.put_attribute(__CALLER__.module, :raggio_decode_defaults, [])
+      Module.put_attribute(
+        __CALLER__.module,
+        :raggio_decode_defaults,
+        Application.compile_env(__CALLER__, :raggio, [:decode], [])
+      )
     end
 
     case block do
@@ -252,14 +256,21 @@ defmodule Raggio.Schema.Definition do
 
       Accepts the `Raggio.Schema.validate/3` options — e.g. `mode: :all_errors`
       to collect every failure, or `errors: :tree` for the issue tree — merged
-      over the module's `use Raggio.Schema, decode: [...]` defaults.
+      over the module's `use Raggio.Schema, decode: [...]` defaults (which
+      themselves sit over the app-wide `config :raggio, decode: [...]`).
       """
       def decode(data, opts \\ []),
         do:
           Raggio.Schema.validate(__schema__(), data, Keyword.merge(@raggio_decode_defaults, opts))
 
-      @doc "Like `decode/1` but raises `Raggio.Schema.ValidationError` on failure."
-      def decode!(data), do: Raggio.Schema.validate!(__schema__(), data, @raggio_decode_defaults)
+      @doc "Like `decode/2` but raises `Raggio.Schema.ValidationError` on failure."
+      def decode!(data, opts \\ []),
+        do:
+          Raggio.Schema.validate!(
+            __schema__(),
+            data,
+            Keyword.merge(@raggio_decode_defaults, opts)
+          )
 
       @doc "Encode a `t()` back to its wire representation."
       def encode(value), do: Raggio.Schema.encode(__schema__(), value)
