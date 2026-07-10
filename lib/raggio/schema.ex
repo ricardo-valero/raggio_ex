@@ -34,18 +34,40 @@ defmodule Raggio.Schema do
   ## Options
 
     * `:decode` — default options merged into every call of the generated
-      `decode/1,2` and `decode!/1` (call-site options win). For modules whose
+      `decode/1,2` and `decode!/1,2` (call-site options win). For modules whose
       consumers always want the same validate options, e.g. collect-all-errors
       for 422 responses:
 
           use Raggio.Schema, decode: [mode: :all_errors]
 
+  ## Application-wide defaults
+
+  An application that wants one decode policy everywhere can state it once
+  in config instead of on every `use`:
+
+      config :raggio, decode: [mode: :all_errors]
+
+  The config is read at compile time (`Application.compile_env/3` — changing
+  it recompiles the schema modules) and sits UNDER the per-module `use`
+  options, which sit under call-site options:
+
+      library default (:fail_fast)  <  config :raggio  <  use opts  <  decode/2 opts
+
+  So a module can always opt back out locally
+  (`use Raggio.Schema, decode: [mode: :fail_fast]`), and a single call can
+  override both. Note the config is global to the compiling application's
+  VM image — a library that needs a specific mode should say so in its
+  `use` options rather than rely on the host app's config.
   """
   defmacro __using__(opts) do
     quote do
       import Raggio.Schema.Definition, only: [schema: 1]
       alias Raggio.Schema
-      @raggio_decode_defaults Keyword.get(unquote(opts), :decode, [])
+
+      @raggio_decode_defaults Keyword.merge(
+                                Application.compile_env(:raggio, :decode, []),
+                                Keyword.get(unquote(opts), :decode, [])
+                              )
     end
   end
 
