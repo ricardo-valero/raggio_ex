@@ -39,6 +39,7 @@ defmodule Raggio.MixProject do
       {:decimal, "~> 2.0"},
       {:jason, "~> 1.4"},
       {:telemetry, "~> 1.0"},
+      {:nimble_parsec, "~> 1.4"},
 
       # Dev/Test
       {:ex_doc, "~> 0.31", only: :dev, runtime: false},

@@ -7,7 +7,7 @@ _schema =
   SheetSchema.define([
     {:id, Schema.integer()},
     {:name, Schema.string(min: 1)},
-    {:age, Schema.integer(min: 0), required: false}
+    {:age, Schema.integer(min: 0) |> Schema.optional()}
   ])
 
 IO.puts("Schema defined for: id (integer), name (string), age (optional integer)")

@@ -52,7 +52,7 @@ defmodule Raggio.BigQuery do
         end
       end
 
-  3. Define tables:
+  3. Define tables (Traditional approach):
 
       defmodule MyApp.Tables.Events do
         use Raggio.BigQuery.Table
@@ -78,6 +78,24 @@ defmodule Raggio.BigQuery do
         def __time_partitioning__, do: [field: :created_at, type: :day]
       end
 
+  3. Define schemas (Composable API - Drizzle-style):
+
+      import Raggio.BigQuery.Composer
+      alias Raggio.Schema
+
+      project("my-analytics-project")
+      |> dataset("analytics", location: "US")
+      |> table("events", [
+        column(:id, Schema.string() |> required()),
+        column(:event_type, Schema.string() |> required()),
+        column(:payload, Schema.string()),
+        column(:created_at, Schema.datetime() |> required())
+      ],
+        partition_by: {:field, :created_at, :day},
+        cluster_by: [:event_type]
+      )
+      |> build!()
+
   4. Use:
 
       # Check connectivity
@@ -94,6 +112,7 @@ defmodule Raggio.BigQuery do
 
   ## Modules
 
+  ### Core API
   - `Raggio.BigQuery.HTTPClient` - HTTP transport behaviour
   - `Raggio.BigQuery.Auth` - Authentication behaviour
   - `Raggio.BigQuery.Repo` - Repository behaviour (main interface)
@@ -101,6 +120,18 @@ defmodule Raggio.BigQuery do
   - `Raggio.BigQuery.API` - Low-level BigQuery REST API wrapper
   - `Raggio.BigQuery.Telemetry` - Telemetry instrumentation
   - `Raggio.BigQuery.Retry` - Exponential backoff for rate limits
+
+  ### Composable Schema API (Drizzle-style)
+  - `Raggio.BigQuery.Composer` - Fluent builder API for project hierarchies
+  - `Raggio.BigQuery.Project` - Project struct and operations
+  - `Raggio.BigQuery.Dataset` - Dataset struct and operations
+  - `Raggio.BigQuery.TableDef` - Table definition struct with DDL generation
+  - `Raggio.BigQuery.Column` - Column definition struct
+  - `Raggio.BigQuery.DDL.Parser` - Parse BigQuery DDL into schema definitions
+
+  ### Schema Adapters
+  - `Raggio.Schema.Adapter` - Adapter behaviour for bidirectional schema conversion
+  - `Raggio.Schema.Adapters.BigQuery` - BigQuery adapter implementation
 
   ## Telemetry Events
 
@@ -114,6 +145,11 @@ defmodule Raggio.BigQuery do
   - `[:raggio, :bigquery, :retry]` - Retry attempts
   """
 
+  # Telemetry delegations
   defdelegate span(event, metadata, fun), to: Raggio.BigQuery.Telemetry
   defdelegate emit(event, measurements \\ %{}, metadata \\ %{}), to: Raggio.BigQuery.Telemetry
+
+  # Composer API re-exports for convenience
+  defdelegate project(project_id, opts \\ []), to: Raggio.BigQuery.Composer
+  defdelegate from_modules(modules, project_id, opts \\ []), to: Raggio.BigQuery.Composer
 end
